@@ -62,6 +62,21 @@ def plan_repair(finding: QualityFinding) -> RepairPlan | ClarificationRequest:
             ),
         )
 
+    if finding.kind is FailureKind.TTS_INPUT_COMPATIBILITY:
+        return RepairPlan(
+            action=RepairAction.REPAIR_TTS_INPUT,
+            invalidates=frozenset(
+                {ArtifactKind.TTS_INPUT, ArtifactKind.VIDEO, ArtifactKind.CAPTIONS}
+            ),
+            requires_repair_input=True,
+            rationale=(
+                "Prepare and validate replacement provider-facing spoken text "
+                "for the selected TTS model before approval. Preserve the "
+                "authored script, avatar, and voice profile; regenerate any "
+                "video and captions produced from the unsafe input."
+            ),
+        )
+
     if finding.kind is FailureKind.CAPTION_FORMAT:
         return RepairPlan(
             action=RepairAction.REPAIR_CAPTIONS,

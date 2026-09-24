@@ -47,6 +47,31 @@ class WorkflowIntegrationTests(unittest.TestCase):
 
         self.assertEqual(self.provider.jobs_created, 0)
 
+    def test_tts_input_repair_waits_for_replacement_text_before_approval(self) -> None:
+        run = self.repository.create(
+            run_id="tts-input-1",
+            finding=QualityFinding(
+                kind=FailureKind.TTS_INPUT_COMPATIBILITY,
+                explanation="The voice reads 450*F as four hundred fifty star F",
+                confidence=0.98,
+            ),
+        )
+
+        self.assertEqual(run.status, WorkflowStatus.NEEDS_REPAIR_INPUT)
+        self.assertIsNone(run.clarification)
+        assert run.plan is not None
+        self.assertEqual(run.plan.action, RepairAction.REPAIR_TTS_INPUT)
+        self.assertIsNone(run.idempotency_key)
+        with self.assertRaisesRegex(ValueError, "not awaiting approval"):
+            self.repository.approve("tts-input-1")
+        with self.assertRaisesRegex(ValueError, "approved"):
+            WorkflowExecutor(repository=self.repository, provider=self.provider).submit(
+                "tts-input-1"
+            )
+        self.assertEqual(self.provider.jobs_created, 0)
+        persisted = WorkflowRepository(self.connection).get("tts-input-1")
+        self.assertEqual(persisted, run)
+
     def test_visual_retry_is_proposed_for_approval_not_launched(self) -> None:
         self.create_visual_quality_run()
 
@@ -113,6 +138,19 @@ class WorkflowIntegrationTests(unittest.TestCase):
                 "mismatch-script"
             )
         self.assertEqual(self.provider.jobs_created, 0)
+
+    def test_direct_script_repair_also_waits_for_replacement_input(self) -> None:
+        run = self.repository.create(
+            run_id="script-1",
+            finding=QualityFinding(
+                kind=FailureKind.SCRIPT_QUALITY,
+                explanation="The script is unclear",
+                confidence=0.9,
+            ),
+        )
+
+        self.assertEqual(run.status, WorkflowStatus.NEEDS_REPAIR_INPUT)
+        self.assertIsNone(run.idempotency_key)
 
     def test_avatar_selection_preserves_script_and_rejects_other_actions(self) -> None:
         self.repository.create(

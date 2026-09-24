@@ -51,7 +51,7 @@ class WorkflowRepository:
             plan = decision
             clarification = None
             initial_status = (
-                WorkflowStatus.NEEDS_INPUT
+                WorkflowStatus.NEEDS_REPAIR_INPUT
                 if plan.requires_repair_input
                 else WorkflowStatus.AWAITING_APPROVAL
             )
@@ -83,7 +83,11 @@ class WorkflowRepository:
                 plan.rationale if plan else "",
                 clarification.question if clarification else None,
                 _encode_options(clarification.options) if clarification else None,
-                f"workflow-run:{run_id}:{plan.action}" if plan else None,
+                (
+                    f"workflow-run:{run_id}:{plan.action}"
+                    if plan and not plan.requires_repair_input
+                    else None
+                ),
             ),
         )
         self._connection.commit()

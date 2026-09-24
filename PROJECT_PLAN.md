@@ -64,7 +64,8 @@ For each finding, the system should answer:
 
 ### In scope
 
-- Versioned scripts, avatars, voices, videos, and captions.
+- Versioned scripts, derived provider-facing TTS inputs, avatars, voices, videos,
+  and captions.
 - Pre-render script-quality, provider-specific TTS-input compatibility, and
   script/environment compatibility checks.
 - Post-render speech, caption, and visual-quality checks.
@@ -108,16 +109,18 @@ an initial failure class.
 | Poor script quality | Before rendering | Revise and approve script, then regenerate descendants | Avatar and voice |
 | Script/environment mismatch | Before rendering | Ask whether to change script or avatar, then regenerate descendants | Unselected branch |
 | TTS input incompatibility or incorrect speech rendering | Before rendering | Normalize and validate provider-facing text for the selected model, then regenerate descendants if already rendered | Authored script intent, avatar, and voice profile |
+| Caption formatting defect | After rendering | Repair captions without regenerating acceptable video | Script, avatar, voice, and video |
 | Jerky or unnatural video | After rendering | Retry video, then regenerate dependent captions | Approved script, avatar, and voice |
 
 The policy must prohibit unnecessary regeneration. Creative intent that cannot
 be inferred safely remains unresolved until a human clarifies it.
 
-`requires_repair_input` means the plan needs a replacement script or avatar
-before approval. A visual-quality finding needs no such input when it can reuse
-approved inputs, but the retry still requires human approval. The current slice
-accepts a preclassified finding; the visual evidence and threshold that would
-produce one automatically remain an open evaluation question.
+`requires_repair_input` means the plan needs a replacement script, provider-
+facing TTS input, or avatar before approval. A visual-quality finding needs no
+such input when it can reuse approved inputs, but the retry still requires
+human approval. The current slice accepts a preclassified finding; the visual
+evidence and threshold that would produce one automatically remain an open
+evaluation question.
 
 ## 8. Agent and application responsibilities
 
@@ -186,7 +189,7 @@ Microservices, Kafka, and Kubernetes are not default milestones.
 Media and lineage:
 
 - `Project`, `Persona`
-- `ScriptVersion`, `AvatarVersion`, `VoiceVersion`
+- `ScriptVersion`, `TtsInputVersion`, `AvatarVersion`, `VoiceVersion`
 - `VideoVersion`, `CaptionVersion`
 - `ArtifactDependency`
 
@@ -211,9 +214,9 @@ approval.
 The intended state progression is:
 
 ```text
-needs_input
+needs_input (only when a human choice is unresolved)
       ↓
-needs_repair_input (when a selected repair needs a replacement artifact)
+needs_repair_input (when a repair needs a replacement artifact)
       ↓
 awaiting_approval
       ↓
@@ -314,10 +317,6 @@ These questions should be resolved through implementation evidence and recorded
 in architectural decision records:
 
 - What rubric makes poor script quality consistent enough to evaluate?
-- Should provider-safe spoken text be an immutable derived artifact distinct
-  from the approved authored script?
-- Should TTS compatibility rules live in provider adapters, a shared
-  normalization layer, or both?
 - What metadata is sufficient for script/environment compatibility before
   image analysis adds value?
 - Which visual failures can be detected deterministically, and which require a
