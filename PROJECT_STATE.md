@@ -30,10 +30,10 @@ is under review in PR #1.
 ## Active Work
 
 Documentation has been separated by purpose: `PROJECT_PLAN.md` holds the stable
-product and technical thesis, `BACKLOG.md` is the temporary working task list,
-`docs/adr/` records decisions, and `CONTRIBUTING.md` records repository
-workflow. GitHub issues have not yet replaced the temporary backlog.
-The initial feature branch is open for review in PR #1.
+product and technical thesis, [24 GitHub issues](https://github.com/woolnerd/media-qc-agent/issues)
+across six milestones track active work and acceptance criteria, `docs/adr/`
+records decisions, and `CONTRIBUTING.md` records repository workflow. The
+initial feature branch is open for review in PR #1.
 
 No Phase 1 implementation work is confirmed to have started. A domain mismatch
 was identified during documentation review: the implemented caption-format
