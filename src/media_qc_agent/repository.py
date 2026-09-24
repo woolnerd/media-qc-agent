@@ -12,7 +12,7 @@ from .domain import (
     RepairPlan,
 )
 from .planner import plan_repair, select_repair
-from .workflow import WorkflowRun, WorkflowStatus
+from .workflow import ProviderEvent, ProviderJob, WorkflowRun, WorkflowStatus
 
 
 class WorkflowRepository:
@@ -21,6 +21,7 @@ class WorkflowRepository:
         self._connection.row_factory = sqlite3.Row
 
     def initialize(self) -> None:
+        self._connection.execute("PRAGMA foreign_keys = ON")
         self._connection.execute(
             """
             CREATE TABLE IF NOT EXISTS workflow_runs (
@@ -36,6 +37,28 @@ class WorkflowRepository:
                 external_job_id TEXT,
                 created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),
                 updated_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))
+            )
+            """
+        )
+        self._connection.execute(
+            """
+            CREATE TABLE IF NOT EXISTS provider_jobs (
+                external_job_id TEXT PRIMARY KEY,
+                run_id TEXT NOT NULL REFERENCES workflow_runs(id),
+                idempotency_key TEXT NOT NULL UNIQUE,
+                action TEXT NOT NULL,
+                created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))
+            )
+            """
+        )
+        self._connection.execute(
+            """
+            CREATE TABLE IF NOT EXISTS provider_events (
+                external_event_id TEXT PRIMARY KEY,
+                external_job_id TEXT NOT NULL REFERENCES provider_jobs(external_job_id),
+                event_type TEXT NOT NULL CHECK (event_type = 'completed'),
+                result_status TEXT NOT NULL,
+                created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))
             )
             """
         )
@@ -159,24 +182,105 @@ class WorkflowRepository:
         if current.status is not WorkflowStatus.READY:
             raise ValueError("workflow is not ready for provider submission")
 
-        result = self._connection.execute(
-            """
-            UPDATE workflow_runs
-            SET status = ?, external_job_id = ?,
-                updated_at = strftime('%Y-%m-%dT%H:%M:%fZ', 'now')
-            WHERE id = ? AND status = ?
-            """,
-            (
-                WorkflowStatus.SUBMITTED,
-                external_job_id,
-                run_id,
-                WorkflowStatus.READY,
-            ),
-        )
-        self._connection.commit()
-        if result.rowcount != 1:
-            raise RuntimeError("workflow state changed during provider submission")
+        if current.plan is None or current.idempotency_key is None:
+            raise ValueError("workflow has no executable repair plan")
+        with self._connection:
+            self._connection.execute(
+                """
+                INSERT INTO provider_jobs (
+                    external_job_id, run_id, idempotency_key, action
+                ) VALUES (?, ?, ?, ?)
+                """,
+                (
+                    external_job_id,
+                    run_id,
+                    current.idempotency_key,
+                    current.plan.action,
+                ),
+            )
+            result = self._connection.execute(
+                """
+                UPDATE workflow_runs
+                SET status = ?, external_job_id = ?,
+                    updated_at = strftime('%Y-%m-%dT%H:%M:%fZ', 'now')
+                WHERE id = ? AND status = ?
+                """,
+                (
+                    WorkflowStatus.SUBMITTED,
+                    external_job_id,
+                    run_id,
+                    WorkflowStatus.READY,
+                ),
+            )
+            if result.rowcount != 1:
+                raise RuntimeError("workflow state changed during provider submission")
         return self.get(run_id)
+
+    def record_completion(
+        self, *, external_job_id: str, external_event_id: str
+    ) -> WorkflowRun:
+        """Persist a completion and advance its run once, even on redelivery."""
+
+        with self._connection:
+            job = self.get_provider_job(external_job_id)
+            inserted = self._connection.execute(
+                """
+                INSERT OR IGNORE INTO provider_events (
+                    external_event_id, external_job_id, event_type, result_status
+                ) VALUES (?, ?, 'completed', ?)
+                """,
+                (external_event_id, external_job_id, WorkflowStatus.SUCCEEDED),
+            )
+            if inserted.rowcount == 0:
+                existing = self.get_provider_event(external_event_id)
+                if existing.external_job_id != external_job_id:
+                    raise ValueError("event identifier belongs to another provider job")
+                return self.get(job.run_id)
+
+            updated = self._connection.execute(
+                """
+                UPDATE workflow_runs
+                SET status = ?, updated_at = strftime('%Y-%m-%dT%H:%M:%fZ', 'now')
+                WHERE id = ? AND status = ?
+                """,
+                (WorkflowStatus.SUCCEEDED, job.run_id, WorkflowStatus.SUBMITTED),
+            )
+            if (
+                updated.rowcount != 1
+                and self.get(job.run_id).status is not WorkflowStatus.SUCCEEDED
+            ):
+                raise ValueError("workflow is not awaiting provider completion")
+        return self.get(job.run_id)
+
+    def get_provider_job(self, external_job_id: str) -> ProviderJob:
+        row = self._connection.execute(
+            "SELECT * FROM provider_jobs WHERE external_job_id = ?",
+            (external_job_id,),
+        ).fetchone()
+        if row is None:
+            raise KeyError(external_job_id)
+        return ProviderJob(
+            external_job_id=row["external_job_id"],
+            run_id=row["run_id"],
+            idempotency_key=row["idempotency_key"],
+            action=row["action"],
+            created_at=row["created_at"],
+        )
+
+    def get_provider_event(self, external_event_id: str) -> ProviderEvent:
+        row = self._connection.execute(
+            "SELECT * FROM provider_events WHERE external_event_id = ?",
+            (external_event_id,),
+        ).fetchone()
+        if row is None:
+            raise KeyError(external_event_id)
+        return ProviderEvent(
+            external_event_id=row["external_event_id"],
+            external_job_id=row["external_job_id"],
+            event_type=row["event_type"],
+            result_status=WorkflowStatus(row["result_status"]),
+            created_at=row["created_at"],
+        )
 
     def get(self, run_id: str) -> WorkflowRun:
         row = self._connection.execute(

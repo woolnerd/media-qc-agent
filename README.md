@@ -45,13 +45,15 @@ It currently demonstrates:
 - a persisted clarification request with separate script and avatar repair
   options, followed by a specific plan when a human selects one;
 - durable SQLite workflow state;
+- persisted provider jobs and deduplicated completion events;
 - a stable idempotency key for external submission; and
 - recovery from a crash after provider acceptance without creating a second
   paid job.
 
-It does **not** yet inspect raw images or videos, call an LLM, process provider
-callbacks, or expose an API or UI. Those capabilities remain planned work, and
-the GitHub issues keep that distinction explicit.
+It does **not** yet inspect raw images or videos, call an LLM, expose a provider
+callback API or UI, or create versioned output artifacts from completions.
+Those capabilities remain planned work, and the GitHub issues keep that
+distinction explicit.
 
 ## Why the boundary matters
 
