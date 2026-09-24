@@ -1,2 +1,83 @@
-# media-qc-agent
-Quality supervision and human-approved repair workflows for AI-generated media.
+# Media QC Agent
+
+AI-media pipelines often discover defects only after their most expensive
+artifact has been generated. Media QC Agent explores how to catch those
+failures earlier, preserve valid upstream work, and safely coordinate
+human-approved repairs across asynchronous provider jobs.
+
+This is a focused, clean-room implementation built with synthetic data. It
+investigates the engineering tradeoffs behind versioned media workflows,
+model-assisted diagnosis, durable execution, and idempotent recovery; it does
+not reproduce a former client product or claim production-scale readiness.
+
+## Start here
+
+- [`PROJECT_PLAN.md`](PROJECT_PLAN.md) — the stable product and technical
+  thesis: what the system should do and why.
+- [GitHub issues](https://github.com/woolnerd/media-qc-agent/issues) — active
+  implementation tasks and acceptance criteria, grouped by milestones.
+- [`docs/adr/`](docs/adr/) — decisions, alternatives, and consequences.
+- [`PROJECT_STATE.md`](PROJECT_STATE.md) — the current handoff snapshot.
+- [`CONTRIBUTING.md`](CONTRIBUTING.md) — development and verification workflow.
+
+## Current executable slice
+
+The first slice establishes the deterministic safety boundary that a future
+agent must obey after a quality finding is classified:
+
+```text
+structured quality finding
+          ↓
+minimum-repair policy
+          ↓
+durable workflow record
+          ↓
+human approval
+          ↓
+idempotent provider submission
+```
+
+It currently demonstrates:
+
+- a pure repair policy for four failure classes;
+- a distinction between unresolved creative input and executable approval;
+- a persisted clarification request with separate script and avatar repair
+  options, followed by a specific plan when a human selects one;
+- durable SQLite workflow state;
+- a stable idempotency key for external submission; and
+- recovery from a crash after provider acceptance without creating a second
+  paid job.
+
+It does **not** yet inspect raw images or videos, call an LLM, process provider
+callbacks, or expose an API or UI. Those capabilities remain planned work, and
+the GitHub issues keep that distinction explicit.
+
+## Why the boundary matters
+
+The model-facing layer may eventually interpret ambiguous feedback and evaluate
+artifacts, but it will not receive unrestricted authority over regeneration.
+Deterministic application code decides which transitions are valid, which
+artifacts are invalidated, whether approval is current, and whether an external
+side effect is safe to execute.
+
+For example, jerky visual output should invalidate the video and its derived
+captions while preserving the approved script, avatar, and voice. A bad script
+has a wider invalidation boundary because its descendants no longer represent
+approved input.
+
+The code follows the same boundary: `workflow.py` defines shared run state,
+`repository.py` owns SQLite schema and transitions, and `executor.py` submits
+approved work through a small store interface and the provider adapter.
+
+## Run the tests
+
+No third-party packages are required for the current slice.
+
+```bash
+PYTHONPATH=src python3 -m unittest discover -s tests -v
+```
+
+The test suite includes the uncertain-outcome case where a provider accepts a
+job and the process crashes before saving the provider job ID. On restart, the
+executor retries with the same idempotency key and receives the original job
+instead of creating a duplicate.
