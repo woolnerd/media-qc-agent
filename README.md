@@ -39,7 +39,8 @@ idempotent provider submission
 
 It currently demonstrates:
 
-- a pure repair policy for four failure classes;
+- a pure repair policy for five failure classes, distinguishing TTS input
+  compatibility from caption defects;
 - a distinction between unresolved creative input and executable approval;
 - a persisted clarification request with separate script and avatar repair
   options, followed by a specific plan when a human selects one;

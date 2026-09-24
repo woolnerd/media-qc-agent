@@ -6,6 +6,7 @@ from enum import StrEnum
 
 class ArtifactKind(StrEnum):
     SCRIPT = "script"
+    TTS_INPUT = "tts_input"
     AVATAR = "avatar"
     VOICE = "voice"
     VIDEO = "video"
@@ -15,12 +16,14 @@ class ArtifactKind(StrEnum):
 class FailureKind(StrEnum):
     SCRIPT_QUALITY = "script_quality"
     ENVIRONMENT_MISMATCH = "environment_mismatch"
+    TTS_INPUT_COMPATIBILITY = "tts_input_compatibility"
     CAPTION_FORMAT = "caption_format"
     VISUAL_QUALITY = "visual_quality"
 
 
 class RepairAction(StrEnum):
     REVISE_SCRIPT = "revise_script"
+    REPAIR_TTS_INPUT = "repair_tts_input"
     CHANGE_AVATAR = "change_avatar"
     REPAIR_CAPTIONS = "repair_captions"
     REGENERATE_VIDEO = "regenerate_video"

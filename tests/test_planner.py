@@ -20,6 +20,28 @@ def finding(kind: FailureKind) -> QualityFinding:
 
 
 class PlanRepairTests(unittest.TestCase):
+    def test_tts_input_failure_repairs_derived_text_and_outputs_only(self) -> None:
+        plan = plan_repair(
+            QualityFinding(
+                kind=FailureKind.TTS_INPUT_COMPATIBILITY,
+                explanation=(
+                    "The selected voice reads 450*F as four hundred fifty star F"
+                ),
+                confidence=0.98,
+            )
+        )
+        assert isinstance(plan, RepairPlan)
+
+        self.assertEqual(plan.action, RepairAction.REPAIR_TTS_INPUT)
+        self.assertEqual(
+            plan.invalidates,
+            {ArtifactKind.TTS_INPUT, ArtifactKind.VIDEO, ArtifactKind.CAPTIONS},
+        )
+        self.assertNotIn(ArtifactKind.SCRIPT, plan.invalidates)
+        self.assertNotIn(ArtifactKind.AVATAR, plan.invalidates)
+        self.assertNotIn(ArtifactKind.VOICE, plan.invalidates)
+        self.assertTrue(plan.requires_repair_input)
+
     def test_bad_script_invalidates_only_script_and_its_outputs(self) -> None:
         plan = plan_repair(finding(FailureKind.SCRIPT_QUALITY))
         assert isinstance(plan, RepairPlan)
@@ -59,7 +81,13 @@ class PlanRepairTests(unittest.TestCase):
         )
 
     def test_caption_failure_does_not_regenerate_video(self) -> None:
-        plan = plan_repair(finding(FailureKind.CAPTION_FORMAT))
+        plan = plan_repair(
+            QualityFinding(
+                kind=FailureKind.CAPTION_FORMAT,
+                explanation="Captions contain an incorrect line break",
+                confidence=0.9,
+            )
+        )
         assert isinstance(plan, RepairPlan)
 
         self.assertEqual(plan.action, RepairAction.REPAIR_CAPTIONS)
