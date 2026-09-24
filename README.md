@@ -14,8 +14,8 @@ not reproduce a former client product or claim production-scale readiness.
 
 - [`PROJECT_PLAN.md`](PROJECT_PLAN.md) — the stable product and technical
   thesis: what the system should do and why.
-- [`BACKLOG.md`](BACKLOG.md) — the temporary working task list, to be replaced
-  by GitHub issues and milestones.
+- [GitHub issues](https://github.com/woolnerd/media-qc-agent/issues) — active
+  implementation tasks and acceptance criteria, grouped by milestones.
 - [`docs/adr/`](docs/adr/) — decisions, alternatives, and consequences.
 - [`PROJECT_STATE.md`](PROJECT_STATE.md) — the current handoff snapshot.
 - [`CONTRIBUTING.md`](CONTRIBUTING.md) — development and verification workflow.
@@ -50,7 +50,7 @@ It currently demonstrates:
 
 It does **not** yet inspect raw images or videos, call an LLM, process provider
 callbacks, or expose an API or UI. Those capabilities remain planned work, and
-the backlog keeps that distinction explicit.
+the GitHub issues keep that distinction explicit.
 
 ## Why the boundary matters
 

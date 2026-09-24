@@ -292,8 +292,7 @@ and links to application and model traces.
 7. Polish synthetic assets, documentation, and the demonstration.
 
 Milestones describe durable outcomes rather than the current task list. Active
-work and acceptance criteria belong in [`BACKLOG.md`](BACKLOG.md) until GitHub
-issues become the system of record.
+work and acceptance criteria belong in [GitHub issues](https://github.com/woolnerd/media-qc-agent/issues).
 
 ## 16. Success criteria
 

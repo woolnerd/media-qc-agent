@@ -28,7 +28,6 @@ tools are introduced. All configured checks must pass before a commit.
 
 - Change `PROJECT_PLAN.md` only when the product or architectural direction
   changes.
-- Maintain active implementation work in GitHub issues; use `BACKLOG.md` only
-  until those issues exist.
+- Maintain active implementation work and acceptance criteria in GitHub issues.
 - Record consequential technical choices in `docs/adr/`.
 - Update `PROJECT_STATE.md` at meaningful handoffs rather than after every task.
