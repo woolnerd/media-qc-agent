@@ -15,6 +15,13 @@ class WorkflowStatus(StrEnum):
     SUCCEEDED = "succeeded"
 
 
+class ProviderEventDisposition(StrEnum):
+    APPLIED = "applied"
+    STALE = "stale"
+    REDUNDANT = "redundant"
+    REJECTED = "rejected"
+
+
 @dataclass(frozen=True)
 class WorkflowRun:
     id: str
@@ -42,4 +49,23 @@ class ProviderEvent:
     external_job_id: str
     event_type: str
     result_status: WorkflowStatus
+    disposition: ProviderEventDisposition
+    reason: str | None
     created_at: str
+
+
+def classify_completion(
+    *, job_is_active: bool, status: WorkflowStatus
+) -> tuple[ProviderEventDisposition, str | None]:
+    """Decide whether a provider completion may advance the current run."""
+
+    if not job_is_active:
+        return ProviderEventDisposition.STALE, "provider job is no longer active"
+    if status is WorkflowStatus.SUBMITTED:
+        return ProviderEventDisposition.APPLIED, None
+    if status is WorkflowStatus.SUCCEEDED:
+        return ProviderEventDisposition.REDUNDANT, "provider job already completed"
+    return (
+        ProviderEventDisposition.REJECTED,
+        f"active provider job cannot complete while workflow is {status.value}",
+    )

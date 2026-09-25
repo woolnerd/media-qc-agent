@@ -12,7 +12,14 @@ from .domain import (
     RepairPlan,
 )
 from .planner import plan_repair, select_repair
-from .workflow import ProviderEvent, ProviderJob, WorkflowRun, WorkflowStatus
+from .workflow import (
+    ProviderEvent,
+    ProviderEventDisposition,
+    ProviderJob,
+    WorkflowRun,
+    WorkflowStatus,
+    classify_completion,
+)
 
 
 class WorkflowRepository:
@@ -58,6 +65,8 @@ class WorkflowRepository:
                 external_job_id TEXT NOT NULL REFERENCES provider_jobs(external_job_id),
                 event_type TEXT NOT NULL CHECK (event_type = 'completed'),
                 result_status TEXT NOT NULL,
+                disposition TEXT NOT NULL,
+                reason TEXT,
                 created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))
             )
             """
@@ -219,17 +228,30 @@ class WorkflowRepository:
     def record_completion(
         self, *, external_job_id: str, external_event_id: str
     ) -> WorkflowRun:
-        """Persist a completion and advance its run once, even on redelivery."""
+        """Audit a completion and advance only the currently submitted job."""
 
         with self._connection:
+            self._connection.execute("BEGIN IMMEDIATE")
             job = self.get_provider_job(external_job_id)
+            run = self.get(job.run_id)
+            disposition, reason = classify_completion(
+                job_is_active=run.external_job_id == external_job_id,
+                status=run.status,
+            )
             inserted = self._connection.execute(
                 """
                 INSERT OR IGNORE INTO provider_events (
-                    external_event_id, external_job_id, event_type, result_status
-                ) VALUES (?, ?, 'completed', ?)
+                    external_event_id, external_job_id, event_type, result_status,
+                    disposition, reason
+                ) VALUES (?, ?, 'completed', ?, ?, ?)
                 """,
-                (external_event_id, external_job_id, WorkflowStatus.SUCCEEDED),
+                (
+                    external_event_id,
+                    external_job_id,
+                    WorkflowStatus.SUCCEEDED,
+                    disposition,
+                    reason,
+                ),
             )
             if inserted.rowcount == 0:
                 existing = self.get_provider_event(external_event_id)
@@ -237,20 +259,56 @@ class WorkflowRepository:
                     raise ValueError("event identifier belongs to another provider job")
                 return self.get(job.run_id)
 
+            if disposition is ProviderEventDisposition.APPLIED:
+                updated = self._connection.execute(
+                    """
+                    UPDATE workflow_runs
+                    SET status = ?, updated_at = strftime('%Y-%m-%dT%H:%M:%fZ', 'now')
+                    WHERE id = ? AND status = ? AND external_job_id = ?
+                    """,
+                    (
+                        WorkflowStatus.SUCCEEDED,
+                        job.run_id,
+                        WorkflowStatus.SUBMITTED,
+                        external_job_id,
+                    ),
+                )
+                if updated.rowcount != 1:
+                    raise RuntimeError(
+                        "workflow state changed during provider completion"
+                    )
+        return self.get(job.run_id)
+
+    def request_retry(self, run_id: str) -> WorkflowRun:
+        """Supersede an in-flight job and require approval for a new attempt."""
+
+        with self._connection:
+            self._connection.execute("BEGIN IMMEDIATE")
+            current = self.get(run_id)
+            if current.status is not WorkflowStatus.SUBMITTED or current.plan is None:
+                raise ValueError("workflow has no submitted job to retry")
+            attempts = self._connection.execute(
+                "SELECT COUNT(*) FROM provider_jobs WHERE run_id = ?", (run_id,)
+            ).fetchone()[0]
+            key = f"workflow-run:{run_id}:{current.plan.action}:retry-{attempts}"
             updated = self._connection.execute(
                 """
                 UPDATE workflow_runs
-                SET status = ?, updated_at = strftime('%Y-%m-%dT%H:%M:%fZ', 'now')
-                WHERE id = ? AND status = ?
+                SET status = ?, idempotency_key = ?, external_job_id = NULL,
+                    updated_at = strftime('%Y-%m-%dT%H:%M:%fZ', 'now')
+                WHERE id = ? AND status = ? AND external_job_id = ?
                 """,
-                (WorkflowStatus.SUCCEEDED, job.run_id, WorkflowStatus.SUBMITTED),
+                (
+                    WorkflowStatus.AWAITING_APPROVAL,
+                    key,
+                    run_id,
+                    WorkflowStatus.SUBMITTED,
+                    current.external_job_id,
+                ),
             )
-            if (
-                updated.rowcount != 1
-                and self.get(job.run_id).status is not WorkflowStatus.SUCCEEDED
-            ):
-                raise ValueError("workflow is not awaiting provider completion")
-        return self.get(job.run_id)
+            if updated.rowcount != 1:
+                raise RuntimeError("workflow state changed during retry request")
+        return self.get(run_id)
 
     def get_provider_job(self, external_job_id: str) -> ProviderJob:
         row = self._connection.execute(
@@ -279,6 +337,8 @@ class WorkflowRepository:
             external_job_id=row["external_job_id"],
             event_type=row["event_type"],
             result_status=WorkflowStatus(row["result_status"]),
+            disposition=ProviderEventDisposition(row["disposition"]),
+            reason=row["reason"],
             created_at=row["created_at"],
         )
 
