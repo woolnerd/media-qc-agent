@@ -17,7 +17,8 @@ not reproduce a former client product or claim production-scale readiness.
 - [GitHub issues](https://github.com/woolnerd/media-qc-agent/issues) — active
   implementation tasks and acceptance criteria, grouped by milestones.
 - [`docs/adr/`](docs/adr/) — decisions, alternatives, and consequences.
-- [`PROJECT_STATE.md`](PROJECT_STATE.md) — the current handoff snapshot.
+- [`docs/architecture/milestone-1.html`](docs/architecture/milestone-1.html) —
+  visual guide to the implemented workflow and artifact lineage.
 - [`CONTRIBUTING.md`](CONTRIBUTING.md) — development and verification workflow.
 - [`docs/adr/0010-use-readable-demo-ids.md`](docs/adr/0010-use-readable-demo-ids.md)
   — the ID format and ownership rules used by this demo.

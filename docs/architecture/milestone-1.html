@@ -1,0 +1,186 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Milestone 1 · Media QC Agent</title>
+  <style>
+    :root {
+      color-scheme: light;
+      --ink: #142635;
+      --muted: #516373;
+      --line: #d7e2e7;
+      --paper: #f6f9f8;
+      --white: #fff;
+      --teal: #076d68;
+      --teal-soft: #e4f4f0;
+      --blue: #205b9c;
+      --blue-soft: #e9f1fb;
+      --amber: #925b0e;
+      --amber-soft: #fff3dc;
+      --red: #9a3939;
+      --red-soft: #fbecec;
+      --shadow: 0 12px 35px rgba(20, 38, 53, .07);
+    }
+    * { box-sizing: border-box; }
+    html { scroll-behavior: smooth; }
+    body { margin: 0; background: var(--paper); color: var(--ink); font: 16px/1.55 -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
+    a { color: var(--blue); }
+    a:hover { text-decoration-thickness: 2px; }
+    .wrap { width: min(1120px, calc(100% - 40px)); margin: auto; }
+    .hero { background: linear-gradient(125deg, #102a39, #174c50 70%, #246b65); color: #fff; padding: 64px 0 52px; }
+    .eyebrow { color: #a7e6d6; font-size: .75rem; font-weight: 800; letter-spacing: .17em; text-transform: uppercase; }
+    h1 { max-width: 760px; margin: 14px 0; font-size: clamp(2.3rem, 5vw, 4.3rem); line-height: 1.06; letter-spacing: -.045em; }
+    .hero p { max-width: 710px; margin: 0; color: #d6e9e8; font-size: 1.12rem; }
+    .facts { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 28px; }
+    .fact { border: 1px solid #81b6b044; border-radius: 999px; padding: 6px 12px; background: #ffffff12; color: #e1f6f0; font-size: .88rem; }
+    nav { display: flex; flex-wrap: wrap; gap: 10px 24px; margin: 24px auto 34px; font-size: .92rem; font-weight: 650; }
+    nav a { text-decoration: none; }
+    section { margin-bottom: 28px; padding: 30px; border: 1px solid var(--line); border-radius: 20px; background: var(--white); box-shadow: var(--shadow); }
+    h2 { margin: 0 0 8px; font-size: 1.7rem; letter-spacing: -.025em; }
+    h3 { margin: 0 0 8px; font-size: 1.08rem; }
+    section > p { max-width: 800px; margin: 0 0 20px; color: var(--muted); }
+    .kicker { display: block; margin-bottom: 8px; color: var(--teal); font-size: .75rem; font-weight: 800; letter-spacing: .13em; text-transform: uppercase; }
+    .scroll { overflow-x: auto; padding: 2px 0 10px; }
+    .lane { min-width: 820px; display: grid; grid-template-columns: 130px 1fr; align-items: center; gap: 16px; margin: 12px 0; }
+    .lane-label { color: var(--muted); font-size: .82rem; font-weight: 750; letter-spacing: .08em; text-transform: uppercase; }
+    .flow { display: flex; align-items: stretch; gap: 10px; }
+    .node { flex: 1; min-width: 0; padding: 14px 15px; border: 1px solid #b9d8d2; border-radius: 12px; background: var(--teal-soft); }
+    .node.blue { border-color: #c1d5ee; background: var(--blue-soft); }
+    .node.amber { border-color: #eed4a1; background: var(--amber-soft); }
+    .node strong, .node small { display: block; }
+    .node strong { line-height: 1.25; }
+    .node small { margin-top: 3px; color: var(--muted); font-size: .78rem; }
+    .arrow { align-self: center; flex: none; color: var(--teal); font-size: 1.35rem; font-weight: 800; }
+    .caption { margin: 10px 0 0; color: var(--muted); font-size: .9rem; }
+    .state-flow { min-width: 880px; display: flex; align-items: center; gap: 9px; margin: 18px 0; }
+    .state { flex: 1; padding: 12px 8px; text-align: center; border: 1px solid #b9d8d2; border-radius: 12px; background: var(--teal-soft); color: #075b56; font-size: .85rem; font-weight: 750; }
+    .state.optional { border-color: #eed4a1; background: var(--amber-soft); color: var(--amber); }
+    .state.end { border-color: #b8d2f0; background: var(--blue-soft); color: var(--blue); }
+    .route-notes { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-top: 14px; }
+    .note { padding: 14px; border-radius: 12px; background: #f4f7f8; color: var(--muted); font-size: .9rem; }
+    .note strong { display: block; color: var(--ink); }
+    .lineage { min-width: 850px; display: grid; grid-template-columns: 1.6fr 32px 1fr 32px 1fr; gap: 12px; align-items: center; margin: 12px 0; }
+    .source-set { display: flex; flex-wrap: wrap; gap: 6px; }
+    code, .chip { font: .84rem/1.35 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
+    .chip { border: 1px solid #cfdfe3; border-radius: 8px; padding: 5px 7px; background: #f4f8f8; }
+    .artifact { padding: 13px; border: 1px solid #c1d5ee; border-radius: 12px; background: var(--blue-soft); }
+    .artifact.caption-artifact { border-color: #b9d8d2; background: var(--teal-soft); }
+    .artifact strong, .artifact small { display: block; }
+    .artifact small { color: var(--muted); }
+    .active { display: inline-block; margin-top: 5px; padding: 2px 7px; border-radius: 999px; background: var(--blue); color: #fff; font: 700 .7rem/1.4 -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
+    table { width: 100%; border-collapse: collapse; font-size: .91rem; }
+    th, td { padding: 11px 12px; border-bottom: 1px solid var(--line); text-align: left; vertical-align: top; }
+    th { color: var(--muted); font-size: .76rem; letter-spacing: .08em; text-transform: uppercase; }
+    tr:last-child td { border-bottom: 0; }
+    .tag { display: inline-block; padding: 2px 7px; border-radius: 6px; font: 700 .79rem ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
+    .tag.good { background: var(--teal-soft); color: var(--teal); }
+    .tag.wait { background: var(--amber-soft); color: var(--amber); }
+    .tag.bad { background: var(--red-soft); color: var(--red); }
+    .talk { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; }
+    .talk article { padding: 18px; border: 1px solid var(--line); border-radius: 14px; background: #f9fbfb; }
+    .talk p { margin: 0; color: var(--muted); font-size: .91rem; }
+    .command { display: inline-block; max-width: 100%; overflow-x: auto; padding: 9px 12px; border-radius: 9px; background: #102a39; color: #e0f4ed; }
+    footer { margin: 20px auto 55px; color: var(--muted); font-size: .87rem; }
+    @media (max-width: 700px) {
+      .hero { padding: 44px 0 38px; }
+      section { padding: 21px; }
+      .route-notes, .talk { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+  <header class="hero">
+    <div class="wrap">
+      <div class="eyebrow">Media QC Agent · Implementation map</div>
+      <h1>Milestone 1:<br>safe provider retries</h1>
+      <p>How a quality finding becomes an approved repair, how callbacks are classified, and why earlier media versions remain traceable.</p>
+      <div class="facts">
+        <span class="fact">Synthetic inputs and provider</span>
+        <span class="fact">SQLite workflow state</span>
+        <span class="fact">Immutable artifact lineage</span>
+      </div>
+    </div>
+  </header>
+
+  <main class="wrap">
+    <nav aria-label="Page sections">
+      <a href="#boundary">System boundary</a>
+      <a href="#states">Workflow states</a>
+      <a href="#lineage">Artifact lineage</a>
+      <a href="#callbacks">Callback rules</a>
+      <a href="#interview">Interview story</a>
+    </nav>
+
+    <section id="boundary">
+      <span class="kicker">01 · Architecture</span>
+      <h2>Who owns each decision?</h2>
+      <p>The model-facing decision is limited to diagnosis and proposal. Deterministic code controls approval, provider submission, and artifact promotion.</p>
+      <div class="scroll" role="img" aria-label="Three lanes: findings move through repair policy to the repository; human approval is recorded by the repository; the executor calls a fake provider and synthetic callbacks return to the repository.">
+        <div class="lane"><div class="lane-label">Decide</div><div class="flow"><div class="node"><strong>Quality finding</strong><small>Structured diagnosis</small></div><span class="arrow">→</span><div class="node"><strong>Pure repair policy</strong><small>Minimum safe repair</small></div><span class="arrow">→</span><div class="node blue"><strong>Repository</strong><small>Persist plan and state</small></div></div></div>
+        <div class="lane"><div class="lane-label">Execute</div><div class="flow"><div class="node amber"><strong>Human approval</strong><small>Required before cost</small></div><span class="arrow">→</span><div class="node blue"><strong>Executor</strong><small>Uses stable key</small></div><span class="arrow">→</span><div class="node"><strong>Fake provider</strong><small>Returns job ID</small></div></div></div>
+        <div class="lane"><div class="lane-label">Complete</div><div class="flow"><div class="node"><strong>Synthetic callback</strong><small>Job and event IDs</small></div><span class="arrow">→</span><div class="node blue"><strong>Repository</strong><small>Classify and promote</small></div><span class="arrow">→</span><div class="node"><strong>SQLite</strong><small>Runs, jobs, events, versions</small></div></div></div>
+      </div>
+      <p class="caption">The callback is invoked by the demo or tests. There is no HTTP endpoint, worker, or real provider in this milestone.</p>
+    </section>
+
+    <section id="states">
+      <span class="kicker">02 · Workflow</span>
+      <h2>Approval sits between a plan and a provider job</h2>
+      <p>The two optional states appear when a person must choose a repair or supply an exact replacement version.</p>
+      <div class="scroll" role="img" aria-label="Workflow from needs input, through replacement binding and approval, to ready, submitted, and succeeded. Retries return to awaiting approval.">
+        <div class="state-flow"><div class="state optional">needs_input</div><span class="arrow">→</span><div class="state optional">needs_repair_input</div><span class="arrow">→</span><div class="state">awaiting_approval</div><span class="arrow">→</span><div class="state">ready</div><span class="arrow">→</span><div class="state">submitted</div><span class="arrow">→</span><div class="state end">succeeded</div></div>
+      </div>
+      <div class="route-notes">
+        <div class="note"><strong>Choice</strong>An environment mismatch starts at <code>needs_input</code>; a person selects script or avatar repair.</div>
+        <div class="note"><strong>Replacement</strong>Script, TTS input, and avatar repairs require an exact new version before approval.</div>
+        <div class="note"><strong>Retry</strong>From <code>submitted</code> or <code>succeeded</code>, a retry returns to approval with a new idempotency key.</div>
+      </div>
+    </section>
+
+    <section id="lineage">
+      <span class="kicker">03 · Data</span>
+      <h2>New output, preserved history</h2>
+      <p>Each provider job snapshots its four source IDs. Successful videos point to those exact sources; captions point to one exact video. This diagram shows a successful video followed by a later successful retry.</p>
+      <div class="scroll" role="img" aria-label="The same four source versions produce two immutable video versions. Each video has its own caption. The run points to the second active video.">
+        <div class="lineage"><div class="source-set"><span class="chip">script-1</span><span class="chip">tts-1</span><span class="chip">avatar-1</span><span class="chip">voice-1</span></div><span class="arrow">→</span><div class="artifact"><strong>video:job-1</strong><small>earlier version</small></div><span class="arrow">→</span><div class="artifact caption-artifact"><strong>caption-1</strong><small>source: video:job-1</small></div></div>
+        <div class="lineage"><div class="source-set"><span class="chip">script-1</span><span class="chip">tts-1</span><span class="chip">avatar-1</span><span class="chip">voice-1</span></div><span class="arrow">→</span><div class="artifact"><strong>video:job-2</strong><span class="active">RUN ACTIVE VIDEO</span></div><span class="arrow">→</span><div class="artifact caption-artifact"><strong>caption-2</strong><small>source: video:job-2</small></div></div>
+      </div>
+      <p class="caption">The terminal demo uses another order: job 1 is superseded before completion, so its stale callback creates no video.</p>
+    </section>
+
+    <section id="callbacks">
+      <span class="kicker">04 · Safety rules</span>
+      <h2>A callback is evidence, not automatic authority</h2>
+      <p>Each event is classified using its job ID and the run's current state. Only the active submitted job may create and promote a video.</p>
+      <div class="scroll">
+        <table>
+          <thead><tr><th>Completion</th><th>Disposition</th><th>Effect</th></tr></thead>
+          <tbody>
+            <tr><td>Active submitted job</td><td><span class="tag good">applied</span></td><td>Create one video; mark run succeeded.</td></tr>
+            <tr><td>Same event ID again</td><td><span class="tag good">reuse original</span></td><td>No new write or transition.</td></tr>
+            <tr><td>Another completion for succeeded job</td><td><span class="tag wait">redundant</span></td><td>Audit event; keep existing video.</td></tr>
+            <tr><td>Superseded job</td><td><span class="tag wait">stale</span></td><td>Audit event; do not promote video.</td></tr>
+            <tr><td>Active job in impossible state</td><td><span class="tag bad">rejected</span></td><td>Audit reason; do not advance run.</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p class="caption">For event-ID reuse across different jobs and transaction details, see the <a href="../provider-transitions.md">full transition table</a>.</p>
+    </section>
+
+    <section id="interview">
+      <span class="kicker">05 · Talk track</span>
+      <h2>Tell one failure-to-repair story</h2>
+      <p>“A visual-quality finding should retry the expensive video without throwing away approved upstream work. The policy proposes that boundary, a human approves it, and the callback can promote a version only for the active job.”</p>
+      <div class="talk">
+        <article><h3>Why SQLite and a fake?</h3><p>They let the project prove transactional event handling, idempotency, and crash recovery before adding a real provider or worker.</p></article>
+        <article><h3>Why immutable versions?</h3><p>A retry changes the active pointer while prior videos, captions, and exact input lineage remain inspectable.</p></article>
+        <article><h3>Why separate event disposition?</h3><p>A late callback remains visible for audit without changing run status or replacing the active output.</p></article>
+      </div>
+      <p style="margin-top: 22px">Run the example: <code class="command">PYTHONPATH=src python3 -m media_qc_agent.demo</code></p>
+      <p class="caption">Read the <a href="../adr/README.md">ADRs</a> for tradeoffs and <a href="../../tests/test_provider_transition_rules.py">transition tests</a> for executable evidence. This slice has no LLM, raw-media inspection, API, worker, or UI.</p>
+    </section>
+  </main>
+  <footer class="wrap">Media QC Agent · Milestone 1 visual guide · Synthetic implementation</footer>
+</body>
+</html>
