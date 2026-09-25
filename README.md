@@ -85,3 +85,18 @@ The test suite includes the uncertain-outcome case where a provider accepts a
 job and the process crashes before saving the provider job ID. On restart, the
 executor retries with the same idempotency key and receives the original job
 instead of creating a duplicate.
+
+## Run the synthetic demo
+
+From the repository root:
+
+```bash
+PYTHONPATH=src python3 -m media_qc_agent.demo
+```
+
+The output shows a stale old-job callback, the applied current-job callback,
+the active video version and its exact input versions, and a caption tied to
+that video. The demo runs in memory with a fake provider; there is no UI or
+external service to start in this milestone. See
+[`docs/provider-transitions.md`](docs/provider-transitions.md) for the callback
+rules it exercises.
