@@ -36,6 +36,8 @@ PYTHONPATH=src python3 -m media_qc_agent.demo
 The GitHub Actions `verify` job runs on pull requests and pushes to `main`.
 Review its result before merging. This private repository's current GitHub plan
 does not allow branch protection or rulesets to make the check mandatory.
+Ruff also enforces a McCabe cyclomatic complexity limit of 6 per function
+through `C901`; split decision logic when a function exceeds it.
 
 ## Documentation responsibilities
 
