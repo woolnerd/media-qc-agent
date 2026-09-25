@@ -17,3 +17,6 @@ If a decision changes, add a new ADR that supersedes the old one.
 - [`0005-separate-persistence-from-provider-execution.md`](0005-separate-persistence-from-provider-execution.md)
 - [`0006-model-tts-input-as-a-derived-artifact.md`](0006-model-tts-input-as-a-derived-artifact.md)
 - [`0007-deduplicate-provider-completions-transactionally.md`](0007-deduplicate-provider-completions-transactionally.md)
+- [`0008-quarantine-stale-provider-completions.md`](0008-quarantine-stale-provider-completions.md)
+- [`0009-record-immutable-artifact-lineage.md`](0009-record-immutable-artifact-lineage.md)
+- [`0010-use-readable-demo-ids.md`](0010-use-readable-demo-ids.md)

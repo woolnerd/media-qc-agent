@@ -11,6 +11,12 @@ from .domain import (
     RepairOption,
     RepairPlan,
 )
+from .ids import (
+    validate_artifact_version_id,
+    validate_external_id,
+    validate_run_id,
+    video_version_id,
+)
 from .planner import plan_repair, select_repair
 from .workflow import (
     ArtifactVersion,
@@ -124,6 +130,7 @@ class WorkflowRepository:
             raise ValueError(
                 "source version must be script, TTS input, avatar, or voice"
             )
+        validate_artifact_version_id(version_id, kind)
         self._connection.execute(
             "INSERT INTO artifact_versions (id, kind) VALUES (?, ?)",
             (version_id, kind),
@@ -161,6 +168,7 @@ class WorkflowRepository:
     def record_caption_version(
         self, *, version_id: str, video_version_id: str
     ) -> ArtifactVersion:
+        validate_artifact_version_id(version_id, ArtifactKind.CAPTIONS)
         video = self.get_artifact_version(video_version_id)
         if video.kind is not ArtifactKind.VIDEO:
             raise ValueError("caption source must be a video version")
@@ -185,6 +193,7 @@ class WorkflowRepository:
     def create(
         self, *, run_id: str, finding: QualityFinding, sources: VideoSources
     ) -> WorkflowRun:
+        validate_run_id(run_id)
         self._validate_sources(sources)
         decision = plan_repair(finding)
         if isinstance(decision, ClarificationRequest):
@@ -355,6 +364,7 @@ class WorkflowRepository:
     def record_submission(self, *, run_id: str, external_job_id: str) -> WorkflowRun:
         """Record an accepted provider job without permitting ID replacement."""
 
+        validate_external_id(external_job_id, "provider job")
         current = self.get(run_id)
         if current.status is WorkflowStatus.SUBMITTED:
             if current.external_job_id != external_job_id:
@@ -408,6 +418,8 @@ class WorkflowRepository:
     ) -> WorkflowRun:
         """Audit a completion and advance only the currently submitted job."""
 
+        validate_external_id(external_job_id, "provider job")
+        validate_external_id(external_event_id, "provider event")
         with self._connection:
             self._connection.execute("BEGIN IMMEDIATE")
             job = self.get_provider_job(external_job_id)
@@ -438,12 +450,14 @@ class WorkflowRepository:
                 return self.get(job.run_id)
 
             if disposition is ProviderEventDisposition.APPLIED:
-                video_version_id = f"video:{external_job_id}"
+                generated_video_id = video_version_id(external_job_id)
                 self._connection.execute(
                     "INSERT INTO artifact_versions (id, kind, external_job_id) VALUES (?, ?, ?)",
-                    (video_version_id, ArtifactKind.VIDEO, external_job_id),
+                    (generated_video_id, ArtifactKind.VIDEO, external_job_id),
                 )
-                self._insert_dependencies(video_version_id, job.sources.dependencies())
+                self._insert_dependencies(
+                    generated_video_id, job.sources.dependencies()
+                )
                 updated = self._connection.execute(
                     """
                     UPDATE workflow_runs
@@ -453,7 +467,7 @@ class WorkflowRepository:
                     """,
                     (
                         WorkflowStatus.SUCCEEDED,
-                        video_version_id,
+                        generated_video_id,
                         job.run_id,
                         WorkflowStatus.SUBMITTED,
                         external_job_id,
