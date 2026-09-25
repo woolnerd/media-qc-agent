@@ -21,8 +21,21 @@ Run the full test suite:
 PYTHONPATH=src python3 -m unittest discover -s tests -v
 ```
 
-Formatting, linting, and type-checking commands should be added here when those
-tools are introduced. All configured checks must pass before a commit.
+Install the check tools with `python3 -m pip install -r requirements-dev.txt`,
+then run the same checks as CI:
+
+```bash
+PYTHONPATH=src python3 -m compileall -q src tests
+PYTHONPATH=src python3 -m ruff check src tests
+PYTHONPATH=src python3 -m ruff format --check src tests
+PYTHONPATH=src python3 -m mypy src tests
+PYTHONPATH=src python3 -m unittest discover -s tests -v
+PYTHONPATH=src python3 -m media_qc_agent.demo
+```
+
+The GitHub Actions `verify` job runs on pull requests and pushes to `main`.
+Review its result before merging. This private repository's current GitHub plan
+does not allow branch protection or rulesets to make the check mandatory.
 
 ## Documentation responsibilities
 
