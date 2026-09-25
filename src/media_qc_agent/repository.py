@@ -33,6 +33,7 @@ from .spoken_text import (
     UnsafeSpokenText,
     prepare_spoken_text,
 )
+from .visual_quality import MotionSample, VisualSignalCheck, check_jerky_video
 from .workflow import (
     ArtifactVersion,
     ProviderEvent,
@@ -457,7 +458,9 @@ class WorkflowRepository:
     ) -> WorkflowRun:
         validate_run_id(run_id)
         self._validate_sources(sources)
-        if finding.kind is FailureKind.CAPTION_FORMAT:
+        if finding.kind is FailureKind.CAPTION_FORMAT and video_version_id is None:
+            raise ValueError("caption finding requires an existing video version")
+        if video_version_id is not None:
             self._validate_video_source(video_version_id, sources)
         decision = plan_repair(finding)
         if isinstance(decision, ClarificationRequest):
@@ -518,17 +521,13 @@ class WorkflowRepository:
         return self.get(run_id)
 
     def _validate_video_source(
-        self, video_version_id: str | None, sources: VideoSources
+        self, video_version_id: str, sources: VideoSources
     ) -> None:
-        if video_version_id is None:
-            raise ValueError("caption finding requires an existing video version")
         video = self.get_artifact_version(video_version_id)
         if video.kind is not ArtifactKind.VIDEO:
-            raise ValueError("caption finding source must be a video version")
+            raise ValueError("finding source must be a video version")
         if video.source_versions != sources.dependencies():
-            raise ValueError(
-                "caption finding video must match selected source versions"
-            )
+            raise ValueError("finding video must match selected source versions")
 
     def _validate_sources(self, sources: VideoSources) -> None:
         for kind, version_id in sources.dependencies():
@@ -562,6 +561,41 @@ class WorkflowRepository:
         if checked.finding is None:
             return None
         return self.create(run_id=run_id, finding=checked.finding, sources=sources)
+
+    def check_visual_quality(
+        self, video_version_id: str, samples: tuple[MotionSample, ...]
+    ) -> VisualSignalCheck:
+        video = self.get_artifact_version(video_version_id)
+        if video.kind is not ArtifactKind.VIDEO:
+            raise ValueError("visual quality target must be a video version")
+        return check_jerky_video(video_version_id, samples)
+
+    def create_visual_quality_run(
+        self,
+        *,
+        run_id: str,
+        video_version_id: str,
+        samples: tuple[MotionSample, ...],
+    ) -> WorkflowRun | None:
+        """Open an approval gate only for a grounded repeated-jerk signal."""
+
+        checked = self.check_visual_quality(video_version_id, samples)
+        if checked.finding is None:
+            return None
+        video = self.get_artifact_version(video_version_id)
+        source_ids = dict(video.source_versions)
+        sources = VideoSources(
+            script_version_id=source_ids[ArtifactKind.SCRIPT],
+            tts_input_version_id=source_ids[ArtifactKind.TTS_INPUT],
+            avatar_version_id=source_ids[ArtifactKind.AVATAR],
+            voice_version_id=source_ids[ArtifactKind.VOICE],
+        )
+        return self.create(
+            run_id=run_id,
+            finding=checked.finding,
+            sources=sources,
+            video_version_id=video_version_id,
+        )
 
     def select_repair(self, run_id: str, action: RepairAction) -> WorkflowRun:
         """Record a branch choice while awaiting its replacement artifact."""
