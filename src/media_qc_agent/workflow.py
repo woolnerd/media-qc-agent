@@ -3,7 +3,7 @@
 from dataclasses import dataclass
 from enum import StrEnum
 
-from .domain import ClarificationRequest, RepairPlan
+from .domain import ArtifactKind, ClarificationRequest, RepairPlan
 
 
 class WorkflowStatus(StrEnum):
@@ -23,6 +23,31 @@ class ProviderEventDisposition(StrEnum):
 
 
 @dataclass(frozen=True)
+class VideoSources:
+    script_version_id: str
+    tts_input_version_id: str
+    avatar_version_id: str
+    voice_version_id: str
+
+    def dependencies(self) -> tuple[tuple[ArtifactKind, str], ...]:
+        return (
+            (ArtifactKind.SCRIPT, self.script_version_id),
+            (ArtifactKind.TTS_INPUT, self.tts_input_version_id),
+            (ArtifactKind.AVATAR, self.avatar_version_id),
+            (ArtifactKind.VOICE, self.voice_version_id),
+        )
+
+
+@dataclass(frozen=True)
+class ArtifactVersion:
+    id: str
+    kind: ArtifactKind
+    source_versions: tuple[tuple[ArtifactKind, str], ...]
+    external_job_id: str | None
+    created_at: str
+
+
+@dataclass(frozen=True)
 class WorkflowRun:
     id: str
     status: WorkflowStatus
@@ -30,6 +55,8 @@ class WorkflowRun:
     clarification: ClarificationRequest | None
     idempotency_key: str | None
     external_job_id: str | None
+    sources: VideoSources
+    active_video_version_id: str | None
     created_at: str
     updated_at: str
 
@@ -40,6 +67,7 @@ class ProviderJob:
     run_id: str
     idempotency_key: str
     action: str
+    sources: VideoSources
     created_at: str
 
 

@@ -13,6 +13,7 @@ from media_qc_agent import (
     WorkflowRepository,
     WorkflowStatus,
 )
+from media_qc_agent.workflow import VideoSources
 
 
 class WorkflowIntegrationTests(unittest.TestCase):
@@ -21,12 +22,21 @@ class WorkflowIntegrationTests(unittest.TestCase):
         self.repository = WorkflowRepository(self.connection)
         self.repository.initialize()
         self.provider = FakeVideoProvider()
+        self.sources = VideoSources("script-1", "tts-1", "avatar-1", "voice-1")
+        for version_id, kind in (
+            ("script-1", ArtifactKind.SCRIPT),
+            ("tts-1", ArtifactKind.TTS_INPUT),
+            ("avatar-1", ArtifactKind.AVATAR),
+            ("voice-1", ArtifactKind.VOICE),
+        ):
+            self.repository.create_source_version(version_id=version_id, kind=kind)
 
     def tearDown(self) -> None:
         self.connection.close()
 
     def create_visual_quality_run(self, run_id: str = "run-1") -> None:
         self.repository.create(
+            sources=self.sources,
             run_id=run_id,
             finding=QualityFinding(
                 kind=FailureKind.VISUAL_QUALITY,
@@ -49,6 +59,7 @@ class WorkflowIntegrationTests(unittest.TestCase):
 
     def test_tts_input_repair_waits_for_replacement_text_before_approval(self) -> None:
         run = self.repository.create(
+            sources=self.sources,
             run_id="tts-input-1",
             finding=QualityFinding(
                 kind=FailureKind.TTS_INPUT_COMPATIBILITY,
@@ -86,6 +97,7 @@ class WorkflowIntegrationTests(unittest.TestCase):
         self,
     ) -> None:
         run = self.repository.create(
+            sources=self.sources,
             run_id="mismatch-1",
             finding=QualityFinding(
                 kind=FailureKind.ENVIRONMENT_MISMATCH,
@@ -109,6 +121,7 @@ class WorkflowIntegrationTests(unittest.TestCase):
 
     def test_human_selection_creates_plan_awaiting_replacement_artifact(self) -> None:
         self.repository.create(
+            sources=self.sources,
             run_id="mismatch-script",
             finding=QualityFinding(
                 kind=FailureKind.ENVIRONMENT_MISMATCH,
@@ -141,6 +154,7 @@ class WorkflowIntegrationTests(unittest.TestCase):
 
     def test_direct_script_repair_also_waits_for_replacement_input(self) -> None:
         run = self.repository.create(
+            sources=self.sources,
             run_id="script-1",
             finding=QualityFinding(
                 kind=FailureKind.SCRIPT_QUALITY,
@@ -154,6 +168,7 @@ class WorkflowIntegrationTests(unittest.TestCase):
 
     def test_avatar_selection_preserves_script_and_rejects_other_actions(self) -> None:
         self.repository.create(
+            sources=self.sources,
             run_id="mismatch-avatar",
             finding=QualityFinding(
                 kind=FailureKind.ENVIRONMENT_MISMATCH,
@@ -181,6 +196,7 @@ class WorkflowIntegrationTests(unittest.TestCase):
 
     def test_clarification_and_selected_plan_survive_repository_restart(self) -> None:
         self.repository.create(
+            sources=self.sources,
             run_id="mismatch-restart",
             finding=QualityFinding(
                 kind=FailureKind.ENVIRONMENT_MISMATCH,

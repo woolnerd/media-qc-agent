@@ -1,0 +1,187 @@
+import sqlite3
+import unittest
+
+from media_qc_agent import (
+    ArtifactKind,
+    FailureKind,
+    FakeVideoProvider,
+    QualityFinding,
+    RepairAction,
+    WorkflowExecutor,
+    WorkflowRepository,
+    WorkflowStatus,
+)
+from media_qc_agent.workflow import VideoSources
+
+
+class ArtifactLineageTests(unittest.TestCase):
+    def setUp(self) -> None:
+        self.connection = sqlite3.connect(":memory:")
+        self.repository = WorkflowRepository(self.connection)
+        self.repository.initialize()
+        self.provider = FakeVideoProvider()
+        self.sources = VideoSources("script-1", "tts-1", "avatar-1", "voice-1")
+        for version_id, kind in (
+            ("script-1", ArtifactKind.SCRIPT),
+            ("tts-1", ArtifactKind.TTS_INPUT),
+            ("avatar-1", ArtifactKind.AVATAR),
+            ("voice-1", ArtifactKind.VOICE),
+        ):
+            self.repository.create_source_version(version_id=version_id, kind=kind)
+
+    def tearDown(self) -> None:
+        self.connection.close()
+
+    def create_run(self, run_id: str, kind: FailureKind) -> None:
+        self.repository.create(
+            run_id=run_id,
+            finding=QualityFinding(
+                kind=kind, explanation="synthetic defect", confidence=0.9
+            ),
+            sources=self.sources,
+        )
+
+    def submit(self, run_id: str) -> str:
+        self.repository.approve(run_id)
+        job_id = (
+            WorkflowExecutor(repository=self.repository, provider=self.provider)
+            .submit(run_id)
+            .external_job_id
+        )
+        assert job_id is not None
+        return job_id
+
+    def test_replacement_video_preserves_prior_version_and_exact_sources(self) -> None:
+        self.create_run("run-1", FailureKind.VISUAL_QUALITY)
+        first_job = self.submit("run-1")
+        self.repository.record_completion(
+            external_job_id=first_job, external_event_id="event-1"
+        )
+        first_video = self.repository.get("run-1").active_video_version_id
+        assert first_video is not None
+        prior_caption = self.repository.record_caption_version(
+            version_id="caption-1", video_version_id=first_video
+        )
+
+        self.repository.request_retry("run-1")
+        second_job = self.submit("run-1")
+        self.repository.record_completion(
+            external_job_id=second_job, external_event_id="event-2"
+        )
+        second_video = self.repository.get("run-1").active_video_version_id
+        assert second_video is not None
+
+        self.assertNotEqual(first_video, second_video)
+        self.assertEqual(
+            self.repository.get_artifact_version(first_video).source_versions,
+            self.sources.dependencies(),
+        )
+        self.assertEqual(
+            self.repository.get_artifact_version(second_video).source_versions,
+            self.sources.dependencies(),
+        )
+        self.assertEqual(
+            self.repository.get_artifact_version(first_video).external_job_id,
+            first_job,
+        )
+        self.assertEqual(
+            prior_caption.source_versions,
+            ((ArtifactKind.VIDEO, first_video),),
+        )
+
+    def test_caption_lineage_identifies_exact_video_version(self) -> None:
+        self.create_run("run-1", FailureKind.VISUAL_QUALITY)
+        job_id = self.submit("run-1")
+        self.repository.record_completion(
+            external_job_id=job_id, external_event_id="event-1"
+        )
+        video_id = self.repository.get("run-1").active_video_version_id
+        assert video_id is not None
+
+        caption = self.repository.record_caption_version(
+            version_id="caption-1", video_version_id=video_id
+        )
+
+        self.assertEqual(caption.kind, ArtifactKind.CAPTIONS)
+        self.assertEqual(caption.source_versions, ((ArtifactKind.VIDEO, video_id),))
+        with self.assertRaises(sqlite3.IntegrityError):
+            self.repository.record_caption_version(
+                version_id="caption-1", video_version_id=video_id
+            )
+
+    def test_selected_script_repair_requires_exact_replacement_before_approval(
+        self,
+    ) -> None:
+        self.create_run("run-1", FailureKind.ENVIRONMENT_MISMATCH)
+        self.repository.select_repair("run-1", RepairAction.REVISE_SCRIPT)
+        self.repository.create_source_version(
+            version_id="script-2", kind=ArtifactKind.SCRIPT
+        )
+
+        bound = self.repository.bind_replacement("run-1", "script-2")
+
+        self.assertEqual(bound.status, WorkflowStatus.AWAITING_APPROVAL)
+        self.assertEqual(bound.sources.script_version_id, "script-2")
+        job_id = self.submit("run-1")
+        self.repository.record_completion(
+            external_job_id=job_id, external_event_id="event-1"
+        )
+        video_id = self.repository.get("run-1").active_video_version_id
+        assert video_id is not None
+        self.assertIn(
+            (ArtifactKind.SCRIPT, "script-2"),
+            self.repository.get_artifact_version(video_id).source_versions,
+        )
+
+    def test_wrong_kind_replacement_stays_blocked(self) -> None:
+        self.create_run("run-1", FailureKind.ENVIRONMENT_MISMATCH)
+        self.repository.select_repair("run-1", RepairAction.CHANGE_AVATAR)
+        with self.assertRaisesRegex(ValueError, "avatar"):
+            self.repository.bind_replacement("run-1", "script-1")
+        self.assertEqual(
+            self.repository.get("run-1").status, WorkflowStatus.NEEDS_REPAIR_INPUT
+        )
+
+    def test_avatar_replacement_binds_selected_version(self) -> None:
+        self.create_run("run-1", FailureKind.ENVIRONMENT_MISMATCH)
+        self.repository.select_repair("run-1", RepairAction.CHANGE_AVATAR)
+        self.repository.create_source_version(
+            version_id="avatar-2", kind=ArtifactKind.AVATAR
+        )
+
+        bound = self.repository.bind_replacement("run-1", "avatar-2")
+
+        self.assertEqual(bound.status, WorkflowStatus.AWAITING_APPROVAL)
+        self.assertEqual(bound.sources.avatar_version_id, "avatar-2")
+        self.assertEqual(bound.sources.script_version_id, "script-1")
+
+    def test_stale_completion_cannot_create_or_promote_video(self) -> None:
+        self.create_run("run-1", FailureKind.VISUAL_QUALITY)
+        old_job = self.submit("run-1")
+        self.repository.request_retry("run-1")
+        current_job = self.submit("run-1")
+
+        self.repository.record_completion(
+            external_job_id=old_job, external_event_id="stale-event"
+        )
+
+        self.assertIsNone(self.repository.get("run-1").active_video_version_id)
+        with self.assertRaises(KeyError):
+            self.repository.get_artifact_version(f"video:{old_job}")
+        self.repository.record_completion(
+            external_job_id=current_job, external_event_id="current-event"
+        )
+        self.assertEqual(
+            self.repository.get("run-1").active_video_version_id,
+            f"video:{current_job}",
+        )
+
+    def test_source_version_identity_is_immutable(self) -> None:
+        with self.assertRaises(sqlite3.IntegrityError):
+            self.repository.create_source_version(
+                version_id="script-1", kind=ArtifactKind.SCRIPT
+            )
+
+
+if __name__ == "__main__":
+    unittest.main()

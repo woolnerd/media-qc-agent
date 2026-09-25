@@ -46,12 +46,13 @@ It currently demonstrates:
   options, followed by a specific plan when a human selects one;
 - durable SQLite workflow state;
 - persisted provider jobs and deduplicated completion events;
+- immutable source, video, and caption version identities with exact lineage;
 - a stable idempotency key for external submission; and
 - recovery from a crash after provider acceptance without creating a second
   paid job.
 
 It does **not** yet inspect raw images or videos, call an LLM, expose a provider
-callback API or UI, or create versioned output artifacts from completions.
+callback API or UI, or generate caption content.
 Those capabilities remain planned work, and the GitHub issues keep that
 distinction explicit.
 
