@@ -10,7 +10,7 @@ class VideoProvider(Protocol):
 
 
 @dataclass(frozen=True)
-class ProviderJob:
+class _FakeProviderJob:
     external_job_id: str
     action: str
 
@@ -23,7 +23,7 @@ class FakeVideoProvider:
     """
 
     def __init__(self) -> None:
-        self._jobs_by_key: dict[str, ProviderJob] = {}
+        self._jobs_by_key: dict[str, _FakeProviderJob] = {}
         self.submit_attempts = 0
 
     @property
@@ -39,7 +39,7 @@ class FakeVideoProvider:
             return existing.external_job_id
 
         external_job_id = f"video-job-{len(self._jobs_by_key) + 1}"
-        self._jobs_by_key[idempotency_key] = ProviderJob(
+        self._jobs_by_key[idempotency_key] = _FakeProviderJob(
             external_job_id=external_job_id,
             action=action,
         )

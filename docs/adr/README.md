@@ -16,3 +16,4 @@ If a decision changes, add a new ADR that supersedes the old one.
 - [`0004-separate-clarification-from-repair-actions.md`](0004-separate-clarification-from-repair-actions.md)
 - [`0005-separate-persistence-from-provider-execution.md`](0005-separate-persistence-from-provider-execution.md)
 - [`0006-model-tts-input-as-a-derived-artifact.md`](0006-model-tts-input-as-a-derived-artifact.md)
+- [`0007-deduplicate-provider-completions-transactionally.md`](0007-deduplicate-provider-completions-transactionally.md)

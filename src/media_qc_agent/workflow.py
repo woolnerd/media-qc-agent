@@ -12,6 +12,7 @@ class WorkflowStatus(StrEnum):
     AWAITING_APPROVAL = "awaiting_approval"
     READY = "ready"
     SUBMITTED = "submitted"
+    SUCCEEDED = "succeeded"
 
 
 @dataclass(frozen=True)
@@ -24,3 +25,21 @@ class WorkflowRun:
     external_job_id: str | None
     created_at: str
     updated_at: str
+
+
+@dataclass(frozen=True)
+class ProviderJob:
+    external_job_id: str
+    run_id: str
+    idempotency_key: str
+    action: str
+    created_at: str
+
+
+@dataclass(frozen=True)
+class ProviderEvent:
+    external_event_id: str
+    external_job_id: str
+    event_type: str
+    result_status: WorkflowStatus
+    created_at: str
