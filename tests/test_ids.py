@@ -2,6 +2,7 @@ import sqlite3
 import unittest
 
 from media_qc_agent import ArtifactKind, FailureKind, QualityFinding, WorkflowRepository
+from media_qc_agent.environment import Environment, ScriptScene
 from media_qc_agent.ids import (
     validate_artifact_version_id,
     validate_external_id,
@@ -47,14 +48,25 @@ class IdContractTests(unittest.TestCase):
             repository.initialize()
             with self.assertRaisesRegex(ValueError, "script"):
                 repository.create_script_version(
-                    version_id="avatar-2", authored_text="A synthetic sentence."
+                    version_id="avatar-2",
+                    authored_text="A synthetic sentence.",
+                    scene=ScriptScene(Environment.NEUTRAL),
                 )
             sources = VideoSources("script-1", "tts-1", "avatar-1", "voice-1")
             repository.create_script_version(
-                version_id="script-1", authored_text="A synthetic sentence."
+                version_id="script-1",
+                authored_text="A synthetic sentence.",
+                scene=ScriptScene(Environment.NEUTRAL),
+            )
+            repository.create_avatar_version(
+                version_id="avatar-1", environment=Environment.NEUTRAL
             )
             for kind, version_id in sources.dependencies():
-                if kind in {ArtifactKind.SCRIPT, ArtifactKind.TTS_INPUT}:
+                if kind in {
+                    ArtifactKind.SCRIPT,
+                    ArtifactKind.TTS_INPUT,
+                    ArtifactKind.AVATAR,
+                }:
                     continue
                 repository.create_source_version(version_id=version_id, kind=kind)
             repository.create_tts_input_version(

@@ -21,3 +21,4 @@ If a decision changes, add a new ADR that supersedes the old one.
 - [`0009-record-immutable-artifact-lineage.md`](0009-record-immutable-artifact-lineage.md)
 - [`0010-use-readable-demo-ids.md`](0010-use-readable-demo-ids.md)
 - [`0011-repair-captions-without-video-provider.md`](0011-repair-captions-without-video-provider.md)
+- [`0012-use-grounded-environment-metadata-before-render.md`](0012-use-grounded-environment-metadata-before-render.md)

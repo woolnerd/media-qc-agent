@@ -49,6 +49,9 @@ It currently demonstrates:
 - deterministic caption formatting and timing checks with evidence, plus a
   caption-only repair that keeps the accepted video (see
   [`docs/caption-quality.md`](docs/caption-quality.md));
+- a synthetic script/avatar environment gate that grounds an oven/office
+  mismatch in versioned metadata and asks a human to choose the repair (see
+  [`docs/environment-compatibility.md`](docs/environment-compatibility.md));
 - a distinction between unresolved creative input and executable approval;
 - a persisted clarification request with separate script and avatar repair
   options, followed by a specific plan when a human selects one;

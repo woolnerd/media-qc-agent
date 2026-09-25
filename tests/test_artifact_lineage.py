@@ -11,6 +11,7 @@ from media_qc_agent import (
     WorkflowRepository,
     WorkflowStatus,
 )
+from media_qc_agent.environment import Environment, ScriptScene
 from media_qc_agent.spoken_text import SpokenTextCapabilities
 from media_qc_agent.workflow import VideoSources
 
@@ -23,12 +24,14 @@ class ArtifactLineageTests(unittest.TestCase):
         self.provider = FakeVideoProvider()
         self.sources = VideoSources("script-1", "tts-1", "avatar-1", "voice-1")
         self.repository.create_script_version(
-            version_id="script-1", authored_text="A synthetic sentence."
+            version_id="script-1",
+            authored_text="A synthetic sentence.",
+            scene=ScriptScene(Environment.NEUTRAL),
         )
-        for version_id, kind in (
-            ("avatar-1", ArtifactKind.AVATAR),
-            ("voice-1", ArtifactKind.VOICE),
-        ):
+        self.repository.create_avatar_version(
+            version_id="avatar-1", environment=Environment.NEUTRAL
+        )
+        for version_id, kind in (("voice-1", ArtifactKind.VOICE),):
             self.repository.create_source_version(version_id=version_id, kind=kind)
         self.repository.create_tts_input_version(
             version_id="tts-1",
@@ -124,7 +127,9 @@ class ArtifactLineageTests(unittest.TestCase):
         self.create_run("run-1", FailureKind.ENVIRONMENT_MISMATCH)
         self.repository.select_repair("run-1", RepairAction.REVISE_SCRIPT)
         self.repository.create_script_version(
-            version_id="script-2", authored_text="A revised synthetic sentence."
+            version_id="script-2",
+            authored_text="A revised synthetic sentence.",
+            scene=ScriptScene(Environment.NEUTRAL),
         )
 
         bound = self.repository.bind_replacement("run-1", "script-2")
@@ -168,8 +173,8 @@ class ArtifactLineageTests(unittest.TestCase):
     def test_avatar_replacement_binds_selected_version(self) -> None:
         self.create_run("run-1", FailureKind.ENVIRONMENT_MISMATCH)
         self.repository.select_repair("run-1", RepairAction.CHANGE_AVATAR)
-        self.repository.create_source_version(
-            version_id="avatar-2", kind=ArtifactKind.AVATAR
+        self.repository.create_avatar_version(
+            version_id="avatar-2", environment=Environment.NEUTRAL
         )
 
         bound = self.repository.bind_replacement("run-1", "avatar-2")
@@ -202,7 +207,9 @@ class ArtifactLineageTests(unittest.TestCase):
     def test_source_version_identity_is_immutable(self) -> None:
         with self.assertRaises(sqlite3.IntegrityError):
             self.repository.create_script_version(
-                version_id="script-1", authored_text="Another sentence."
+                version_id="script-1",
+                authored_text="Another sentence.",
+                scene=ScriptScene(Environment.NEUTRAL),
             )
 
 

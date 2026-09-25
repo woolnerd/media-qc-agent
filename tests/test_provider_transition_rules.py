@@ -10,6 +10,7 @@ from media_qc_agent import (
     WorkflowRepository,
     WorkflowStatus,
 )
+from media_qc_agent.environment import Environment, ScriptScene
 from media_qc_agent.spoken_text import SpokenTextCapabilities
 from media_qc_agent.workflow import ProviderEventDisposition, VideoSources
 
@@ -22,10 +23,19 @@ class ProviderTransitionRuleTests(unittest.TestCase):
         self.provider = FakeVideoProvider()
         sources = VideoSources("script-1", "tts-1", "avatar-1", "voice-1")
         self.repository.create_script_version(
-            version_id="script-1", authored_text="A synthetic sentence."
+            version_id="script-1",
+            authored_text="A synthetic sentence.",
+            scene=ScriptScene(Environment.NEUTRAL),
+        )
+        self.repository.create_avatar_version(
+            version_id="avatar-1", environment=Environment.NEUTRAL
         )
         for kind, version_id in sources.dependencies():
-            if kind in {ArtifactKind.SCRIPT, ArtifactKind.TTS_INPUT}:
+            if kind in {
+                ArtifactKind.SCRIPT,
+                ArtifactKind.TTS_INPUT,
+                ArtifactKind.AVATAR,
+            }:
                 continue
             self.repository.create_source_version(version_id=version_id, kind=kind)
         self.repository.create_tts_input_version(

@@ -11,6 +11,7 @@ from media_qc_agent import (
     WorkflowStatus,
 )
 from media_qc_agent.captions import CaptionCue, UnsafeCaptions, validate_captions
+from media_qc_agent.environment import Environment, ScriptScene
 from media_qc_agent.spoken_text import SpokenTextCapabilities
 from media_qc_agent.workflow import VideoSources
 
@@ -72,7 +73,12 @@ class CaptionRepairWorkflowTests(unittest.TestCase):
         self.repository = WorkflowRepository(self.connection)
         self.repository.initialize()
         self.repository.create_script_version(
-            version_id="script-1", authored_text="Heat the oven. Check the temperature."
+            version_id="script-1",
+            authored_text="Heat the oven. Check the temperature.",
+            scene=ScriptScene(Environment.NEUTRAL),
+        )
+        self.repository.create_avatar_version(
+            version_id="avatar-1", environment=Environment.NEUTRAL
         )
         self.repository.create_tts_input_version(
             version_id="tts-1",
@@ -81,10 +87,7 @@ class CaptionRepairWorkflowTests(unittest.TestCase):
                 "synthetic-tts", "literal-v1", frozenset()
             ),
         )
-        for version_id, kind in (
-            ("avatar-1", ArtifactKind.AVATAR),
-            ("voice-1", ArtifactKind.VOICE),
-        ):
+        for version_id, kind in (("voice-1", ArtifactKind.VOICE),):
             self.repository.create_source_version(version_id=version_id, kind=kind)
         self.sources = VideoSources("script-1", "tts-1", "avatar-1", "voice-1")
         self.provider = FakeVideoProvider()

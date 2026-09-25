@@ -4,6 +4,7 @@ import json
 import sqlite3
 
 from .domain import ArtifactKind, FailureKind, QualityFinding
+from .environment import Environment, ScriptScene
 from .executor import WorkflowExecutor
 from .provider import FakeVideoProvider
 from .repository import WorkflowRepository
@@ -18,10 +19,19 @@ def run_demo() -> dict[str, object]:
         repository.initialize()
         sources = VideoSources("script-1", "tts-1", "avatar-1", "voice-1")
         repository.create_script_version(
-            version_id="script-1", authored_text="Heat to 450°F."
+            version_id="script-1",
+            authored_text="Heat to 450°F.",
+            scene=ScriptScene(Environment.KITCHEN, evidence_phrase="Heat"),
+        )
+        repository.create_avatar_version(
+            version_id="avatar-1", environment=Environment.KITCHEN
         )
         for kind, version_id in sources.dependencies():
-            if kind in {ArtifactKind.SCRIPT, ArtifactKind.TTS_INPUT}:
+            if kind in {
+                ArtifactKind.SCRIPT,
+                ArtifactKind.TTS_INPUT,
+                ArtifactKind.AVATAR,
+            }:
                 continue
             repository.create_source_version(version_id=version_id, kind=kind)
         repository.create_tts_input_version(

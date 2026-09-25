@@ -13,6 +13,12 @@ from .domain import (
     RepairOption,
     RepairPlan,
 )
+from .environment import (
+    Environment,
+    EnvironmentCheck,
+    ScriptScene,
+    check_script_avatar_compatibility,
+)
 from .ids import (
     validate_artifact_version_id,
     validate_external_id,
@@ -107,7 +113,17 @@ class WorkflowRepository:
             """
             CREATE TABLE IF NOT EXISTS script_versions (
                 version_id TEXT PRIMARY KEY REFERENCES artifact_versions(id),
-                authored_text TEXT NOT NULL CHECK (trim(authored_text) <> '')
+                authored_text TEXT NOT NULL CHECK (trim(authored_text) <> ''),
+                environment TEXT NOT NULL,
+                evidence_phrase TEXT
+            )
+            """
+        )
+        self._connection.execute(
+            """
+            CREATE TABLE IF NOT EXISTS avatar_versions (
+                version_id TEXT PRIMARY KEY REFERENCES artifact_versions(id),
+                environment TEXT NOT NULL
             )
             """
         )
@@ -165,11 +181,10 @@ class WorkflowRepository:
             raise ValueError("script requires create_script_version")
         if kind is ArtifactKind.TTS_INPUT:
             raise ValueError("TTS input requires create_tts_input_version")
-        if kind not in {
-            ArtifactKind.AVATAR,
-            ArtifactKind.VOICE,
-        }:
-            raise ValueError("source version must be avatar or voice")
+        if kind is ArtifactKind.AVATAR:
+            raise ValueError("avatar requires create_avatar_version")
+        if kind is not ArtifactKind.VOICE:
+            raise ValueError("source version must be a voice")
         validate_artifact_version_id(version_id, kind)
         self._connection.execute(
             "INSERT INTO artifact_versions (id, kind) VALUES (?, ?)",
@@ -179,21 +194,31 @@ class WorkflowRepository:
         return self.get_artifact_version(version_id)
 
     def create_script_version(
-        self, *, version_id: str, authored_text: str
+        self, *, version_id: str, authored_text: str, scene: ScriptScene
     ) -> ArtifactVersion:
         """Keep approved synthetic script text immutable with its version ID."""
 
         validate_artifact_version_id(version_id, ArtifactKind.SCRIPT)
         if not authored_text.strip():
             raise ValueError("authored script text must not be blank")
+        scene.validate_text(authored_text)
         with self._connection:
             self._connection.execute(
                 "INSERT INTO artifact_versions (id, kind) VALUES (?, ?)",
                 (version_id, ArtifactKind.SCRIPT),
             )
             self._connection.execute(
-                "INSERT INTO script_versions (version_id, authored_text) VALUES (?, ?)",
-                (version_id, authored_text),
+                """
+                INSERT INTO script_versions
+                    (version_id, authored_text, environment, evidence_phrase)
+                VALUES (?, ?, ?, ?)
+                """,
+                (
+                    version_id,
+                    authored_text,
+                    scene.environment,
+                    scene.evidence_phrase,
+                ),
             )
         return self.get_artifact_version(version_id)
 
@@ -205,6 +230,41 @@ class WorkflowRepository:
         if row is None:
             raise KeyError(version_id)
         return str(row["authored_text"])
+
+    def get_script_scene(self, version_id: str) -> ScriptScene:
+        row = self._connection.execute(
+            "SELECT environment, evidence_phrase FROM script_versions WHERE version_id = ?",
+            (version_id,),
+        ).fetchone()
+        if row is None:
+            raise KeyError(version_id)
+        return ScriptScene(Environment(row["environment"]), row["evidence_phrase"])
+
+    def create_avatar_version(
+        self, *, version_id: str, environment: Environment
+    ) -> ArtifactVersion:
+        validate_artifact_version_id(version_id, ArtifactKind.AVATAR)
+        if not isinstance(environment, Environment):
+            raise TypeError("avatar environment must be a declared Environment")
+        with self._connection:
+            self._connection.execute(
+                "INSERT INTO artifact_versions (id, kind) VALUES (?, ?)",
+                (version_id, ArtifactKind.AVATAR),
+            )
+            self._connection.execute(
+                "INSERT INTO avatar_versions (version_id, environment) VALUES (?, ?)",
+                (version_id, environment),
+            )
+        return self.get_artifact_version(version_id)
+
+    def get_avatar_environment(self, version_id: str) -> Environment:
+        row = self._connection.execute(
+            "SELECT environment FROM avatar_versions WHERE version_id = ?",
+            (version_id,),
+        ).fetchone()
+        if row is None:
+            raise KeyError(version_id)
+        return Environment(row["environment"])
 
     def create_tts_input_version(
         self,
@@ -484,6 +544,25 @@ class WorkflowRepository:
         if tts_input.script_version_id != sources.script_version_id:
             raise ValueError("TTS input must derive from the selected script version")
 
+    def check_environment(self, sources: VideoSources) -> EnvironmentCheck:
+        return check_script_avatar_compatibility(
+            script_version_id=sources.script_version_id,
+            authored_text=self.get_script_text(sources.script_version_id),
+            scene=self.get_script_scene(sources.script_version_id),
+            avatar_version_id=sources.avatar_version_id,
+            avatar_environment=self.get_avatar_environment(sources.avatar_version_id),
+        )
+
+    def create_environment_run(
+        self, *, run_id: str, sources: VideoSources
+    ) -> WorkflowRun | None:
+        """Open a human clarification only when the pre-render gate finds one."""
+
+        checked = self.check_environment(sources)
+        if checked.finding is None:
+            return None
+        return self.create(run_id=run_id, finding=checked.finding, sources=sources)
+
     def select_repair(self, run_id: str, action: RepairAction) -> WorkflowRun:
         """Record a branch choice while awaiting its replacement artifact."""
 
@@ -524,6 +603,7 @@ class WorkflowRepository:
         current = self.get(run_id)
         if current.status is WorkflowStatus.AWAITING_APPROVAL:
             self._validate_tts_binding(current.sources)
+            self._validate_environment_before_approval(current)
         result = self._connection.execute(
             """
             UPDATE workflow_runs
@@ -541,6 +621,12 @@ class WorkflowRepository:
         if result.rowcount != 1:
             raise ValueError("workflow is missing or is not awaiting approval")
         return self.get(run_id)
+
+    def _validate_environment_before_approval(self, run: WorkflowRun) -> None:
+        if run.plan is None or run.plan.action is RepairAction.REPAIR_CAPTIONS:
+            return
+        if self.check_environment(run.sources).finding is not None:
+            raise ValueError("environment mismatch must be resolved before approval")
 
     def bind_replacement(self, run_id: str, version_id: str) -> WorkflowRun:
         """Bind the exact new input required by a repair before approval."""

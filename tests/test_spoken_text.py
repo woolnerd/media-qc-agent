@@ -9,6 +9,7 @@ from media_qc_agent import (
     WorkflowExecutor,
     WorkflowRepository,
 )
+from media_qc_agent.environment import Environment, ScriptScene
 from media_qc_agent.spoken_text import (
     Notation,
     SpokenTextCapabilities,
@@ -81,12 +82,14 @@ class TtsInputVersionTests(unittest.TestCase):
         self.repository = WorkflowRepository(self.connection)
         self.repository.initialize()
         self.repository.create_script_version(
-            version_id="script-1", authored_text="Heat to 450°F."
+            version_id="script-1",
+            authored_text="Heat to 450°F.",
+            scene=ScriptScene(Environment.NEUTRAL),
         )
-        for version_id, kind in (
-            ("avatar-1", ArtifactKind.AVATAR),
-            ("voice-1", ArtifactKind.VOICE),
-        ):
+        self.repository.create_avatar_version(
+            version_id="avatar-1", environment=Environment.NEUTRAL
+        )
+        for version_id, kind in (("voice-1", ArtifactKind.VOICE),):
             self.repository.create_source_version(version_id=version_id, kind=kind)
 
     def tearDown(self) -> None:
@@ -108,7 +111,9 @@ class TtsInputVersionTests(unittest.TestCase):
         self.assertEqual(spoken.capabilities, LITERAL_MODEL)
         with self.assertRaises(sqlite3.IntegrityError):
             self.repository.create_script_version(
-                version_id="script-1", authored_text="Changed text."
+                version_id="script-1",
+                authored_text="Changed text.",
+                scene=ScriptScene(Environment.NEUTRAL),
             )
         self.assertEqual(self.repository.get_script_text("script-1"), "Heat to 450°F.")
 
@@ -120,7 +125,9 @@ class TtsInputVersionTests(unittest.TestCase):
 
     def test_explicit_candidate_preserves_ambiguous_authored_text(self) -> None:
         self.repository.create_script_version(
-            version_id="script-2", authored_text="Heat to 450*F."
+            version_id="script-2",
+            authored_text="Heat to 450*F.",
+            scene=ScriptScene(Environment.NEUTRAL),
         )
         self.repository.create_tts_input_version(
             version_id="tts-1",
@@ -174,7 +181,9 @@ class TtsInputVersionTests(unittest.TestCase):
 
     def test_run_cannot_start_with_tts_input_from_another_script(self) -> None:
         self.repository.create_script_version(
-            version_id="script-2", authored_text="Another synthetic sentence."
+            version_id="script-2",
+            authored_text="Another synthetic sentence.",
+            scene=ScriptScene(Environment.NEUTRAL),
         )
         self.repository.create_tts_input_version(
             version_id="tts-1",
