@@ -20,3 +20,4 @@ If a decision changes, add a new ADR that supersedes the old one.
 - [`0008-quarantine-stale-provider-completions.md`](0008-quarantine-stale-provider-completions.md)
 - [`0009-record-immutable-artifact-lineage.md`](0009-record-immutable-artifact-lineage.md)
 - [`0010-use-readable-demo-ids.md`](0010-use-readable-demo-ids.md)
+- [`0011-repair-captions-without-video-provider.md`](0011-repair-captions-without-video-provider.md)

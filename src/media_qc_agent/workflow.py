@@ -59,6 +59,7 @@ class WorkflowRun:
     active_video_version_id: str | None
     created_at: str
     updated_at: str
+    active_caption_version_id: str | None = None
 
 
 @dataclass(frozen=True)

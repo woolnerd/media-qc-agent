@@ -46,6 +46,9 @@ It currently demonstrates:
 - a deterministic provider/model spoken-text gate that preserves authored text,
   normalizes unambiguous notation, and blocks unsafe TTS input versions (see
   [`docs/spoken-text-gate.md`](docs/spoken-text-gate.md));
+- deterministic caption formatting and timing checks with evidence, plus a
+  caption-only repair that keeps the accepted video (see
+  [`docs/caption-quality.md`](docs/caption-quality.md));
 - a distinction between unresolved creative input and executable approval;
 - a persisted clarification request with separate script and avatar repair
   options, followed by a specific plan when a human selects one;

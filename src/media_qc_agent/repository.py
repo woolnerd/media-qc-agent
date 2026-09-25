@@ -3,9 +3,11 @@
 import json
 import sqlite3
 
+from .captions import CaptionCue, UnsafeCaptions, validate_captions
 from .domain import (
     ArtifactKind,
     ClarificationRequest,
+    FailureKind,
     QualityFinding,
     RepairAction,
     RepairOption,
@@ -70,6 +72,7 @@ class WorkflowRepository:
                 avatar_version_id TEXT NOT NULL REFERENCES artifact_versions(id),
                 voice_version_id TEXT NOT NULL REFERENCES artifact_versions(id),
                 active_video_version_id TEXT REFERENCES artifact_versions(id),
+                active_caption_version_id TEXT REFERENCES artifact_versions(id),
                 created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),
                 updated_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))
             )
@@ -119,6 +122,14 @@ class WorkflowRepository:
                 provider TEXT NOT NULL,
                 model TEXT NOT NULL,
                 supported_notation TEXT NOT NULL
+            )
+            """
+        )
+        self._connection.execute(
+            """
+            CREATE TABLE IF NOT EXISTS caption_contents (
+                version_id TEXT PRIMARY KEY REFERENCES artifact_versions(id),
+                cues_json TEXT NOT NULL
             )
             """
         )
@@ -311,6 +322,63 @@ class WorkflowRepository:
             )
         return self.get_artifact_version(version_id)
 
+    def get_caption_cues(self, version_id: str) -> tuple[CaptionCue, ...]:
+        row = self._connection.execute(
+            "SELECT cues_json FROM caption_contents WHERE version_id = ?", (version_id,)
+        ).fetchone()
+        if row is None:
+            raise KeyError(version_id)
+        return tuple(CaptionCue(**item) for item in json.loads(row["cues_json"]))
+
+    def record_caption_repair(
+        self, *, run_id: str, version_id: str, cues: tuple[CaptionCue, ...]
+    ) -> ArtifactVersion:
+        """Promote a validated caption version without a provider video job."""
+
+        validate_artifact_version_id(version_id, ArtifactKind.CAPTIONS)
+        checked = validate_captions(cues)
+        if not checked.valid:
+            raise UnsafeCaptions(checked.evidence)
+        with self._connection:
+            self._connection.execute("BEGIN IMMEDIATE")
+            run = self.get(run_id)
+            if (
+                run.status is not WorkflowStatus.READY
+                or run.plan is None
+                or run.plan.action is not RepairAction.REPAIR_CAPTIONS
+                or run.active_video_version_id is None
+            ):
+                raise ValueError("workflow is not ready for caption repair")
+            self._connection.execute(
+                "INSERT INTO artifact_versions (id, kind) VALUES (?, ?)",
+                (version_id, ArtifactKind.CAPTIONS),
+            )
+            self._insert_dependencies(
+                version_id, ((ArtifactKind.VIDEO, run.active_video_version_id),)
+            )
+            self._connection.execute(
+                "INSERT INTO caption_contents (version_id, cues_json) VALUES (?, ?)",
+                (version_id, _encode_cues(cues)),
+            )
+            updated = self._connection.execute(
+                """
+                UPDATE workflow_runs
+                SET status = ?, active_caption_version_id = ?,
+                    updated_at = strftime('%Y-%m-%dT%H:%M:%fZ', 'now')
+                WHERE id = ? AND status = ? AND active_video_version_id = ?
+                """,
+                (
+                    WorkflowStatus.SUCCEEDED,
+                    version_id,
+                    run_id,
+                    WorkflowStatus.READY,
+                    run.active_video_version_id,
+                ),
+            )
+            if updated.rowcount != 1:
+                raise RuntimeError("workflow state changed during caption repair")
+        return self.get_artifact_version(version_id)
+
     def _insert_dependencies(
         self, artifact_id: str, sources: tuple[tuple[ArtifactKind, str], ...]
     ) -> None:
@@ -320,10 +388,17 @@ class WorkflowRepository:
         )
 
     def create(
-        self, *, run_id: str, finding: QualityFinding, sources: VideoSources
+        self,
+        *,
+        run_id: str,
+        finding: QualityFinding,
+        sources: VideoSources,
+        video_version_id: str | None = None,
     ) -> WorkflowRun:
         validate_run_id(run_id)
         self._validate_sources(sources)
+        if finding.kind is FailureKind.CAPTION_FORMAT:
+            self._validate_video_source(video_version_id, sources)
         decision = plan_repair(finding)
         if isinstance(decision, ClarificationRequest):
             plan = None
@@ -352,10 +427,10 @@ class WorkflowRepository:
                 idempotency_key,
                 external_job_id,
                 script_version_id, tts_input_version_id,
-                avatar_version_id, voice_version_id
+                avatar_version_id, voice_version_id, active_video_version_id
             ) VALUES (
                 ?, ?, ?, ?, ?, ?, ?, ?, ?,
-                NULL, ?, ?, ?, ?
+                NULL, ?, ?, ?, ?, ?
             )
             """,
             (
@@ -376,10 +451,24 @@ class WorkflowRepository:
                 sources.tts_input_version_id,
                 sources.avatar_version_id,
                 sources.voice_version_id,
+                video_version_id,
             ),
         )
         self._connection.commit()
         return self.get(run_id)
+
+    def _validate_video_source(
+        self, video_version_id: str | None, sources: VideoSources
+    ) -> None:
+        if video_version_id is None:
+            raise ValueError("caption finding requires an existing video version")
+        video = self.get_artifact_version(video_version_id)
+        if video.kind is not ArtifactKind.VIDEO:
+            raise ValueError("caption finding source must be a video version")
+        if video.source_versions != sources.dependencies():
+            raise ValueError(
+                "caption finding video must match selected source versions"
+            )
 
     def _validate_sources(self, sources: VideoSources) -> None:
         for kind, version_id in sources.dependencies():
@@ -549,9 +638,7 @@ class WorkflowRepository:
             return current
         if current.status is not WorkflowStatus.READY:
             raise ValueError("workflow is not ready for provider submission")
-
-        if current.plan is None or current.idempotency_key is None:
-            raise ValueError("workflow has no executable repair plan")
+        plan = self._require_video_submission_plan(current)
         with self._connection:
             self._connection.execute(
                 """
@@ -565,7 +652,7 @@ class WorkflowRepository:
                     external_job_id,
                     run_id,
                     current.idempotency_key,
-                    current.plan.action,
+                    plan.action,
                     current.sources.script_version_id,
                     current.sources.tts_input_version_id,
                     current.sources.avatar_version_id,
@@ -589,6 +676,13 @@ class WorkflowRepository:
             if result.rowcount != 1:
                 raise RuntimeError("workflow state changed during provider submission")
         return self.get(run_id)
+
+    def _require_video_submission_plan(self, run: WorkflowRun) -> RepairPlan:
+        if run.plan is None or run.idempotency_key is None:
+            raise ValueError("workflow has no executable repair plan")
+        if run.plan.action is RepairAction.REPAIR_CAPTIONS:
+            raise ValueError("caption repair cannot submit a video provider job")
+        return run.plan
 
     def record_completion(
         self, *, external_job_id: str, external_event_id: str
@@ -666,6 +760,7 @@ class WorkflowRepository:
                 current.status
                 not in {WorkflowStatus.SUBMITTED, WorkflowStatus.SUCCEEDED}
                 or current.plan is None
+                or current.external_job_id is None
             ):
                 raise ValueError("workflow has no submitted job to retry")
             attempts = self._connection.execute(
@@ -770,11 +865,21 @@ class WorkflowRepository:
             active_video_version_id=row["active_video_version_id"],
             created_at=row["created_at"],
             updated_at=row["updated_at"],
+            active_caption_version_id=row["active_caption_version_id"],
         )
 
 
 def _encode_invalidates(invalidates: frozenset[ArtifactKind]) -> str:
     return ",".join(sorted(artifact.value for artifact in invalidates))
+
+
+def _encode_cues(cues: tuple[CaptionCue, ...]) -> str:
+    return json.dumps(
+        [
+            {"start_ms": cue.start_ms, "end_ms": cue.end_ms, "text": cue.text}
+            for cue in cues
+        ]
+    )
 
 
 def _encode_options(options: tuple[RepairOption, ...]) -> str:
