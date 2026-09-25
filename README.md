@@ -83,6 +83,10 @@ No third-party packages are required for the current slice.
 PYTHONPATH=src python3 -m unittest discover -s tests -v
 ```
 
+GitHub Actions runs the test suite, Ruff, mypy, compilation, and the synthetic
+demo on every pull request and push to `main`. The workflow is described in
+[`CONTRIBUTING.md`](CONTRIBUTING.md).
+
 The test suite includes the uncertain-outcome case where a provider accepts a
 job and the process crashes before saving the provider job ID. On restart, the
 executor retries with the same idempotency key and receives the original job
