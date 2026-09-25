@@ -43,6 +43,21 @@ It currently demonstrates:
 
 - a pure repair policy for five failure classes, distinguishing TTS input
   compatibility from caption defects;
+- a deterministic provider/model spoken-text gate that preserves authored text,
+  normalizes unambiguous notation, and blocks unsafe TTS input versions (see
+  [`docs/spoken-text-gate.md`](docs/spoken-text-gate.md));
+- deterministic caption formatting and timing checks with evidence, plus a
+  caption-only repair that keeps the accepted video (see
+  [`docs/caption-quality.md`](docs/caption-quality.md));
+- a synthetic script/avatar environment gate that grounds an oven/office
+  mismatch in versioned metadata and asks a human to choose the repair (see
+  [`docs/environment-compatibility.md`](docs/environment-compatibility.md));
+- a synthetic same-shot motion-jump signal tied to an exact video version,
+  with human approval before a video retry (see
+  [`docs/visual-quality-signal.md`](docs/visual-quality-signal.md));
+- persisted findings and evidence tied to exact artifact versions, with facts,
+  inferences, and uncertainty labeled separately (see
+  [`docs/quality-evidence.md`](docs/quality-evidence.md));
 - a distinction between unresolved creative input and executable approval;
 - a persisted clarification request with separate script and avatar repair
   options, followed by a specific plan when a human selects one;

@@ -13,6 +13,8 @@ from media_qc_agent import (
     WorkflowRepository,
     WorkflowStatus,
 )
+from media_qc_agent.environment import Environment, ScriptScene
+from media_qc_agent.spoken_text import SpokenTextCapabilities
 from media_qc_agent.workflow import VideoSources
 
 
@@ -23,13 +25,26 @@ class WorkflowIntegrationTests(unittest.TestCase):
         self.repository.initialize()
         self.provider = FakeVideoProvider()
         self.sources = VideoSources("script-1", "tts-1", "avatar-1", "voice-1")
-        for version_id, kind in (
-            ("script-1", ArtifactKind.SCRIPT),
-            ("tts-1", ArtifactKind.TTS_INPUT),
-            ("avatar-1", ArtifactKind.AVATAR),
-            ("voice-1", ArtifactKind.VOICE),
-        ):
+        self.repository.create_script_version(
+            version_id="script-1",
+            authored_text="A synthetic sentence.",
+            scene=ScriptScene(Environment.NEUTRAL),
+        )
+        self.repository.create_avatar_version(
+            version_id="avatar-1", environment=Environment.NEUTRAL
+        )
+        for version_id, kind in (("voice-1", ArtifactKind.VOICE),):
             self.repository.create_source_version(version_id=version_id, kind=kind)
+        self.repository.create_tts_input_version(
+            version_id="tts-1",
+            script_version_id="script-1",
+            capabilities=SpokenTextCapabilities(
+                "synthetic-tts", "literal-v1", frozenset()
+            ),
+        )
+        self.observed_video_id = self.repository.create_synthetic_video_version(
+            fixture_job_id="observed-fixture", sources=self.sources
+        ).id
 
     def tearDown(self) -> None:
         self.connection.close()
@@ -43,6 +58,7 @@ class WorkflowIntegrationTests(unittest.TestCase):
                 explanation="Generated video is jerky and unnatural",
                 confidence=0.96,
             ),
+            observed_artifact_version_id=self.observed_video_id,
         )
 
     def test_requires_approval_before_external_submission(self) -> None:
@@ -140,7 +156,12 @@ class WorkflowIntegrationTests(unittest.TestCase):
         self.assertEqual(selected.plan.action, RepairAction.REVISE_SCRIPT)
         self.assertEqual(
             selected.plan.invalidates,
-            {ArtifactKind.SCRIPT, ArtifactKind.VIDEO, ArtifactKind.CAPTIONS},
+            {
+                ArtifactKind.SCRIPT,
+                ArtifactKind.TTS_INPUT,
+                ArtifactKind.VIDEO,
+                ArtifactKind.CAPTIONS,
+            },
         )
         self.assertTrue(selected.plan.requires_repair_input)
         self.assertIsNone(selected.idempotency_key)

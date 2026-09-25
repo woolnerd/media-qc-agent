@@ -49,7 +49,12 @@ class PlanRepairTests(unittest.TestCase):
         self.assertEqual(plan.action, RepairAction.REVISE_SCRIPT)
         self.assertEqual(
             plan.invalidates,
-            {ArtifactKind.SCRIPT, ArtifactKind.VIDEO, ArtifactKind.CAPTIONS},
+            {
+                ArtifactKind.SCRIPT,
+                ArtifactKind.TTS_INPUT,
+                ArtifactKind.VIDEO,
+                ArtifactKind.CAPTIONS,
+            },
         )
         self.assertNotIn(ArtifactKind.AVATAR, plan.invalidates)
         self.assertNotIn(ArtifactKind.VOICE, plan.invalidates)
@@ -69,7 +74,12 @@ class PlanRepairTests(unittest.TestCase):
                 for option in request.options
                 if option.action is RepairAction.REVISE_SCRIPT
             ).invalidates,
-            {ArtifactKind.SCRIPT, ArtifactKind.VIDEO, ArtifactKind.CAPTIONS},
+            {
+                ArtifactKind.SCRIPT,
+                ArtifactKind.TTS_INPUT,
+                ArtifactKind.VIDEO,
+                ArtifactKind.CAPTIONS,
+            },
         )
         self.assertEqual(
             next(

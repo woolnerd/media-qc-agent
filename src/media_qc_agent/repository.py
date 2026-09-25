@@ -3,13 +3,21 @@
 import json
 import sqlite3
 
+from .captions import CaptionCue, UnsafeCaptions, validate_captions
 from .domain import (
     ArtifactKind,
     ClarificationRequest,
+    FailureKind,
     QualityFinding,
     RepairAction,
     RepairOption,
     RepairPlan,
+)
+from .environment import (
+    Environment,
+    EnvironmentCheck,
+    ScriptScene,
+    check_script_avatar_compatibility,
 )
 from .ids import (
     validate_artifact_version_id,
@@ -18,6 +26,20 @@ from .ids import (
     video_version_id,
 )
 from .planner import plan_repair, select_repair
+from .quality_records import (
+    EvidenceInput,
+    EvidenceRecord,
+    EvidenceRole,
+    QualityFindingRecord,
+)
+from .spoken_text import (
+    Notation,
+    SpokenTextCapabilities,
+    TtsInputVersion,
+    UnsafeSpokenText,
+    prepare_spoken_text,
+)
+from .visual_quality import MotionSample, VisualSignalCheck, check_jerky_video
 from .workflow import (
     ArtifactVersion,
     ProviderEvent,
@@ -63,6 +85,7 @@ class WorkflowRepository:
                 avatar_version_id TEXT NOT NULL REFERENCES artifact_versions(id),
                 voice_version_id TEXT NOT NULL REFERENCES artifact_versions(id),
                 active_video_version_id TEXT REFERENCES artifact_versions(id),
+                active_caption_version_id TEXT REFERENCES artifact_versions(id),
                 created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),
                 updated_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))
             )
@@ -95,6 +118,75 @@ class WorkflowRepository:
         )
         self._connection.execute(
             """
+            CREATE TABLE IF NOT EXISTS script_versions (
+                version_id TEXT PRIMARY KEY REFERENCES artifact_versions(id),
+                authored_text TEXT NOT NULL CHECK (trim(authored_text) <> ''),
+                environment TEXT NOT NULL,
+                evidence_phrase TEXT
+            )
+            """
+        )
+        self._connection.execute(
+            """
+            CREATE TABLE IF NOT EXISTS avatar_versions (
+                version_id TEXT PRIMARY KEY REFERENCES artifact_versions(id),
+                environment TEXT NOT NULL
+            )
+            """
+        )
+        self._connection.execute(
+            """
+            CREATE TABLE IF NOT EXISTS tts_input_versions (
+                version_id TEXT PRIMARY KEY REFERENCES artifact_versions(id),
+                script_version_id TEXT NOT NULL REFERENCES artifact_versions(id),
+                authored_text TEXT NOT NULL,
+                candidate_text TEXT NOT NULL,
+                spoken_text TEXT NOT NULL,
+                provider TEXT NOT NULL,
+                model TEXT NOT NULL,
+                supported_notation TEXT NOT NULL
+            )
+            """
+        )
+        self._connection.execute(
+            """
+            CREATE TABLE IF NOT EXISTS caption_contents (
+                version_id TEXT PRIMARY KEY REFERENCES artifact_versions(id),
+                cues_json TEXT NOT NULL
+            )
+            """
+        )
+        self._connection.execute(
+            """
+            CREATE TABLE IF NOT EXISTS quality_findings (
+                id TEXT PRIMARY KEY,
+                run_id TEXT NOT NULL UNIQUE REFERENCES workflow_runs(id),
+                artifact_version_id TEXT NOT NULL REFERENCES artifact_versions(id),
+                kind TEXT NOT NULL,
+                explanation TEXT NOT NULL,
+                confidence REAL NOT NULL CHECK (confidence BETWEEN 0 AND 1),
+                created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))
+            )
+            """
+        )
+        self._connection.execute(
+            """
+            CREATE TABLE IF NOT EXISTS quality_evidence (
+                id TEXT PRIMARY KEY,
+                finding_id TEXT NOT NULL REFERENCES quality_findings(id),
+                ordinal INTEGER NOT NULL,
+                role TEXT NOT NULL CHECK (role IN ('fact', 'inference', 'uncertainty')),
+                artifact_version_id TEXT NOT NULL REFERENCES artifact_versions(id),
+                statement TEXT NOT NULL CHECK (trim(statement) <> ''),
+                observed TEXT,
+                limit_value TEXT,
+                created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),
+                UNIQUE (finding_id, ordinal)
+            )
+            """
+        )
+        self._connection.execute(
+            """
             CREATE TABLE IF NOT EXISTS artifact_dependencies (
                 artifact_id TEXT NOT NULL REFERENCES artifact_versions(id),
                 source_kind TEXT NOT NULL,
@@ -121,15 +213,14 @@ class WorkflowRepository:
     def create_source_version(
         self, *, version_id: str, kind: ArtifactKind
     ) -> ArtifactVersion:
-        if kind not in {
-            ArtifactKind.SCRIPT,
-            ArtifactKind.TTS_INPUT,
-            ArtifactKind.AVATAR,
-            ArtifactKind.VOICE,
-        }:
-            raise ValueError(
-                "source version must be script, TTS input, avatar, or voice"
-            )
+        if kind is ArtifactKind.SCRIPT:
+            raise ValueError("script requires create_script_version")
+        if kind is ArtifactKind.TTS_INPUT:
+            raise ValueError("TTS input requires create_tts_input_version")
+        if kind is ArtifactKind.AVATAR:
+            raise ValueError("avatar requires create_avatar_version")
+        if kind is not ArtifactKind.VOICE:
+            raise ValueError("source version must be a voice")
         validate_artifact_version_id(version_id, kind)
         self._connection.execute(
             "INSERT INTO artifact_versions (id, kind) VALUES (?, ?)",
@@ -137,6 +228,151 @@ class WorkflowRepository:
         )
         self._connection.commit()
         return self.get_artifact_version(version_id)
+
+    def create_script_version(
+        self, *, version_id: str, authored_text: str, scene: ScriptScene
+    ) -> ArtifactVersion:
+        """Keep approved synthetic script text immutable with its version ID."""
+
+        validate_artifact_version_id(version_id, ArtifactKind.SCRIPT)
+        if not authored_text.strip():
+            raise ValueError("authored script text must not be blank")
+        scene.validate_text(authored_text)
+        with self._connection:
+            self._connection.execute(
+                "INSERT INTO artifact_versions (id, kind) VALUES (?, ?)",
+                (version_id, ArtifactKind.SCRIPT),
+            )
+            self._connection.execute(
+                """
+                INSERT INTO script_versions
+                    (version_id, authored_text, environment, evidence_phrase)
+                VALUES (?, ?, ?, ?)
+                """,
+                (
+                    version_id,
+                    authored_text,
+                    scene.environment,
+                    scene.evidence_phrase,
+                ),
+            )
+        return self.get_artifact_version(version_id)
+
+    def get_script_text(self, version_id: str) -> str:
+        row = self._connection.execute(
+            "SELECT authored_text FROM script_versions WHERE version_id = ?",
+            (version_id,),
+        ).fetchone()
+        if row is None:
+            raise KeyError(version_id)
+        return str(row["authored_text"])
+
+    def get_script_scene(self, version_id: str) -> ScriptScene:
+        row = self._connection.execute(
+            "SELECT environment, evidence_phrase FROM script_versions WHERE version_id = ?",
+            (version_id,),
+        ).fetchone()
+        if row is None:
+            raise KeyError(version_id)
+        return ScriptScene(Environment(row["environment"]), row["evidence_phrase"])
+
+    def create_avatar_version(
+        self, *, version_id: str, environment: Environment
+    ) -> ArtifactVersion:
+        validate_artifact_version_id(version_id, ArtifactKind.AVATAR)
+        if not isinstance(environment, Environment):
+            raise TypeError("avatar environment must be a declared Environment")
+        with self._connection:
+            self._connection.execute(
+                "INSERT INTO artifact_versions (id, kind) VALUES (?, ?)",
+                (version_id, ArtifactKind.AVATAR),
+            )
+            self._connection.execute(
+                "INSERT INTO avatar_versions (version_id, environment) VALUES (?, ?)",
+                (version_id, environment),
+            )
+        return self.get_artifact_version(version_id)
+
+    def get_avatar_environment(self, version_id: str) -> Environment:
+        row = self._connection.execute(
+            "SELECT environment FROM avatar_versions WHERE version_id = ?",
+            (version_id,),
+        ).fetchone()
+        if row is None:
+            raise KeyError(version_id)
+        return Environment(row["environment"])
+
+    def create_tts_input_version(
+        self,
+        *,
+        version_id: str,
+        script_version_id: str,
+        capabilities: SpokenTextCapabilities,
+        candidate_text: str | None = None,
+    ) -> TtsInputVersion:
+        """Persist only spoken text validated for one exact script and model."""
+
+        validate_artifact_version_id(version_id, ArtifactKind.TTS_INPUT)
+        script = self.get_artifact_version(script_version_id)
+        if script.kind is not ArtifactKind.SCRIPT:
+            raise ValueError("TTS input source must be a script version")
+        result = prepare_spoken_text(
+            self.get_script_text(script_version_id),
+            capabilities,
+            candidate_text=candidate_text,
+        )
+        if not result.safe:
+            raise UnsafeSpokenText(result.issues)
+        with self._connection:
+            self._connection.execute(
+                "INSERT INTO artifact_versions (id, kind) VALUES (?, ?)",
+                (version_id, ArtifactKind.TTS_INPUT),
+            )
+            self._insert_dependencies(
+                version_id, ((ArtifactKind.SCRIPT, script_version_id),)
+            )
+            self._connection.execute(
+                """
+                INSERT INTO tts_input_versions (
+                    version_id, script_version_id, authored_text,
+                    candidate_text, spoken_text, provider, model, supported_notation
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                """,
+                (
+                    version_id,
+                    script_version_id,
+                    result.authored_text,
+                    result.candidate_text,
+                    result.spoken_text,
+                    capabilities.provider,
+                    capabilities.model,
+                    json.dumps(
+                        sorted(item.value for item in capabilities.supported_notation)
+                    ),
+                ),
+            )
+        return self.get_tts_input_version(version_id)
+
+    def get_tts_input_version(self, version_id: str) -> TtsInputVersion:
+        row = self._connection.execute(
+            "SELECT * FROM tts_input_versions WHERE version_id = ?", (version_id,)
+        ).fetchone()
+        if row is None:
+            raise KeyError(version_id)
+        return TtsInputVersion(
+            id=row["version_id"],
+            script_version_id=row["script_version_id"],
+            authored_text=row["authored_text"],
+            candidate_text=row["candidate_text"],
+            spoken_text=row["spoken_text"],
+            capabilities=SpokenTextCapabilities(
+                provider=row["provider"],
+                model=row["model"],
+                supported_notation=frozenset(
+                    Notation(item) for item in json.loads(row["supported_notation"])
+                ),
+            ),
+        )
 
     def get_artifact_version(self, version_id: str) -> ArtifactVersion:
         row = self._connection.execute(
@@ -165,8 +401,28 @@ class WorkflowRepository:
             created_at=row["created_at"],
         )
 
+    def create_synthetic_video_version(
+        self, *, fixture_job_id: str, sources: VideoSources
+    ) -> ArtifactVersion:
+        """Seed an observed video for synthetic quality-gate fixtures."""
+
+        validate_external_id(fixture_job_id, "fixture job")
+        self._validate_sources(sources)
+        version_id = video_version_id(fixture_job_id)
+        with self._connection:
+            self._connection.execute(
+                "INSERT INTO artifact_versions (id, kind) VALUES (?, ?)",
+                (version_id, ArtifactKind.VIDEO),
+            )
+            self._insert_dependencies(version_id, sources.dependencies())
+        return self.get_artifact_version(version_id)
+
     def record_caption_version(
-        self, *, version_id: str, video_version_id: str
+        self,
+        *,
+        version_id: str,
+        video_version_id: str,
+        cues: tuple[CaptionCue, ...] | None = None,
     ) -> ArtifactVersion:
         validate_artifact_version_id(version_id, ArtifactKind.CAPTIONS)
         video = self.get_artifact_version(video_version_id)
@@ -180,6 +436,68 @@ class WorkflowRepository:
             self._insert_dependencies(
                 version_id, ((ArtifactKind.VIDEO, video_version_id),)
             )
+            if cues is not None:
+                self._connection.execute(
+                    "INSERT INTO caption_contents (version_id, cues_json) VALUES (?, ?)",
+                    (version_id, _encode_cues(cues)),
+                )
+        return self.get_artifact_version(version_id)
+
+    def get_caption_cues(self, version_id: str) -> tuple[CaptionCue, ...]:
+        row = self._connection.execute(
+            "SELECT cues_json FROM caption_contents WHERE version_id = ?", (version_id,)
+        ).fetchone()
+        if row is None:
+            raise KeyError(version_id)
+        return tuple(CaptionCue(**item) for item in json.loads(row["cues_json"]))
+
+    def record_caption_repair(
+        self, *, run_id: str, version_id: str, cues: tuple[CaptionCue, ...]
+    ) -> ArtifactVersion:
+        """Promote a validated caption version without a provider video job."""
+
+        validate_artifact_version_id(version_id, ArtifactKind.CAPTIONS)
+        checked = validate_captions(cues)
+        if not checked.valid:
+            raise UnsafeCaptions(checked.evidence)
+        with self._connection:
+            self._connection.execute("BEGIN IMMEDIATE")
+            run = self.get(run_id)
+            if (
+                run.status is not WorkflowStatus.READY
+                or run.plan is None
+                or run.plan.action is not RepairAction.REPAIR_CAPTIONS
+                or run.active_video_version_id is None
+            ):
+                raise ValueError("workflow is not ready for caption repair")
+            self._connection.execute(
+                "INSERT INTO artifact_versions (id, kind) VALUES (?, ?)",
+                (version_id, ArtifactKind.CAPTIONS),
+            )
+            self._insert_dependencies(
+                version_id, ((ArtifactKind.VIDEO, run.active_video_version_id),)
+            )
+            self._connection.execute(
+                "INSERT INTO caption_contents (version_id, cues_json) VALUES (?, ?)",
+                (version_id, _encode_cues(cues)),
+            )
+            updated = self._connection.execute(
+                """
+                UPDATE workflow_runs
+                SET status = ?, active_caption_version_id = ?,
+                    updated_at = strftime('%Y-%m-%dT%H:%M:%fZ', 'now')
+                WHERE id = ? AND status = ? AND active_video_version_id = ?
+                """,
+                (
+                    WorkflowStatus.SUCCEEDED,
+                    version_id,
+                    run_id,
+                    WorkflowStatus.READY,
+                    run.active_video_version_id,
+                ),
+            )
+            if updated.rowcount != 1:
+                raise RuntimeError("workflow state changed during caption repair")
         return self.get_artifact_version(version_id)
 
     def _insert_dependencies(
@@ -191,10 +509,33 @@ class WorkflowRepository:
         )
 
     def create(
-        self, *, run_id: str, finding: QualityFinding, sources: VideoSources
+        self,
+        *,
+        run_id: str,
+        finding: QualityFinding,
+        sources: VideoSources,
+        video_version_id: str | None = None,
+        observed_artifact_version_id: str | None = None,
+        evidence: tuple[EvidenceInput, ...] | None = None,
     ) -> WorkflowRun:
         validate_run_id(run_id)
         self._validate_sources(sources)
+        if finding.kind is FailureKind.CAPTION_FORMAT and video_version_id is None:
+            raise ValueError("caption finding requires an existing video version")
+        if video_version_id is not None:
+            self._validate_video_source(video_version_id, sources)
+        observed_id = self._observed_artifact_id(
+            finding.kind, sources, video_version_id, observed_artifact_version_id
+        )
+        evidence = evidence or (
+            EvidenceInput(EvidenceRole.INFERENCE, observed_id, finding.explanation),
+            EvidenceInput(
+                EvidenceRole.UNCERTAINTY,
+                observed_id,
+                "No independent validator evidence was supplied for this finding.",
+            ),
+        )
+        self._validate_evidence(evidence, sources, observed_id, video_version_id)
         decision = plan_repair(finding)
         if isinstance(decision, ClarificationRequest):
             plan = None
@@ -209,6 +550,58 @@ class WorkflowRepository:
                 else WorkflowStatus.AWAITING_APPROVAL
             )
 
+        with self._connection:
+            self._insert_workflow_run(
+                run_id, sources, video_version_id, plan, clarification, initial_status
+            )
+            finding_id = f"finding-{run_id}"
+            self._connection.execute(
+                """
+                INSERT INTO quality_findings
+                    (id, run_id, artifact_version_id, kind, explanation, confidence)
+                VALUES (?, ?, ?, ?, ?, ?)
+                """,
+                (
+                    finding_id,
+                    run_id,
+                    observed_id,
+                    finding.kind,
+                    finding.explanation,
+                    finding.confidence,
+                ),
+            )
+            self._connection.executemany(
+                """
+                INSERT INTO quality_evidence
+                    (id, finding_id, ordinal, role, artifact_version_id,
+                     statement, observed, limit_value)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                """,
+                (
+                    (
+                        f"evidence-{run_id}-{index}",
+                        finding_id,
+                        index,
+                        item.role,
+                        item.artifact_version_id,
+                        item.statement,
+                        item.observed,
+                        item.limit,
+                    )
+                    for index, item in enumerate(evidence, start=1)
+                ),
+            )
+        return self.get(run_id)
+
+    def _insert_workflow_run(
+        self,
+        run_id: str,
+        sources: VideoSources,
+        video_version_id: str | None,
+        plan: RepairPlan | None,
+        clarification: ClarificationRequest | None,
+        initial_status: WorkflowStatus,
+    ) -> None:
         self._connection.execute(
             """
             INSERT INTO workflow_runs (
@@ -223,10 +616,10 @@ class WorkflowRepository:
                 idempotency_key,
                 external_job_id,
                 script_version_id, tts_input_version_id,
-                avatar_version_id, voice_version_id
+                avatar_version_id, voice_version_id, active_video_version_id
             ) VALUES (
                 ?, ?, ?, ?, ?, ?, ?, ?, ?,
-                NULL, ?, ?, ?, ?
+                NULL, ?, ?, ?, ?, ?
             )
             """,
             (
@@ -247,10 +640,118 @@ class WorkflowRepository:
                 sources.tts_input_version_id,
                 sources.avatar_version_id,
                 sources.voice_version_id,
+                video_version_id,
             ),
         )
-        self._connection.commit()
-        return self.get(run_id)
+
+    def _observed_artifact_id(
+        self,
+        kind: FailureKind,
+        sources: VideoSources,
+        video_version_id: str | None,
+        explicit_id: str | None,
+    ) -> str:
+        expected_kind = {
+            FailureKind.SCRIPT_QUALITY: ArtifactKind.SCRIPT,
+            FailureKind.TTS_INPUT_COMPATIBILITY: ArtifactKind.TTS_INPUT,
+            FailureKind.ENVIRONMENT_MISMATCH: ArtifactKind.SCRIPT,
+            FailureKind.CAPTION_FORMAT: ArtifactKind.CAPTIONS,
+            FailureKind.VISUAL_QUALITY: ArtifactKind.VIDEO,
+        }[kind]
+        inferred = {
+            ArtifactKind.SCRIPT: sources.script_version_id,
+            ArtifactKind.TTS_INPUT: sources.tts_input_version_id,
+            ArtifactKind.VIDEO: video_version_id,
+        }.get(expected_kind)
+        observed_id = explicit_id or inferred
+        if observed_id is None:
+            raise ValueError("finding requires an exact observed artifact version")
+        observed = self.get_artifact_version(observed_id)
+        if observed.kind is not expected_kind:
+            raise ValueError("observed artifact has the wrong kind for this finding")
+        self._validate_observed_lineage(
+            observed, expected_kind, inferred, sources, video_version_id
+        )
+        return observed_id
+
+    def _validate_observed_lineage(
+        self,
+        observed: ArtifactVersion,
+        expected_kind: ArtifactKind,
+        inferred: str | None,
+        sources: VideoSources,
+        video_version_id: str | None,
+    ) -> None:
+        if expected_kind is ArtifactKind.VIDEO:
+            self._validate_video_source(observed.id, sources)
+            if video_version_id is not None and observed.id != video_version_id:
+                raise ValueError(
+                    "observed artifact must match the active video version"
+                )
+        elif expected_kind is ArtifactKind.CAPTIONS:
+            if observed.source_versions != ((ArtifactKind.VIDEO, video_version_id),):
+                raise ValueError("observed artifact must derive from the active video")
+        elif observed.id != inferred:
+            raise ValueError("observed artifact must match the selected source version")
+
+    def _validate_evidence(
+        self,
+        evidence: tuple[EvidenceInput, ...],
+        sources: VideoSources,
+        observed_id: str,
+        video_version_id: str | None,
+    ) -> None:
+        allowed = {version_id for _, version_id in sources.dependencies()}
+        allowed.add(observed_id)
+        if video_version_id is not None:
+            allowed.add(video_version_id)
+        for item in evidence:
+            if item.artifact_version_id not in allowed:
+                raise ValueError("evidence artifact must belong to the finding lineage")
+
+    def get_quality_finding(self, run_id: str) -> QualityFindingRecord:
+        row = self._connection.execute(
+            "SELECT * FROM quality_findings WHERE run_id = ?", (run_id,)
+        ).fetchone()
+        if row is None:
+            raise KeyError(run_id)
+        return QualityFindingRecord(
+            id=row["id"],
+            run_id=row["run_id"],
+            artifact_version_id=row["artifact_version_id"],
+            kind=FailureKind(row["kind"]),
+            explanation=row["explanation"],
+            confidence=row["confidence"],
+            created_at=row["created_at"],
+        )
+
+    def get_quality_evidence(self, finding_id: str) -> tuple[EvidenceRecord, ...]:
+        rows = self._connection.execute(
+            "SELECT * FROM quality_evidence WHERE finding_id = ? ORDER BY ordinal",
+            (finding_id,),
+        ).fetchall()
+        return tuple(
+            EvidenceRecord(
+                id=row["id"],
+                finding_id=row["finding_id"],
+                role=EvidenceRole(row["role"]),
+                artifact_version_id=row["artifact_version_id"],
+                statement=row["statement"],
+                observed=row["observed"],
+                limit=row["limit_value"],
+                created_at=row["created_at"],
+            )
+            for row in rows
+        )
+
+    def _validate_video_source(
+        self, video_version_id: str, sources: VideoSources
+    ) -> None:
+        video = self.get_artifact_version(video_version_id)
+        if video.kind is not ArtifactKind.VIDEO:
+            raise ValueError("finding source must be a video version")
+        if video.source_versions != sources.dependencies():
+            raise ValueError("finding video must match selected source versions")
 
     def _validate_sources(self, sources: VideoSources) -> None:
         for kind, version_id in sources.dependencies():
@@ -259,6 +760,176 @@ class WorkflowRepository:
                 raise ValueError(
                     f"{kind.value} source must reference a {kind.value} version"
                 )
+        self._validate_tts_binding(sources)
+
+    def _validate_tts_binding(self, sources: VideoSources) -> None:
+        tts_input = self.get_tts_input_version(sources.tts_input_version_id)
+        if tts_input.script_version_id != sources.script_version_id:
+            raise ValueError("TTS input must derive from the selected script version")
+
+    def check_environment(self, sources: VideoSources) -> EnvironmentCheck:
+        return check_script_avatar_compatibility(
+            script_version_id=sources.script_version_id,
+            authored_text=self.get_script_text(sources.script_version_id),
+            scene=self.get_script_scene(sources.script_version_id),
+            avatar_version_id=sources.avatar_version_id,
+            avatar_environment=self.get_avatar_environment(sources.avatar_version_id),
+        )
+
+    def create_environment_run(
+        self, *, run_id: str, sources: VideoSources
+    ) -> WorkflowRun | None:
+        """Open a human clarification only when the pre-render gate finds one."""
+
+        checked = self.check_environment(sources)
+        if checked.finding is None:
+            return None
+        assert checked.evidence is not None
+        signal = checked.evidence
+        evidence = (
+            EvidenceInput(
+                EvidenceRole.FACT,
+                signal.script_version_id,
+                f"Script contains scene phrase {signal.script_phrase!r}.",
+                observed=signal.script_phrase,
+                limit=signal.required_environment.value,
+            ),
+            EvidenceInput(
+                EvidenceRole.FACT,
+                signal.avatar_version_id,
+                "Avatar declares an environment.",
+                observed=signal.avatar_environment.value,
+            ),
+            EvidenceInput(
+                EvidenceRole.INFERENCE,
+                signal.script_version_id,
+                checked.finding.explanation,
+            ),
+            EvidenceInput(
+                EvidenceRole.UNCERTAINTY,
+                signal.avatar_version_id,
+                "Declared environment has not been checked against avatar pixels.",
+            ),
+        )
+        return self.create(
+            run_id=run_id, finding=checked.finding, sources=sources, evidence=evidence
+        )
+
+    def check_visual_quality(
+        self, video_version_id: str, samples: tuple[MotionSample, ...]
+    ) -> VisualSignalCheck:
+        video = self.get_artifact_version(video_version_id)
+        if video.kind is not ArtifactKind.VIDEO:
+            raise ValueError("visual quality target must be a video version")
+        return check_jerky_video(video_version_id, samples)
+
+    def create_visual_quality_run(
+        self,
+        *,
+        run_id: str,
+        video_version_id: str,
+        samples: tuple[MotionSample, ...],
+    ) -> WorkflowRun | None:
+        """Open an approval gate only for a grounded repeated-jerk signal."""
+
+        checked = self.check_visual_quality(video_version_id, samples)
+        if checked.finding is None:
+            return None
+        video = self.get_artifact_version(video_version_id)
+        source_ids = dict(video.source_versions)
+        sources = VideoSources(
+            script_version_id=source_ids[ArtifactKind.SCRIPT],
+            tts_input_version_id=source_ids[ArtifactKind.TTS_INPUT],
+            avatar_version_id=source_ids[ArtifactKind.AVATAR],
+            voice_version_id=source_ids[ArtifactKind.VOICE],
+        )
+        return self.create(
+            run_id=run_id,
+            finding=checked.finding,
+            sources=sources,
+            video_version_id=video_version_id,
+            evidence=tuple(
+                EvidenceInput(
+                    EvidenceRole.FACT,
+                    item.video_version_id,
+                    f"Motion jump from frame {item.from_frame} to {item.to_frame}.",
+                    observed=f"{item.jump_px_per_frame:g} px/frame",
+                    limit=f"{item.threshold_px:g} px/frame",
+                )
+                for item in checked.evidence
+            )
+            + (
+                EvidenceInput(
+                    EvidenceRole.INFERENCE,
+                    video_version_id,
+                    checked.finding.explanation,
+                ),
+                EvidenceInput(
+                    EvidenceRole.UNCERTAINTY,
+                    video_version_id,
+                    "Motion metric has not been confirmed by perceptual review.",
+                ),
+            ),
+        )
+
+    def create_caption_quality_run(
+        self,
+        *,
+        run_id: str,
+        caption_version_id: str,
+    ) -> WorkflowRun | None:
+        """Persist a caption finding against one exact observed caption version."""
+
+        caption = self.get_artifact_version(caption_version_id)
+        if caption.kind is not ArtifactKind.CAPTIONS:
+            raise ValueError("caption quality target must be a caption version")
+        checked = validate_captions(self.get_caption_cues(caption_version_id))
+        if checked.valid:
+            return None
+        if len(caption.source_versions) != 1:
+            raise ValueError("caption must derive from one video version")
+        video_version_id = caption.source_versions[0][1]
+        video = self.get_artifact_version(video_version_id)
+        source_ids = dict(video.source_versions)
+        sources = VideoSources(
+            script_version_id=source_ids[ArtifactKind.SCRIPT],
+            tts_input_version_id=source_ids[ArtifactKind.TTS_INPUT],
+            avatar_version_id=source_ids[ArtifactKind.AVATAR],
+            voice_version_id=source_ids[ArtifactKind.VOICE],
+        )
+        return self.create(
+            run_id=run_id,
+            finding=QualityFinding(
+                FailureKind.CAPTION_FORMAT,
+                f"{caption_version_id} violates {len(checked.evidence)} caption rule(s).",
+                1.0,
+            ),
+            sources=sources,
+            video_version_id=video_version_id,
+            observed_artifact_version_id=caption_version_id,
+            evidence=tuple(
+                EvidenceInput(
+                    EvidenceRole.FACT,
+                    caption_version_id,
+                    f"Caption rule {item.rule} failed at cue {item.cue_index}.",
+                    observed=item.observed,
+                    limit=item.limit,
+                )
+                for item in checked.evidence
+            )
+            + (
+                EvidenceInput(
+                    EvidenceRole.INFERENCE,
+                    caption_version_id,
+                    "The measured rule violations require local caption repair.",
+                ),
+                EvidenceInput(
+                    EvidenceRole.UNCERTAINTY,
+                    caption_version_id,
+                    "Caption meaning and visual fit have not been reviewed.",
+                ),
+            ),
+        )
 
     def select_repair(self, run_id: str, action: RepairAction) -> WorkflowRun:
         """Record a branch choice while awaiting its replacement artifact."""
@@ -297,6 +968,10 @@ class WorkflowRepository:
         return self.get(run_id)
 
     def approve(self, run_id: str) -> WorkflowRun:
+        current = self.get(run_id)
+        if current.status is WorkflowStatus.AWAITING_APPROVAL:
+            self._validate_tts_binding(current.sources)
+            self._validate_environment_before_approval(current)
         result = self._connection.execute(
             """
             UPDATE workflow_runs
@@ -314,6 +989,12 @@ class WorkflowRepository:
         if result.rowcount != 1:
             raise ValueError("workflow is missing or is not awaiting approval")
         return self.get(run_id)
+
+    def _validate_environment_before_approval(self, run: WorkflowRun) -> None:
+        if run.plan is None or run.plan.action is RepairAction.REPAIR_CAPTIONS:
+            return
+        if self.check_environment(run.sources).finding is not None:
+            raise ValueError("environment mismatch must be resolved before approval")
 
     def bind_replacement(self, run_id: str, version_id: str) -> WorkflowRun:
         """Bind the exact new input required by a repair before approval."""
@@ -361,6 +1042,45 @@ class WorkflowRepository:
             raise RuntimeError("workflow state changed during replacement binding")
         return self.get(run_id)
 
+    def bind_tts_input(self, run_id: str, version_id: str) -> WorkflowRun:
+        """Pair a revised script with its validated spoken text before approval."""
+
+        current = self.get(run_id)
+        if (
+            current.status is not WorkflowStatus.AWAITING_APPROVAL
+            or current.plan is None
+            or current.plan.action is not RepairAction.REVISE_SCRIPT
+        ):
+            raise ValueError("workflow is not awaiting revised script TTS input")
+        tts_input = self.get_tts_input_version(version_id)
+        if tts_input.script_version_id != current.sources.script_version_id:
+            raise ValueError("TTS input must derive from the selected script version")
+        if version_id == current.sources.tts_input_version_id:
+            raise ValueError("replacement TTS input must be a new version")
+        key = (
+            f"workflow-run:{run_id}:{current.plan.action}:"
+            f"replacement:{current.sources.script_version_id}:tts:{version_id}"
+        )
+        updated = self._connection.execute(
+            """
+            UPDATE workflow_runs
+            SET tts_input_version_id = ?, idempotency_key = ?,
+                updated_at = strftime('%Y-%m-%dT%H:%M:%fZ', 'now')
+            WHERE id = ? AND status = ? AND script_version_id = ?
+            """,
+            (
+                version_id,
+                key,
+                run_id,
+                WorkflowStatus.AWAITING_APPROVAL,
+                current.sources.script_version_id,
+            ),
+        )
+        self._connection.commit()
+        if updated.rowcount != 1:
+            raise RuntimeError("workflow state changed during TTS input binding")
+        return self.get(run_id)
+
     def record_submission(self, *, run_id: str, external_job_id: str) -> WorkflowRun:
         """Record an accepted provider job without permitting ID replacement."""
 
@@ -372,9 +1092,7 @@ class WorkflowRepository:
             return current
         if current.status is not WorkflowStatus.READY:
             raise ValueError("workflow is not ready for provider submission")
-
-        if current.plan is None or current.idempotency_key is None:
-            raise ValueError("workflow has no executable repair plan")
+        plan = self._require_video_submission_plan(current)
         with self._connection:
             self._connection.execute(
                 """
@@ -388,7 +1106,7 @@ class WorkflowRepository:
                     external_job_id,
                     run_id,
                     current.idempotency_key,
-                    current.plan.action,
+                    plan.action,
                     current.sources.script_version_id,
                     current.sources.tts_input_version_id,
                     current.sources.avatar_version_id,
@@ -412,6 +1130,13 @@ class WorkflowRepository:
             if result.rowcount != 1:
                 raise RuntimeError("workflow state changed during provider submission")
         return self.get(run_id)
+
+    def _require_video_submission_plan(self, run: WorkflowRun) -> RepairPlan:
+        if run.plan is None or run.idempotency_key is None:
+            raise ValueError("workflow has no executable repair plan")
+        if run.plan.action is RepairAction.REPAIR_CAPTIONS:
+            raise ValueError("caption repair cannot submit a video provider job")
+        return run.plan
 
     def record_completion(
         self, *, external_job_id: str, external_event_id: str
@@ -489,6 +1214,7 @@ class WorkflowRepository:
                 current.status
                 not in {WorkflowStatus.SUBMITTED, WorkflowStatus.SUCCEEDED}
                 or current.plan is None
+                or current.external_job_id is None
             ):
                 raise ValueError("workflow has no submitted job to retry")
             attempts = self._connection.execute(
@@ -593,11 +1319,21 @@ class WorkflowRepository:
             active_video_version_id=row["active_video_version_id"],
             created_at=row["created_at"],
             updated_at=row["updated_at"],
+            active_caption_version_id=row["active_caption_version_id"],
         )
 
 
 def _encode_invalidates(invalidates: frozenset[ArtifactKind]) -> str:
     return ",".join(sorted(artifact.value for artifact in invalidates))
+
+
+def _encode_cues(cues: tuple[CaptionCue, ...]) -> str:
+    return json.dumps(
+        [
+            {"start_ms": cue.start_ms, "end_ms": cue.end_ms, "text": cue.text}
+            for cue in cues
+        ]
+    )
 
 
 def _encode_options(options: tuple[RepairOption, ...]) -> str:

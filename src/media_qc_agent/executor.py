@@ -2,6 +2,7 @@
 
 from typing import Protocol
 
+from .domain import RepairAction
 from .provider import VideoProvider
 from .workflow import WorkflowRun, WorkflowStatus
 
@@ -43,6 +44,8 @@ class WorkflowExecutor:
             raise ValueError("workflow must be approved before submission")
         if run.plan is None or run.idempotency_key is None:
             raise ValueError("workflow has no executable repair plan")
+        if run.plan.action is RepairAction.REPAIR_CAPTIONS:
+            raise ValueError("caption repair must not submit a video provider job")
 
         external_job_id = self._provider.submit(
             idempotency_key=run.idempotency_key,

@@ -19,13 +19,13 @@ authored script, avatar, and voice profile. A replacement input is required
 before approval; the policy does not itself guess a rewrite or submit a job.
 Caption formatting remains a separate, caption-only failure class.
 
-The future provider adapter or a validator using its declared provider/model
-capability profile will prepare and check candidate spoken text. The core
+The deterministic validator uses a declared provider/model capability profile
+to prepare and check candidate spoken text. The core
 repair policy owns dependency scope and approval rules, not a universal symbol
 replacement table. If intent or pronunciation is ambiguous, a human must
-resolve it. Each accepted TTS input will need an immutable version tied to the
-authored script version and provider/model configuration before executable
-approval; that binding belongs to the versioned-artifact work.
+resolve it. Each accepted TTS input is an immutable version tied to the
+authored script version and provider/model configuration. A revised script
+cannot be approved with TTS input derived from the older script.
 
 ## Alternatives considered
 
@@ -37,7 +37,9 @@ approval; that binding belongs to the versioned-artifact work.
 
 ## Consequences
 
-The current slice can classify the failure, plan its minimum invalidation, and
-block approval while safe replacement text is missing. It does not yet produce
-or persist that text, inspect rendered audio, or implement capability profiles.
-Those require versioned artifacts and deterministic quality-gate work.
+The deterministic gate now stores accepted provider-facing text as a derived
+version tied to the exact script version and a synthetic provider/model
+capability profile. Ambiguous input is reported before a version can be used by
+a workflow. It does not inspect rendered audio or prove that an explicit human
+rewrite preserves the intended meaning; those remain review concerns. See the
+[spoken-text gate](../spoken-text-gate.md) for supported synthetic notation.

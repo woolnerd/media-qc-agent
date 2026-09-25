@@ -10,6 +10,8 @@ from media_qc_agent import (
     WorkflowRepository,
     WorkflowStatus,
 )
+from media_qc_agent.environment import Environment, ScriptScene
+from media_qc_agent.spoken_text import SpokenTextCapabilities
 from media_qc_agent.workflow import ProviderEventDisposition, VideoSources
 
 
@@ -20,8 +22,32 @@ class ProviderTransitionRuleTests(unittest.TestCase):
         self.repository.initialize()
         self.provider = FakeVideoProvider()
         sources = VideoSources("script-1", "tts-1", "avatar-1", "voice-1")
+        self.repository.create_script_version(
+            version_id="script-1",
+            authored_text="A synthetic sentence.",
+            scene=ScriptScene(Environment.NEUTRAL),
+        )
+        self.repository.create_avatar_version(
+            version_id="avatar-1", environment=Environment.NEUTRAL
+        )
         for kind, version_id in sources.dependencies():
+            if kind in {
+                ArtifactKind.SCRIPT,
+                ArtifactKind.TTS_INPUT,
+                ArtifactKind.AVATAR,
+            }:
+                continue
             self.repository.create_source_version(version_id=version_id, kind=kind)
+        self.repository.create_tts_input_version(
+            version_id="tts-1",
+            script_version_id="script-1",
+            capabilities=SpokenTextCapabilities(
+                "synthetic-tts", "literal-v1", frozenset()
+            ),
+        )
+        observed_video_id = self.repository.create_synthetic_video_version(
+            fixture_job_id="observed-fixture", sources=sources
+        ).id
         self.repository.create(
             run_id="run-1",
             finding=QualityFinding(
@@ -30,6 +56,7 @@ class ProviderTransitionRuleTests(unittest.TestCase):
                 confidence=0.95,
             ),
             sources=sources,
+            observed_artifact_version_id=observed_video_id,
         )
 
     def tearDown(self) -> None:
@@ -83,7 +110,7 @@ class ProviderTransitionRuleTests(unittest.TestCase):
         self.assertEqual(self.connection.total_changes, changes_after_first)
         self.assertEqual(
             self.connection.execute(
-                "SELECT COUNT(*) FROM artifact_versions WHERE kind = ?",
+                "SELECT COUNT(*) FROM artifact_versions WHERE kind = ? AND external_job_id IS NOT NULL",
                 (ArtifactKind.VIDEO,),
             ).fetchone()[0],
             1,
