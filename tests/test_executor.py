@@ -9,7 +9,7 @@ from media_qc_agent import (
     WorkflowExecutor,
     WorkflowStatus,
 )
-from media_qc_agent.workflow import WorkflowRun
+from media_qc_agent.workflow import VideoSources, WorkflowRun
 
 
 class InMemoryWorkflowStore:
@@ -48,6 +48,8 @@ class WorkflowExecutorBoundaryTests(unittest.TestCase):
             clarification=None,
             idempotency_key="workflow-run:run-1:regenerate_video",
             external_job_id=None,
+            sources=VideoSources("script-1", "tts-1", "avatar-1", "voice-1"),
+            active_video_version_id=None,
             created_at="2026-09-24T00:00:00.000Z",
             updated_at="2026-09-24T00:00:00.000Z",
         )

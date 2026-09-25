@@ -13,12 +13,22 @@ from .domain import (
 )
 from .planner import plan_repair, select_repair
 from .workflow import (
+    ArtifactVersion,
     ProviderEvent,
     ProviderEventDisposition,
     ProviderJob,
+    VideoSources,
     WorkflowRun,
     WorkflowStatus,
     classify_completion,
+)
+
+_SOURCE_ORDER = (
+    ArtifactKind.SCRIPT,
+    ArtifactKind.TTS_INPUT,
+    ArtifactKind.AVATAR,
+    ArtifactKind.VOICE,
+    ArtifactKind.VIDEO,
 )
 
 
@@ -42,6 +52,11 @@ class WorkflowRepository:
                 clarification_options TEXT,
                 idempotency_key TEXT UNIQUE,
                 external_job_id TEXT,
+                script_version_id TEXT NOT NULL REFERENCES artifact_versions(id),
+                tts_input_version_id TEXT NOT NULL REFERENCES artifact_versions(id),
+                avatar_version_id TEXT NOT NULL REFERENCES artifact_versions(id),
+                voice_version_id TEXT NOT NULL REFERENCES artifact_versions(id),
+                active_video_version_id TEXT REFERENCES artifact_versions(id),
                 created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),
                 updated_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))
             )
@@ -54,7 +69,31 @@ class WorkflowRepository:
                 run_id TEXT NOT NULL REFERENCES workflow_runs(id),
                 idempotency_key TEXT NOT NULL UNIQUE,
                 action TEXT NOT NULL,
+                script_version_id TEXT NOT NULL REFERENCES artifact_versions(id),
+                tts_input_version_id TEXT NOT NULL REFERENCES artifact_versions(id),
+                avatar_version_id TEXT NOT NULL REFERENCES artifact_versions(id),
+                voice_version_id TEXT NOT NULL REFERENCES artifact_versions(id),
                 created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))
+            )
+            """
+        )
+        self._connection.execute(
+            """
+            CREATE TABLE IF NOT EXISTS artifact_versions (
+                id TEXT PRIMARY KEY,
+                kind TEXT NOT NULL,
+                external_job_id TEXT UNIQUE,
+                created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))
+            )
+            """
+        )
+        self._connection.execute(
+            """
+            CREATE TABLE IF NOT EXISTS artifact_dependencies (
+                artifact_id TEXT NOT NULL REFERENCES artifact_versions(id),
+                source_kind TEXT NOT NULL,
+                source_id TEXT NOT NULL REFERENCES artifact_versions(id),
+                PRIMARY KEY (artifact_id, source_kind)
             )
             """
         )
@@ -73,7 +112,80 @@ class WorkflowRepository:
         )
         self._connection.commit()
 
-    def create(self, *, run_id: str, finding: QualityFinding) -> WorkflowRun:
+    def create_source_version(
+        self, *, version_id: str, kind: ArtifactKind
+    ) -> ArtifactVersion:
+        if kind not in {
+            ArtifactKind.SCRIPT,
+            ArtifactKind.TTS_INPUT,
+            ArtifactKind.AVATAR,
+            ArtifactKind.VOICE,
+        }:
+            raise ValueError(
+                "source version must be script, TTS input, avatar, or voice"
+            )
+        self._connection.execute(
+            "INSERT INTO artifact_versions (id, kind) VALUES (?, ?)",
+            (version_id, kind),
+        )
+        self._connection.commit()
+        return self.get_artifact_version(version_id)
+
+    def get_artifact_version(self, version_id: str) -> ArtifactVersion:
+        row = self._connection.execute(
+            "SELECT * FROM artifact_versions WHERE id = ?", (version_id,)
+        ).fetchone()
+        if row is None:
+            raise KeyError(version_id)
+        dependencies = self._connection.execute(
+            "SELECT source_kind, source_id FROM artifact_dependencies WHERE artifact_id = ?",
+            (version_id,),
+        ).fetchall()
+        sources = tuple(
+            sorted(
+                (
+                    (ArtifactKind(item["source_kind"]), item["source_id"])
+                    for item in dependencies
+                ),
+                key=lambda item: _SOURCE_ORDER.index(item[0]),
+            )
+        )
+        return ArtifactVersion(
+            id=row["id"],
+            kind=ArtifactKind(row["kind"]),
+            source_versions=sources,
+            external_job_id=row["external_job_id"],
+            created_at=row["created_at"],
+        )
+
+    def record_caption_version(
+        self, *, version_id: str, video_version_id: str
+    ) -> ArtifactVersion:
+        video = self.get_artifact_version(video_version_id)
+        if video.kind is not ArtifactKind.VIDEO:
+            raise ValueError("caption source must be a video version")
+        with self._connection:
+            self._connection.execute(
+                "INSERT INTO artifact_versions (id, kind) VALUES (?, ?)",
+                (version_id, ArtifactKind.CAPTIONS),
+            )
+            self._insert_dependencies(
+                version_id, ((ArtifactKind.VIDEO, video_version_id),)
+            )
+        return self.get_artifact_version(version_id)
+
+    def _insert_dependencies(
+        self, artifact_id: str, sources: tuple[tuple[ArtifactKind, str], ...]
+    ) -> None:
+        self._connection.executemany(
+            "INSERT INTO artifact_dependencies (artifact_id, source_kind, source_id) VALUES (?, ?, ?)",
+            ((artifact_id, kind, source_id) for kind, source_id in sources),
+        )
+
+    def create(
+        self, *, run_id: str, finding: QualityFinding, sources: VideoSources
+    ) -> WorkflowRun:
+        self._validate_sources(sources)
         decision = plan_repair(finding)
         if isinstance(decision, ClarificationRequest):
             plan = None
@@ -100,10 +212,12 @@ class WorkflowRepository:
                 clarification_question,
                 clarification_options,
                 idempotency_key,
-                external_job_id
+                external_job_id,
+                script_version_id, tts_input_version_id,
+                avatar_version_id, voice_version_id
             ) VALUES (
                 ?, ?, ?, ?, ?, ?, ?, ?, ?,
-                NULL
+                NULL, ?, ?, ?, ?
             )
             """,
             (
@@ -120,10 +234,22 @@ class WorkflowRepository:
                     if plan and not plan.requires_repair_input
                     else None
                 ),
+                sources.script_version_id,
+                sources.tts_input_version_id,
+                sources.avatar_version_id,
+                sources.voice_version_id,
             ),
         )
         self._connection.commit()
         return self.get(run_id)
+
+    def _validate_sources(self, sources: VideoSources) -> None:
+        for kind, version_id in sources.dependencies():
+            artifact = self.get_artifact_version(version_id)
+            if artifact.kind is not kind:
+                raise ValueError(
+                    f"{kind.value} source must reference a {kind.value} version"
+                )
 
     def select_repair(self, run_id: str, action: RepairAction) -> WorkflowRun:
         """Record a branch choice while awaiting its replacement artifact."""
@@ -180,6 +306,52 @@ class WorkflowRepository:
             raise ValueError("workflow is missing or is not awaiting approval")
         return self.get(run_id)
 
+    def bind_replacement(self, run_id: str, version_id: str) -> WorkflowRun:
+        """Bind the exact new input required by a repair before approval."""
+
+        current = self.get(run_id)
+        if (
+            current.status is not WorkflowStatus.NEEDS_REPAIR_INPUT
+            or current.plan is None
+        ):
+            raise ValueError("workflow is not awaiting repair input")
+        target = {
+            RepairAction.REVISE_SCRIPT: (ArtifactKind.SCRIPT, "script_version_id"),
+            RepairAction.REPAIR_TTS_INPUT: (
+                ArtifactKind.TTS_INPUT,
+                "tts_input_version_id",
+            ),
+            RepairAction.CHANGE_AVATAR: (ArtifactKind.AVATAR, "avatar_version_id"),
+        }.get(current.plan.action)
+        if target is None:
+            raise ValueError("repair action has no replacement input")
+        kind, column = target
+        replacement = self.get_artifact_version(version_id)
+        if replacement.kind is not kind:
+            raise ValueError(f"replacement must be a {kind.value} version")
+        if version_id in {value for _, value in current.sources.dependencies()}:
+            raise ValueError("replacement must be a new source version")
+        key = f"workflow-run:{run_id}:{current.plan.action}:replacement:{version_id}"
+        updated = self._connection.execute(
+            f"""
+            UPDATE workflow_runs
+            SET {column} = ?, status = ?, idempotency_key = ?,
+                updated_at = strftime('%Y-%m-%dT%H:%M:%fZ', 'now')
+            WHERE id = ? AND status = ?
+            """,
+            (
+                version_id,
+                WorkflowStatus.AWAITING_APPROVAL,
+                key,
+                run_id,
+                WorkflowStatus.NEEDS_REPAIR_INPUT,
+            ),
+        )
+        self._connection.commit()
+        if updated.rowcount != 1:
+            raise RuntimeError("workflow state changed during replacement binding")
+        return self.get(run_id)
+
     def record_submission(self, *, run_id: str, external_job_id: str) -> WorkflowRun:
         """Record an accepted provider job without permitting ID replacement."""
 
@@ -197,14 +369,20 @@ class WorkflowRepository:
             self._connection.execute(
                 """
                 INSERT INTO provider_jobs (
-                    external_job_id, run_id, idempotency_key, action
-                ) VALUES (?, ?, ?, ?)
+                    external_job_id, run_id, idempotency_key, action,
+                    script_version_id, tts_input_version_id,
+                    avatar_version_id, voice_version_id
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
                 """,
                 (
                     external_job_id,
                     run_id,
                     current.idempotency_key,
                     current.plan.action,
+                    current.sources.script_version_id,
+                    current.sources.tts_input_version_id,
+                    current.sources.avatar_version_id,
+                    current.sources.voice_version_id,
                 ),
             )
             result = self._connection.execute(
@@ -260,14 +438,22 @@ class WorkflowRepository:
                 return self.get(job.run_id)
 
             if disposition is ProviderEventDisposition.APPLIED:
+                video_version_id = f"video:{external_job_id}"
+                self._connection.execute(
+                    "INSERT INTO artifact_versions (id, kind, external_job_id) VALUES (?, ?, ?)",
+                    (video_version_id, ArtifactKind.VIDEO, external_job_id),
+                )
+                self._insert_dependencies(video_version_id, job.sources.dependencies())
                 updated = self._connection.execute(
                     """
                     UPDATE workflow_runs
-                    SET status = ?, updated_at = strftime('%Y-%m-%dT%H:%M:%fZ', 'now')
+                    SET status = ?, active_video_version_id = ?,
+                        updated_at = strftime('%Y-%m-%dT%H:%M:%fZ', 'now')
                     WHERE id = ? AND status = ? AND external_job_id = ?
                     """,
                     (
                         WorkflowStatus.SUCCEEDED,
+                        video_version_id,
                         job.run_id,
                         WorkflowStatus.SUBMITTED,
                         external_job_id,
@@ -285,7 +471,11 @@ class WorkflowRepository:
         with self._connection:
             self._connection.execute("BEGIN IMMEDIATE")
             current = self.get(run_id)
-            if current.status is not WorkflowStatus.SUBMITTED or current.plan is None:
+            if (
+                current.status
+                not in {WorkflowStatus.SUBMITTED, WorkflowStatus.SUCCEEDED}
+                or current.plan is None
+            ):
                 raise ValueError("workflow has no submitted job to retry")
             attempts = self._connection.execute(
                 "SELECT COUNT(*) FROM provider_jobs WHERE run_id = ?", (run_id,)
@@ -302,7 +492,7 @@ class WorkflowRepository:
                     WorkflowStatus.AWAITING_APPROVAL,
                     key,
                     run_id,
-                    WorkflowStatus.SUBMITTED,
+                    current.status,
                     current.external_job_id,
                 ),
             )
@@ -322,6 +512,12 @@ class WorkflowRepository:
             run_id=row["run_id"],
             idempotency_key=row["idempotency_key"],
             action=row["action"],
+            sources=VideoSources(
+                script_version_id=row["script_version_id"],
+                tts_input_version_id=row["tts_input_version_id"],
+                avatar_version_id=row["avatar_version_id"],
+                voice_version_id=row["voice_version_id"],
+            ),
             created_at=row["created_at"],
         )
 
@@ -374,6 +570,13 @@ class WorkflowRepository:
             clarification=clarification,
             idempotency_key=row["idempotency_key"],
             external_job_id=row["external_job_id"],
+            sources=VideoSources(
+                script_version_id=row["script_version_id"],
+                tts_input_version_id=row["tts_input_version_id"],
+                avatar_version_id=row["avatar_version_id"],
+                voice_version_id=row["voice_version_id"],
+            ),
+            active_video_version_id=row["active_video_version_id"],
             created_at=row["created_at"],
             updated_at=row["updated_at"],
         )

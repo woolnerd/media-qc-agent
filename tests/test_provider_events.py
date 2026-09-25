@@ -2,6 +2,7 @@ import sqlite3
 import unittest
 
 from media_qc_agent import (
+    ArtifactKind,
     FailureKind,
     FakeVideoProvider,
     QualityFinding,
@@ -9,7 +10,7 @@ from media_qc_agent import (
     WorkflowRepository,
     WorkflowStatus,
 )
-from media_qc_agent.workflow import ProviderEventDisposition
+from media_qc_agent.workflow import ProviderEventDisposition, VideoSources
 
 
 class ProviderCompletionTests(unittest.TestCase):
@@ -18,12 +19,21 @@ class ProviderCompletionTests(unittest.TestCase):
         self.repository = WorkflowRepository(self.connection)
         self.repository.initialize()
         self.provider = FakeVideoProvider()
+        self.sources = VideoSources("script-1", "tts-1", "avatar-1", "voice-1")
+        for version_id, kind in (
+            ("script-1", ArtifactKind.SCRIPT),
+            ("tts-1", ArtifactKind.TTS_INPUT),
+            ("avatar-1", ArtifactKind.AVATAR),
+            ("voice-1", ArtifactKind.VOICE),
+        ):
+            self.repository.create_source_version(version_id=version_id, kind=kind)
 
     def tearDown(self) -> None:
         self.connection.close()
 
     def submit_run(self, run_id: str) -> str:
         self.repository.create(
+            sources=self.sources,
             run_id=run_id,
             finding=QualityFinding(
                 kind=FailureKind.VISUAL_QUALITY,
@@ -126,6 +136,7 @@ class ProviderCompletionTests(unittest.TestCase):
     def test_external_job_id_cannot_be_reused_across_runs(self) -> None:
         external_job_id = self.submit_run("run-1")
         self.repository.create(
+            sources=self.sources,
             run_id="run-2",
             finding=QualityFinding(
                 kind=FailureKind.VISUAL_QUALITY,
