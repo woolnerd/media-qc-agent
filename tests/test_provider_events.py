@@ -237,34 +237,5 @@ class ProviderCompletionTests(unittest.TestCase):
         )
 
 
-class ProviderEventMigrationTests(unittest.TestCase):
-    def test_existing_event_table_gains_audit_columns(self) -> None:
-        connection = sqlite3.connect(":memory:")
-        try:
-            connection.execute(
-                """
-                CREATE TABLE provider_events (
-                    external_event_id TEXT PRIMARY KEY,
-                    external_job_id TEXT NOT NULL,
-                    event_type TEXT NOT NULL,
-                    result_status TEXT NOT NULL,
-                    created_at TEXT NOT NULL
-                )
-                """
-            )
-            connection.execute(
-                "INSERT INTO provider_events VALUES (?, ?, ?, ?, ?)",
-                ("old-event", "old-job", "completed", "succeeded", "yesterday"),
-            )
-            repository = WorkflowRepository(connection)
-            repository.initialize()
-
-            event = repository.get_provider_event("old-event")
-            self.assertEqual(event.disposition, ProviderEventDisposition.LEGACY)
-            self.assertIsNone(event.reason)
-        finally:
-            connection.close()
-
-
 if __name__ == "__main__":
     unittest.main()

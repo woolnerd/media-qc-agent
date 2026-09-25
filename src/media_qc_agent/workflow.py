@@ -20,7 +20,6 @@ class ProviderEventDisposition(StrEnum):
     STALE = "stale"
     REDUNDANT = "redundant"
     REJECTED = "rejected"
-    LEGACY = "legacy"
 
 
 @dataclass(frozen=True)

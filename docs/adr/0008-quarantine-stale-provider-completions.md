@@ -18,9 +18,6 @@ explicit reason: stale for a superseded job, redundant for another completion
 of the active successful job, or rejected for an impossible active-job state.
 The event record and any workflow transition share one transaction.
 
-Existing event rows gain a `legacy` disposition during schema migration because
-their original transition context cannot be reconstructed reliably.
-
 ## Consequences
 
 Retries require fresh approval and use distinct provider idempotency keys. A

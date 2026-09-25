@@ -65,24 +65,12 @@ class WorkflowRepository:
                 external_job_id TEXT NOT NULL REFERENCES provider_jobs(external_job_id),
                 event_type TEXT NOT NULL CHECK (event_type = 'completed'),
                 result_status TEXT NOT NULL,
-                disposition TEXT NOT NULL DEFAULT 'legacy',
+                disposition TEXT NOT NULL,
                 reason TEXT,
                 created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))
             )
             """
         )
-        columns = {
-            row["name"]
-            for row in self._connection.execute("PRAGMA table_info(provider_events)")
-        }
-        if "disposition" not in columns:
-            self._connection.execute(
-                "ALTER TABLE provider_events ADD COLUMN disposition TEXT NOT NULL DEFAULT 'legacy'"
-            )
-        if "reason" not in columns:
-            self._connection.execute(
-                "ALTER TABLE provider_events ADD COLUMN reason TEXT"
-            )
         self._connection.commit()
 
     def create(self, *, run_id: str, finding: QualityFinding) -> WorkflowRun:
