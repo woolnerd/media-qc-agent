@@ -9,6 +9,7 @@ from media_qc_agent import (
     WorkflowRepository,
     WorkflowStatus,
 )
+from media_qc_agent.workflow import ProviderEventDisposition
 
 
 class ProviderCompletionTests(unittest.TestCase):
@@ -72,6 +73,7 @@ class ProviderCompletionTests(unittest.TestCase):
         event = restarted.get_provider_event("event-1")
         self.assertEqual(event.external_job_id, external_job_id)
         self.assertEqual(event.result_status, WorkflowStatus.SUCCEEDED)
+        self.assertEqual(event.disposition, ProviderEventDisposition.APPLIED)
 
     def test_external_event_id_cannot_be_reused_for_another_job(self) -> None:
         first_job_id = self.submit_run("run-1")
@@ -111,6 +113,10 @@ class ProviderCompletionTests(unittest.TestCase):
         self.assertEqual(second, first)
         self.assertEqual(self.connection.total_changes, changes_after_first + 1)
         self.assertEqual(
+            self.repository.get_provider_event("event-2").disposition,
+            ProviderEventDisposition.REDUNDANT,
+        )
+        self.assertEqual(
             self.connection.execute("SELECT COUNT(*) FROM provider_events").fetchone()[
                 0
             ],
@@ -139,6 +145,125 @@ class ProviderCompletionTests(unittest.TestCase):
             self.connection.execute("SELECT COUNT(*) FROM provider_jobs").fetchone()[0],
             1,
         )
+
+    def test_old_job_completion_is_recorded_without_advancing_new_retry(self) -> None:
+        old_job_id = self.submit_run("run-1")
+        awaiting_approval = self.repository.request_retry("run-1")
+        self.assertEqual(awaiting_approval.status, WorkflowStatus.AWAITING_APPROVAL)
+        self.repository.approve("run-1")
+        new_job_id = (
+            WorkflowExecutor(repository=self.repository, provider=self.provider)
+            .submit("run-1")
+            .external_job_id
+        )
+        assert new_job_id is not None
+        self.assertNotEqual(new_job_id, old_job_id)
+
+        result = self.repository.record_completion(
+            external_job_id=old_job_id, external_event_id="late-old-job"
+        )
+
+        self.assertEqual(result.status, WorkflowStatus.SUBMITTED)
+        self.assertEqual(result.external_job_id, new_job_id)
+        event = self.repository.get_provider_event("late-old-job")
+        self.assertEqual(event.disposition, ProviderEventDisposition.STALE)
+        self.assertEqual(event.reason, "provider job is no longer active")
+        self.assertEqual(
+            self.repository.record_completion(
+                external_job_id=new_job_id, external_event_id="new-job-completed"
+            ).status,
+            WorkflowStatus.SUCCEEDED,
+        )
+
+    def test_old_completion_during_retry_approval_is_stale(self) -> None:
+        old_job_id = self.submit_run("run-1")
+        self.repository.request_retry("run-1")
+
+        result = self.repository.record_completion(
+            external_job_id=old_job_id, external_event_id="late-during-approval"
+        )
+
+        self.assertEqual(result.status, WorkflowStatus.AWAITING_APPROVAL)
+        self.assertEqual(
+            self.repository.get_provider_event("late-during-approval").disposition,
+            ProviderEventDisposition.STALE,
+        )
+
+    def test_retry_requires_fresh_approval_and_uses_unique_job_keys(self) -> None:
+        first_job_id = self.submit_run("run-1")
+        self.repository.request_retry("run-1")
+        with self.assertRaisesRegex(ValueError, "approved"):
+            WorkflowExecutor(repository=self.repository, provider=self.provider).submit(
+                "run-1"
+            )
+        self.repository.approve("run-1")
+        second_job_id = (
+            WorkflowExecutor(repository=self.repository, provider=self.provider)
+            .submit("run-1")
+            .external_job_id
+        )
+        self.repository.request_retry("run-1")
+        self.repository.approve("run-1")
+        third_job_id = (
+            WorkflowExecutor(repository=self.repository, provider=self.provider)
+            .submit("run-1")
+            .external_job_id
+        )
+
+        self.assertEqual(len({first_job_id, second_job_id, third_job_id}), 3)
+        self.assertEqual(self.provider.jobs_created, 3)
+        self.assertEqual(
+            self.connection.execute("SELECT COUNT(*) FROM provider_jobs").fetchone()[0],
+            3,
+        )
+
+    def test_impossible_active_job_transition_is_quarantined_with_reason(self) -> None:
+        job_id = self.submit_run("run-1")
+        self.connection.execute(
+            "UPDATE workflow_runs SET status = ? WHERE id = ?",
+            (WorkflowStatus.READY, "run-1"),
+        )
+        self.connection.commit()
+
+        result = self.repository.record_completion(
+            external_job_id=job_id, external_event_id="impossible-completion"
+        )
+
+        self.assertEqual(result.status, WorkflowStatus.READY)
+        event = self.repository.get_provider_event("impossible-completion")
+        self.assertEqual(event.disposition, ProviderEventDisposition.REJECTED)
+        self.assertEqual(
+            event.reason, "active provider job cannot complete while workflow is ready"
+        )
+
+
+class ProviderEventMigrationTests(unittest.TestCase):
+    def test_existing_event_table_gains_audit_columns(self) -> None:
+        connection = sqlite3.connect(":memory:")
+        try:
+            connection.execute(
+                """
+                CREATE TABLE provider_events (
+                    external_event_id TEXT PRIMARY KEY,
+                    external_job_id TEXT NOT NULL,
+                    event_type TEXT NOT NULL,
+                    result_status TEXT NOT NULL,
+                    created_at TEXT NOT NULL
+                )
+                """
+            )
+            connection.execute(
+                "INSERT INTO provider_events VALUES (?, ?, ?, ?, ?)",
+                ("old-event", "old-job", "completed", "succeeded", "yesterday"),
+            )
+            repository = WorkflowRepository(connection)
+            repository.initialize()
+
+            event = repository.get_provider_event("old-event")
+            self.assertEqual(event.disposition, ProviderEventDisposition.LEGACY)
+            self.assertIsNone(event.reason)
+        finally:
+            connection.close()
 
 
 if __name__ == "__main__":
