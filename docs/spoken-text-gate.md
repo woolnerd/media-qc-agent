@@ -1,13 +1,23 @@
 # Spoken-text gate
 
+> **Demo-grade check.** These are hand-written notation rules exercised against
+> synthetic provider/model profiles, not measured provider capabilities. A pass
+> means this limited rule set found no issue. The code does not synthesize speech
+> or verify actual pronunciation, meaning, or creative intent. It may flag
+> harmless notation or miss pronunciation errors.
+
+`SpokenTextResult.notation_compatible` reports only whether these local rules
+found an issue; `demo_notice` carries this scope warning to callers.
+
 The authored script and provider-facing TTS input are separate versions.
 `WorkflowRepository.create_script_version` stores exact authored text, and the
 TTS creation path reads that immutable script version. `prepare_spoken_text`
 takes the authored text, an explicit synthetic
 provider/model capability profile, and an optional corrected candidate. It
 returns the original text, the candidate, a normalized spoken form, and issues.
-The original text is never rewritten. A candidate with issues cannot become a
-TTS input version through `WorkflowRepository.create_tts_input_version`.
+The original text is never rewritten. A candidate with notation issues cannot
+become a TTS input version through
+`WorkflowRepository.create_tts_input_version`.
 
 | Synthetic input | Literal model result | Reason |
 | --- | --- | --- |
