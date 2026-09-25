@@ -45,5 +45,4 @@ through `C901`; split decision logic when a function exceeds it.
   changes.
 - Maintain active implementation work and acceptance criteria in GitHub issues.
 - Record consequential technical choices in `docs/adr/`.
-- At milestone handoffs, update the visual architecture guide with the actual
-  workflow, artifact relationships, and system boundary.
+- Update `PROJECT_STATE.md` at meaningful handoffs rather than after every task.
