@@ -40,6 +40,9 @@ class ArtifactLineageTests(unittest.TestCase):
                 "synthetic-tts", "literal-v1", frozenset()
             ),
         )
+        self.observed_video_id = self.repository.create_synthetic_video_version(
+            fixture_job_id="observed-fixture", sources=self.sources
+        ).id
 
     def tearDown(self) -> None:
         self.connection.close()
@@ -51,6 +54,9 @@ class ArtifactLineageTests(unittest.TestCase):
                 kind=kind, explanation="synthetic defect", confidence=0.9
             ),
             sources=self.sources,
+            observed_artifact_version_id=(
+                self.observed_video_id if kind is FailureKind.VISUAL_QUALITY else None
+            ),
         )
 
     def submit(self, run_id: str) -> str:

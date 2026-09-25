@@ -90,6 +90,9 @@ class CaptionRepairWorkflowTests(unittest.TestCase):
         for version_id, kind in (("voice-1", ArtifactKind.VOICE),):
             self.repository.create_source_version(version_id=version_id, kind=kind)
         self.sources = VideoSources("script-1", "tts-1", "avatar-1", "voice-1")
+        observed_video_id = self.repository.create_synthetic_video_version(
+            fixture_job_id="observed-fixture", sources=self.sources
+        ).id
         self.provider = FakeVideoProvider()
         self.repository.create(
             run_id="video-run",
@@ -99,6 +102,7 @@ class CaptionRepairWorkflowTests(unittest.TestCase):
                 confidence=0.9,
             ),
             sources=self.sources,
+            observed_artifact_version_id=observed_video_id,
         )
         self.repository.approve("video-run")
         job_id = (
@@ -129,6 +133,7 @@ class CaptionRepairWorkflowTests(unittest.TestCase):
             ),
             sources=self.sources,
             video_version_id=self.video_id,
+            observed_artifact_version_id="caption-1",
         )
 
     def test_caption_repair_keeps_video_and_makes_no_provider_call(self) -> None:

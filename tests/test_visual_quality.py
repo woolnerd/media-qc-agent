@@ -11,6 +11,7 @@ from media_qc_agent import (
     WorkflowStatus,
 )
 from media_qc_agent.environment import Environment, ScriptScene
+from media_qc_agent.quality_records import EvidenceRole
 from media_qc_agent.spoken_text import SpokenTextCapabilities
 from media_qc_agent.visual_quality import MotionSample, check_jerky_video
 from media_qc_agent.workflow import VideoSources
@@ -118,6 +119,9 @@ class VisualSignalWorkflowTests(unittest.TestCase):
             version_id="voice-1", kind=ArtifactKind.VOICE
         )
         self.sources = VideoSources("script-1", "tts-1", "avatar-1", "voice-1")
+        observed_video_id = self.repository.create_synthetic_video_version(
+            fixture_job_id="observed-fixture", sources=self.sources
+        ).id
         self.provider = FakeVideoProvider()
         self.executor = WorkflowExecutor(
             repository=self.repository, provider=self.provider
@@ -130,6 +134,7 @@ class VisualSignalWorkflowTests(unittest.TestCase):
                 confidence=0.9,
             ),
             sources=self.sources,
+            observed_artifact_version_id=observed_video_id,
         )
         self.repository.approve("first-run")
         job_id = self.executor.submit("first-run").external_job_id
@@ -150,6 +155,14 @@ class VisualSignalWorkflowTests(unittest.TestCase):
         )
 
         assert run is not None
+        records = self.repository.get_quality_evidence("finding-retry-run")
+        self.assertEqual(
+            [record.role for record in records[:2]], [EvidenceRole.FACT] * 2
+        )
+        self.assertTrue(
+            all(record.artifact_version_id == self.video_id for record in records)
+        )
+        self.assertEqual(records[-1].role, EvidenceRole.UNCERTAINTY)
         self.assertEqual(run.status, WorkflowStatus.AWAITING_APPROVAL)
         self.assertEqual(run.active_video_version_id, self.video_id)
         with self.assertRaisesRegex(ValueError, "approved"):

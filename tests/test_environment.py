@@ -16,6 +16,7 @@ from media_qc_agent.environment import (
     ScriptScene,
     check_script_avatar_compatibility,
 )
+from media_qc_agent.quality_records import EvidenceRole
 from media_qc_agent.spoken_text import SpokenTextCapabilities
 from media_qc_agent.workflow import VideoSources
 
@@ -80,6 +81,9 @@ class EnvironmentWorkflowTests(unittest.TestCase):
         self.sources = VideoSources(
             "script-oven", "tts-oven", "avatar-office", "voice-1"
         )
+        self.observed_video_id = self.repository.create_synthetic_video_version(
+            fixture_job_id="observed-fixture", sources=self.sources
+        ).id
         self.provider = FakeVideoProvider()
 
     def tearDown(self) -> None:
@@ -91,6 +95,11 @@ class EnvironmentWorkflowTests(unittest.TestCase):
         )
 
         assert run is not None
+        evidence = self.repository.get_quality_evidence(f"finding-{run.id}")
+        self.assertEqual(evidence[0].role, EvidenceRole.FACT)
+        self.assertEqual(evidence[0].artifact_version_id, "script-oven")
+        self.assertEqual(evidence[1].artifact_version_id, "avatar-office")
+        self.assertEqual(evidence[-1].role, EvidenceRole.UNCERTAINTY)
         self.assertEqual(run.status, WorkflowStatus.NEEDS_INPUT)
         assert run.clarification is not None
         self.assertEqual(
@@ -116,6 +125,7 @@ class EnvironmentWorkflowTests(unittest.TestCase):
                 confidence=0.9,
             ),
             sources=self.sources,
+            observed_artifact_version_id=self.observed_video_id,
         )
 
         with self.assertRaisesRegex(ValueError, "environment mismatch"):

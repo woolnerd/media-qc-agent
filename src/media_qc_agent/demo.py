@@ -41,6 +41,9 @@ def run_demo() -> dict[str, object]:
                 "synthetic-tts", "literal-v1", frozenset()
             ),
         )
+        observed_video_id = repository.create_synthetic_video_version(
+            fixture_job_id="observed-fixture", sources=sources
+        ).id
         repository.create(
             run_id="demo-run",
             finding=QualityFinding(
@@ -49,6 +52,7 @@ def run_demo() -> dict[str, object]:
                 confidence=0.95,
             ),
             sources=sources,
+            observed_artifact_version_id=observed_video_id,
         )
         provider = FakeVideoProvider()
         executor = WorkflowExecutor(repository=repository, provider=provider)

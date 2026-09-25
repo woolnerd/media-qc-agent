@@ -76,6 +76,9 @@ class IdContractTests(unittest.TestCase):
                     "synthetic-tts", "literal-v1", frozenset()
                 ),
             )
+            observed_video_id = repository.create_synthetic_video_version(
+                fixture_job_id="observed-fixture", sources=sources
+            ).id
             with self.assertRaisesRegex(ValueError, "run ID"):
                 repository.create(
                     run_id="bad run",
@@ -94,6 +97,7 @@ class IdContractTests(unittest.TestCase):
                     confidence=0.9,
                 ),
                 sources=sources,
+                observed_artifact_version_id=observed_video_id,
             )
             repository.approve("run-1")
             with self.assertRaisesRegex(ValueError, "provider job"):

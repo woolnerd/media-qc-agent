@@ -23,3 +23,4 @@ If a decision changes, add a new ADR that supersedes the old one.
 - [`0011-repair-captions-without-video-provider.md`](0011-repair-captions-without-video-provider.md)
 - [`0012-use-grounded-environment-metadata-before-render.md`](0012-use-grounded-environment-metadata-before-render.md)
 - [`0013-use-synthetic-motion-jumps-for-video-quality.md`](0013-use-synthetic-motion-jumps-for-video-quality.md)
+- [`0014-persist-artifact-bound-quality-evidence.md`](0014-persist-artifact-bound-quality-evidence.md)

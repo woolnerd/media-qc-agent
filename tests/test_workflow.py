@@ -42,6 +42,9 @@ class WorkflowIntegrationTests(unittest.TestCase):
                 "synthetic-tts", "literal-v1", frozenset()
             ),
         )
+        self.observed_video_id = self.repository.create_synthetic_video_version(
+            fixture_job_id="observed-fixture", sources=self.sources
+        ).id
 
     def tearDown(self) -> None:
         self.connection.close()
@@ -55,6 +58,7 @@ class WorkflowIntegrationTests(unittest.TestCase):
                 explanation="Generated video is jerky and unnatural",
                 confidence=0.96,
             ),
+            observed_artifact_version_id=self.observed_video_id,
         )
 
     def test_requires_approval_before_external_submission(self) -> None:

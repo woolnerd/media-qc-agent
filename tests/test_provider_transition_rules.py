@@ -45,6 +45,9 @@ class ProviderTransitionRuleTests(unittest.TestCase):
                 "synthetic-tts", "literal-v1", frozenset()
             ),
         )
+        observed_video_id = self.repository.create_synthetic_video_version(
+            fixture_job_id="observed-fixture", sources=sources
+        ).id
         self.repository.create(
             run_id="run-1",
             finding=QualityFinding(
@@ -53,6 +56,7 @@ class ProviderTransitionRuleTests(unittest.TestCase):
                 confidence=0.95,
             ),
             sources=sources,
+            observed_artifact_version_id=observed_video_id,
         )
 
     def tearDown(self) -> None:
@@ -106,7 +110,7 @@ class ProviderTransitionRuleTests(unittest.TestCase):
         self.assertEqual(self.connection.total_changes, changes_after_first)
         self.assertEqual(
             self.connection.execute(
-                "SELECT COUNT(*) FROM artifact_versions WHERE kind = ?",
+                "SELECT COUNT(*) FROM artifact_versions WHERE kind = ? AND external_job_id IS NOT NULL",
                 (ArtifactKind.VIDEO,),
             ).fetchone()[0],
             1,

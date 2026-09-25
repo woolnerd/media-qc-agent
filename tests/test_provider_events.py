@@ -39,6 +39,9 @@ class ProviderCompletionTests(unittest.TestCase):
                 "synthetic-tts", "literal-v1", frozenset()
             ),
         )
+        self.observed_video_id = self.repository.create_synthetic_video_version(
+            fixture_job_id="observed-fixture", sources=self.sources
+        ).id
 
     def tearDown(self) -> None:
         self.connection.close()
@@ -52,6 +55,7 @@ class ProviderCompletionTests(unittest.TestCase):
                 explanation="Synthetic jerky video",
                 confidence=0.95,
             ),
+            observed_artifact_version_id=self.observed_video_id,
         )
         self.repository.approve(run_id)
         submitted = WorkflowExecutor(
@@ -155,6 +159,7 @@ class ProviderCompletionTests(unittest.TestCase):
                 explanation="Another synthetic jerky video",
                 confidence=0.95,
             ),
+            observed_artifact_version_id=self.observed_video_id,
         )
         self.repository.approve("run-2")
 

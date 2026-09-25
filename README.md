@@ -55,6 +55,9 @@ It currently demonstrates:
 - a synthetic same-shot motion-jump signal tied to an exact video version,
   with human approval before a video retry (see
   [`docs/visual-quality-signal.md`](docs/visual-quality-signal.md));
+- persisted findings and evidence tied to exact artifact versions, with facts,
+  inferences, and uncertainty labeled separately (see
+  [`docs/quality-evidence.md`](docs/quality-evidence.md));
 - a distinction between unresolved creative input and executable approval;
 - a persisted clarification request with separate script and avatar repair
   options, followed by a specific plan when a human selects one;
