@@ -18,6 +18,13 @@ from .ids import (
     video_version_id,
 )
 from .planner import plan_repair, select_repair
+from .spoken_text import (
+    Notation,
+    SpokenTextCapabilities,
+    TtsInputVersion,
+    UnsafeSpokenText,
+    prepare_spoken_text,
+)
 from .workflow import (
     ArtifactVersion,
     ProviderEvent,
@@ -95,6 +102,28 @@ class WorkflowRepository:
         )
         self._connection.execute(
             """
+            CREATE TABLE IF NOT EXISTS script_versions (
+                version_id TEXT PRIMARY KEY REFERENCES artifact_versions(id),
+                authored_text TEXT NOT NULL CHECK (trim(authored_text) <> '')
+            )
+            """
+        )
+        self._connection.execute(
+            """
+            CREATE TABLE IF NOT EXISTS tts_input_versions (
+                version_id TEXT PRIMARY KEY REFERENCES artifact_versions(id),
+                script_version_id TEXT NOT NULL REFERENCES artifact_versions(id),
+                authored_text TEXT NOT NULL,
+                candidate_text TEXT NOT NULL,
+                spoken_text TEXT NOT NULL,
+                provider TEXT NOT NULL,
+                model TEXT NOT NULL,
+                supported_notation TEXT NOT NULL
+            )
+            """
+        )
+        self._connection.execute(
+            """
             CREATE TABLE IF NOT EXISTS artifact_dependencies (
                 artifact_id TEXT NOT NULL REFERENCES artifact_versions(id),
                 source_kind TEXT NOT NULL,
@@ -121,15 +150,15 @@ class WorkflowRepository:
     def create_source_version(
         self, *, version_id: str, kind: ArtifactKind
     ) -> ArtifactVersion:
+        if kind is ArtifactKind.SCRIPT:
+            raise ValueError("script requires create_script_version")
+        if kind is ArtifactKind.TTS_INPUT:
+            raise ValueError("TTS input requires create_tts_input_version")
         if kind not in {
-            ArtifactKind.SCRIPT,
-            ArtifactKind.TTS_INPUT,
             ArtifactKind.AVATAR,
             ArtifactKind.VOICE,
         }:
-            raise ValueError(
-                "source version must be script, TTS input, avatar, or voice"
-            )
+            raise ValueError("source version must be avatar or voice")
         validate_artifact_version_id(version_id, kind)
         self._connection.execute(
             "INSERT INTO artifact_versions (id, kind) VALUES (?, ?)",
@@ -137,6 +166,106 @@ class WorkflowRepository:
         )
         self._connection.commit()
         return self.get_artifact_version(version_id)
+
+    def create_script_version(
+        self, *, version_id: str, authored_text: str
+    ) -> ArtifactVersion:
+        """Keep approved synthetic script text immutable with its version ID."""
+
+        validate_artifact_version_id(version_id, ArtifactKind.SCRIPT)
+        if not authored_text.strip():
+            raise ValueError("authored script text must not be blank")
+        with self._connection:
+            self._connection.execute(
+                "INSERT INTO artifact_versions (id, kind) VALUES (?, ?)",
+                (version_id, ArtifactKind.SCRIPT),
+            )
+            self._connection.execute(
+                "INSERT INTO script_versions (version_id, authored_text) VALUES (?, ?)",
+                (version_id, authored_text),
+            )
+        return self.get_artifact_version(version_id)
+
+    def get_script_text(self, version_id: str) -> str:
+        row = self._connection.execute(
+            "SELECT authored_text FROM script_versions WHERE version_id = ?",
+            (version_id,),
+        ).fetchone()
+        if row is None:
+            raise KeyError(version_id)
+        return str(row["authored_text"])
+
+    def create_tts_input_version(
+        self,
+        *,
+        version_id: str,
+        script_version_id: str,
+        capabilities: SpokenTextCapabilities,
+        candidate_text: str | None = None,
+    ) -> TtsInputVersion:
+        """Persist only spoken text validated for one exact script and model."""
+
+        validate_artifact_version_id(version_id, ArtifactKind.TTS_INPUT)
+        script = self.get_artifact_version(script_version_id)
+        if script.kind is not ArtifactKind.SCRIPT:
+            raise ValueError("TTS input source must be a script version")
+        result = prepare_spoken_text(
+            self.get_script_text(script_version_id),
+            capabilities,
+            candidate_text=candidate_text,
+        )
+        if not result.safe:
+            raise UnsafeSpokenText(result.issues)
+        with self._connection:
+            self._connection.execute(
+                "INSERT INTO artifact_versions (id, kind) VALUES (?, ?)",
+                (version_id, ArtifactKind.TTS_INPUT),
+            )
+            self._insert_dependencies(
+                version_id, ((ArtifactKind.SCRIPT, script_version_id),)
+            )
+            self._connection.execute(
+                """
+                INSERT INTO tts_input_versions (
+                    version_id, script_version_id, authored_text,
+                    candidate_text, spoken_text, provider, model, supported_notation
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                """,
+                (
+                    version_id,
+                    script_version_id,
+                    result.authored_text,
+                    result.candidate_text,
+                    result.spoken_text,
+                    capabilities.provider,
+                    capabilities.model,
+                    json.dumps(
+                        sorted(item.value for item in capabilities.supported_notation)
+                    ),
+                ),
+            )
+        return self.get_tts_input_version(version_id)
+
+    def get_tts_input_version(self, version_id: str) -> TtsInputVersion:
+        row = self._connection.execute(
+            "SELECT * FROM tts_input_versions WHERE version_id = ?", (version_id,)
+        ).fetchone()
+        if row is None:
+            raise KeyError(version_id)
+        return TtsInputVersion(
+            id=row["version_id"],
+            script_version_id=row["script_version_id"],
+            authored_text=row["authored_text"],
+            candidate_text=row["candidate_text"],
+            spoken_text=row["spoken_text"],
+            capabilities=SpokenTextCapabilities(
+                provider=row["provider"],
+                model=row["model"],
+                supported_notation=frozenset(
+                    Notation(item) for item in json.loads(row["supported_notation"])
+                ),
+            ),
+        )
 
     def get_artifact_version(self, version_id: str) -> ArtifactVersion:
         row = self._connection.execute(
@@ -259,6 +388,12 @@ class WorkflowRepository:
                 raise ValueError(
                     f"{kind.value} source must reference a {kind.value} version"
                 )
+        self._validate_tts_binding(sources)
+
+    def _validate_tts_binding(self, sources: VideoSources) -> None:
+        tts_input = self.get_tts_input_version(sources.tts_input_version_id)
+        if tts_input.script_version_id != sources.script_version_id:
+            raise ValueError("TTS input must derive from the selected script version")
 
     def select_repair(self, run_id: str, action: RepairAction) -> WorkflowRun:
         """Record a branch choice while awaiting its replacement artifact."""
@@ -297,6 +432,9 @@ class WorkflowRepository:
         return self.get(run_id)
 
     def approve(self, run_id: str) -> WorkflowRun:
+        current = self.get(run_id)
+        if current.status is WorkflowStatus.AWAITING_APPROVAL:
+            self._validate_tts_binding(current.sources)
         result = self._connection.execute(
             """
             UPDATE workflow_runs
@@ -359,6 +497,45 @@ class WorkflowRepository:
         self._connection.commit()
         if updated.rowcount != 1:
             raise RuntimeError("workflow state changed during replacement binding")
+        return self.get(run_id)
+
+    def bind_tts_input(self, run_id: str, version_id: str) -> WorkflowRun:
+        """Pair a revised script with its validated spoken text before approval."""
+
+        current = self.get(run_id)
+        if (
+            current.status is not WorkflowStatus.AWAITING_APPROVAL
+            or current.plan is None
+            or current.plan.action is not RepairAction.REVISE_SCRIPT
+        ):
+            raise ValueError("workflow is not awaiting revised script TTS input")
+        tts_input = self.get_tts_input_version(version_id)
+        if tts_input.script_version_id != current.sources.script_version_id:
+            raise ValueError("TTS input must derive from the selected script version")
+        if version_id == current.sources.tts_input_version_id:
+            raise ValueError("replacement TTS input must be a new version")
+        key = (
+            f"workflow-run:{run_id}:{current.plan.action}:"
+            f"replacement:{current.sources.script_version_id}:tts:{version_id}"
+        )
+        updated = self._connection.execute(
+            """
+            UPDATE workflow_runs
+            SET tts_input_version_id = ?, idempotency_key = ?,
+                updated_at = strftime('%Y-%m-%dT%H:%M:%fZ', 'now')
+            WHERE id = ? AND status = ? AND script_version_id = ?
+            """,
+            (
+                version_id,
+                key,
+                run_id,
+                WorkflowStatus.AWAITING_APPROVAL,
+                current.sources.script_version_id,
+            ),
+        )
+        self._connection.commit()
+        if updated.rowcount != 1:
+            raise RuntimeError("workflow state changed during TTS input binding")
         return self.get(run_id)
 
     def record_submission(self, *, run_id: str, external_job_id: str) -> WorkflowRun:

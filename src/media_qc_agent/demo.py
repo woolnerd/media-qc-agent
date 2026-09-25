@@ -3,10 +3,11 @@
 import json
 import sqlite3
 
-from .domain import FailureKind, QualityFinding
+from .domain import ArtifactKind, FailureKind, QualityFinding
 from .executor import WorkflowExecutor
 from .provider import FakeVideoProvider
 from .repository import WorkflowRepository
+from .spoken_text import SpokenTextCapabilities
 from .workflow import VideoSources
 
 
@@ -16,8 +17,20 @@ def run_demo() -> dict[str, object]:
         repository = WorkflowRepository(connection)
         repository.initialize()
         sources = VideoSources("script-1", "tts-1", "avatar-1", "voice-1")
+        repository.create_script_version(
+            version_id="script-1", authored_text="Heat to 450°F."
+        )
         for kind, version_id in sources.dependencies():
+            if kind in {ArtifactKind.SCRIPT, ArtifactKind.TTS_INPUT}:
+                continue
             repository.create_source_version(version_id=version_id, kind=kind)
+        repository.create_tts_input_version(
+            version_id="tts-1",
+            script_version_id="script-1",
+            capabilities=SpokenTextCapabilities(
+                "synthetic-tts", "literal-v1", frozenset()
+            ),
+        )
         repository.create(
             run_id="demo-run",
             finding=QualityFinding(

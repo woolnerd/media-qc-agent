@@ -8,6 +8,7 @@ from media_qc_agent.ids import (
     validate_run_id,
     video_version_id,
 )
+from media_qc_agent.spoken_text import SpokenTextCapabilities
 from media_qc_agent.workflow import VideoSources
 
 
@@ -45,12 +46,24 @@ class IdContractTests(unittest.TestCase):
             repository = WorkflowRepository(connection)
             repository.initialize()
             with self.assertRaisesRegex(ValueError, "script"):
-                repository.create_source_version(
-                    version_id="avatar-2", kind=ArtifactKind.SCRIPT
+                repository.create_script_version(
+                    version_id="avatar-2", authored_text="A synthetic sentence."
                 )
             sources = VideoSources("script-1", "tts-1", "avatar-1", "voice-1")
+            repository.create_script_version(
+                version_id="script-1", authored_text="A synthetic sentence."
+            )
             for kind, version_id in sources.dependencies():
+                if kind in {ArtifactKind.SCRIPT, ArtifactKind.TTS_INPUT}:
+                    continue
                 repository.create_source_version(version_id=version_id, kind=kind)
+            repository.create_tts_input_version(
+                version_id="tts-1",
+                script_version_id="script-1",
+                capabilities=SpokenTextCapabilities(
+                    "synthetic-tts", "literal-v1", frozenset()
+                ),
+            )
             with self.assertRaisesRegex(ValueError, "run ID"):
                 repository.create(
                     run_id="bad run",

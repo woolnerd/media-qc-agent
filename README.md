@@ -43,6 +43,9 @@ It currently demonstrates:
 
 - a pure repair policy for five failure classes, distinguishing TTS input
   compatibility from caption defects;
+- a deterministic provider/model spoken-text gate that preserves authored text,
+  normalizes unambiguous notation, and blocks unsafe TTS input versions (see
+  [`docs/spoken-text-gate.md`](docs/spoken-text-gate.md));
 - a distinction between unresolved creative input and executable approval;
 - a persisted clarification request with separate script and avatar repair
   options, followed by a specific plan when a human selects one;

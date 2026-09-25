@@ -10,6 +10,7 @@ from media_qc_agent import (
     WorkflowRepository,
     WorkflowStatus,
 )
+from media_qc_agent.spoken_text import SpokenTextCapabilities
 from media_qc_agent.workflow import ProviderEventDisposition, VideoSources
 
 
@@ -20,13 +21,21 @@ class ProviderCompletionTests(unittest.TestCase):
         self.repository.initialize()
         self.provider = FakeVideoProvider()
         self.sources = VideoSources("script-1", "tts-1", "avatar-1", "voice-1")
+        self.repository.create_script_version(
+            version_id="script-1", authored_text="A synthetic sentence."
+        )
         for version_id, kind in (
-            ("script-1", ArtifactKind.SCRIPT),
-            ("tts-1", ArtifactKind.TTS_INPUT),
             ("avatar-1", ArtifactKind.AVATAR),
             ("voice-1", ArtifactKind.VOICE),
         ):
             self.repository.create_source_version(version_id=version_id, kind=kind)
+        self.repository.create_tts_input_version(
+            version_id="tts-1",
+            script_version_id="script-1",
+            capabilities=SpokenTextCapabilities(
+                "synthetic-tts", "literal-v1", frozenset()
+            ),
+        )
 
     def tearDown(self) -> None:
         self.connection.close()

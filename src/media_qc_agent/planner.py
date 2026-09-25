@@ -23,12 +23,17 @@ def plan_repair(finding: QualityFinding) -> RepairPlan | ClarificationRequest:
         return RepairPlan(
             action=RepairAction.REVISE_SCRIPT,
             invalidates=frozenset(
-                {ArtifactKind.SCRIPT, ArtifactKind.VIDEO, ArtifactKind.CAPTIONS}
+                {
+                    ArtifactKind.SCRIPT,
+                    ArtifactKind.TTS_INPUT,
+                    ArtifactKind.VIDEO,
+                    ArtifactKind.CAPTIONS,
+                }
             ),
             requires_repair_input=True,
             rationale=(
-                "Revise and approve the script before regenerating its dependent "
-                "video and captions. Preserve the avatar and voice."
+                "Revise and approve the script and its derived TTS input before "
+                "regenerating video and captions. Preserve the avatar and voice."
             ),
         )
 
@@ -42,10 +47,16 @@ def plan_repair(finding: QualityFinding) -> RepairPlan | ClarificationRequest:
                 RepairOption(
                     action=RepairAction.REVISE_SCRIPT,
                     invalidates=frozenset(
-                        {ArtifactKind.SCRIPT, ArtifactKind.VIDEO, ArtifactKind.CAPTIONS}
+                        {
+                            ArtifactKind.SCRIPT,
+                            ArtifactKind.TTS_INPUT,
+                            ArtifactKind.VIDEO,
+                            ArtifactKind.CAPTIONS,
+                        }
                     ),
                     rationale=(
-                        "Revise the script and regenerate its descendants; "
+                        "Revise the script and derived TTS input, then regenerate "
+                        "their descendants; "
                         "preserve the avatar and voice."
                     ),
                 ),
