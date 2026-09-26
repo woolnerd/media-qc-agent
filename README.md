@@ -41,6 +41,8 @@ idempotent provider submission
 
 It currently demonstrates:
 
+- fifteen saved interpretation evaluation cases, with clear, ambiguous, and
+  adversarial examples for every failure class (see [`evals/`](evals/README.md));
 - a pure repair policy for five failure classes, distinguishing TTS input
   compatibility from caption defects;
 - a deterministic provider/model spoken-text gate that preserves authored text,
