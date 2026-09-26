@@ -68,9 +68,12 @@ It currently demonstrates:
 - recovery from a crash after provider acceptance without creating a second
   paid job.
 
-It does **not** yet inspect raw images or videos, call an LLM, expose a provider
+It does **not** yet inspect raw images or videos, expose a provider
 callback API or UI, or generate caption content.
-Those capabilities remain planned work, and the GitHub issues keep that
+An OpenRouter adapter can interpret text feedback with a low-cost model;
+see [`docs/agent-interpretation.md`](docs/agent-interpretation.md) for the explicit
+live demo and its strict validation boundary.
+Those remaining capabilities are planned work, and the GitHub issues keep that
 distinction explicit.
 
 ## Why the boundary matters
