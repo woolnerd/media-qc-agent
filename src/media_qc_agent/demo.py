@@ -59,11 +59,15 @@ def run_demo() -> dict[str, object]:
         provider = FakeVideoProvider()
         executor = WorkflowExecutor(repository=repository, provider=provider)
 
-        repository.approve("demo-run")
+        repository.approve(
+            "demo-run", plan_version_id=repository.get("demo-run").plan_version_id
+        )
         old_job = executor.submit("demo-run").external_job_id
         assert old_job is not None
         repository.request_retry("demo-run")
-        repository.approve("demo-run")
+        repository.approve(
+            "demo-run", plan_version_id=repository.get("demo-run").plan_version_id
+        )
         new_job = executor.submit("demo-run").external_job_id
         assert new_job is not None
 
