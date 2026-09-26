@@ -25,6 +25,11 @@ from .ids import (
     validate_run_id,
     video_version_id,
 )
+from .plan_versions import (
+    decode_plan_version,
+    encode_plan_version,
+    validate_plan_revision,
+)
 from .planner import plan_repair, select_repair
 from .quality_records import (
     EvidenceInput,
@@ -42,13 +47,16 @@ from .spoken_text import (
 from .visual_quality import MotionSample, VisualSignalCheck, check_jerky_video
 from .workflow import (
     ArtifactVersion,
+    PlanApproval,
     ProviderEvent,
     ProviderEventDisposition,
     ProviderJob,
+    RepairPlanVersion,
     VideoSources,
     WorkflowRun,
     WorkflowStatus,
     classify_completion,
+    has_current_approval,
 )
 
 _SOURCE_ORDER = (
@@ -98,6 +106,7 @@ class WorkflowRepository:
                 run_id TEXT NOT NULL REFERENCES workflow_runs(id),
                 idempotency_key TEXT NOT NULL UNIQUE,
                 action TEXT NOT NULL,
+                plan_version_id TEXT REFERENCES repair_plan_versions(id),
                 script_version_id TEXT NOT NULL REFERENCES artifact_versions(id),
                 tts_input_version_id TEXT NOT NULL REFERENCES artifact_versions(id),
                 avatar_version_id TEXT NOT NULL REFERENCES artifact_versions(id),
@@ -208,6 +217,43 @@ class WorkflowRepository:
             )
             """
         )
+        self._connection.executescript(
+            """
+            CREATE TABLE IF NOT EXISTS repair_plan_versions (
+                id TEXT PRIMARY KEY,
+                run_id TEXT NOT NULL REFERENCES workflow_runs(id),
+                revision INTEGER NOT NULL,
+                snapshot TEXT NOT NULL,
+                created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),
+                UNIQUE (run_id, revision)
+            );
+            CREATE TABLE IF NOT EXISTS plan_approvals (
+                plan_version_id TEXT PRIMARY KEY REFERENCES repair_plan_versions(id),
+                created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))
+            );
+            CREATE TRIGGER IF NOT EXISTS immutable_plan_update
+                BEFORE UPDATE ON repair_plan_versions BEGIN
+                SELECT RAISE(ABORT, 'plan versions are immutable'); END;
+            CREATE TRIGGER IF NOT EXISTS immutable_plan_delete
+                BEFORE DELETE ON repair_plan_versions BEGIN
+                SELECT RAISE(ABORT, 'plan versions are immutable'); END;
+            CREATE TRIGGER IF NOT EXISTS immutable_approval_update
+                BEFORE UPDATE ON plan_approvals BEGIN
+                SELECT RAISE(ABORT, 'approvals are immutable'); END;
+            CREATE TRIGGER IF NOT EXISTS immutable_approval_delete
+                BEFORE DELETE ON plan_approvals BEGIN
+                SELECT RAISE(ABORT, 'approvals are immutable'); END;
+            """
+        )
+        provider_columns = {
+            row["name"]
+            for row in self._connection.execute("PRAGMA table_info(provider_jobs)")
+        }
+        if "plan_version_id" not in provider_columns:
+            self._connection.execute(
+                "ALTER TABLE provider_jobs ADD COLUMN plan_version_id TEXT REFERENCES repair_plan_versions(id)"
+            )
+        self._upgrade_unversioned_plans()
         self._connection.commit()
 
     def create_source_version(
@@ -470,6 +516,8 @@ class WorkflowRepository:
                 or run.active_video_version_id is None
             ):
                 raise ValueError("workflow is not ready for caption repair")
+            if not has_current_approval(run):
+                raise ValueError("workflow has no current plan-version approval")
             self._connection.execute(
                 "INSERT INTO artifact_versions (id, kind) VALUES (?, ?)",
                 (version_id, ArtifactKind.CAPTIONS),
@@ -591,6 +639,8 @@ class WorkflowRepository:
                     for index, item in enumerate(evidence, start=1)
                 ),
             )
+            if plan is not None:
+                self._append_plan_version(run_id)
         return self.get(run_id)
 
     def _insert_workflow_run(
@@ -934,61 +984,192 @@ class WorkflowRepository:
     def select_repair(self, run_id: str, action: RepairAction) -> WorkflowRun:
         """Record a branch choice while awaiting its replacement artifact."""
 
-        current = self.get(run_id)
-        if (
-            current.status is not WorkflowStatus.NEEDS_INPUT
-            or current.clarification is None
-        ):
-            raise ValueError("workflow is not awaiting clarification")
-        plan = select_repair(current.clarification, action)
-        result = self._connection.execute(
-            """
-            UPDATE workflow_runs
-            SET status = ?, action = ?, invalidates = ?,
-                requires_repair_input = ?, rationale = ?,
-                clarification_question = NULL, clarification_options = NULL,
-                idempotency_key = ?,
-                updated_at = strftime('%Y-%m-%dT%H:%M:%fZ', 'now')
-            WHERE id = ? AND status = ? AND action IS NULL
-            """,
-            (
-                WorkflowStatus.NEEDS_REPAIR_INPUT,
-                plan.action,
-                _encode_invalidates(plan.invalidates),
-                plan.requires_repair_input,
-                plan.rationale,
-                None,
-                run_id,
-                WorkflowStatus.NEEDS_INPUT,
-            ),
-        )
-        self._connection.commit()
-        if result.rowcount != 1:
-            raise RuntimeError("workflow state changed during clarification")
-        return self.get(run_id)
+        with self._connection:
+            self._connection.execute("BEGIN IMMEDIATE")
+            current = self.get(run_id)
+            if (
+                current.status is not WorkflowStatus.NEEDS_INPUT
+                or current.clarification is None
+            ):
+                raise ValueError("workflow is not awaiting clarification")
+            plan = select_repair(current.clarification, action)
+            result = self._connection.execute(
+                """
+                UPDATE workflow_runs
+                SET status = ?, action = ?, invalidates = ?,
+                    requires_repair_input = ?, rationale = ?,
+                    clarification_question = NULL, clarification_options = NULL,
+                    idempotency_key = ?,
+                    updated_at = strftime('%Y-%m-%dT%H:%M:%fZ', 'now')
+                WHERE id = ? AND status = ? AND action IS NULL
+                """,
+                (
+                    WorkflowStatus.NEEDS_REPAIR_INPUT,
+                    plan.action,
+                    _encode_invalidates(plan.invalidates),
+                    plan.requires_repair_input,
+                    plan.rationale,
+                    None,
+                    run_id,
+                    WorkflowStatus.NEEDS_INPUT,
+                ),
+            )
+            if result.rowcount != 1:
+                raise RuntimeError("workflow state changed during clarification")
+            self._append_plan_version(run_id)
+            return self.get(run_id)
 
-    def approve(self, run_id: str) -> WorkflowRun:
-        current = self.get(run_id)
-        if current.status is WorkflowStatus.AWAITING_APPROVAL:
+    def approve(self, run_id: str, *, plan_version_id: str | None) -> WorkflowRun:
+        """Approve the exact snapshot reviewed by a human, under a writer lock."""
+
+        with self._connection:
+            self._connection.execute("BEGIN IMMEDIATE")
+            current = self.get(run_id)
+            if current.status is not WorkflowStatus.AWAITING_APPROVAL:
+                raise ValueError("workflow is not awaiting approval")
+            if plan_version_id is None or current.plan_version_id != plan_version_id:
+                raise ValueError("reviewed plan version is no longer current")
             self._validate_tts_binding(current.sources)
             self._validate_environment_before_approval(current)
-        result = self._connection.execute(
-            """
-            UPDATE workflow_runs
-            SET status = ?,
-                updated_at = strftime('%Y-%m-%dT%H:%M:%fZ', 'now')
-            WHERE id = ? AND status = ?
-            """,
-            (
-                WorkflowStatus.READY,
-                run_id,
-                WorkflowStatus.AWAITING_APPROVAL,
-            ),
-        )
-        self._connection.commit()
-        if result.rowcount != 1:
-            raise ValueError("workflow is missing or is not awaiting approval")
+            self._connection.execute(
+                "INSERT INTO plan_approvals (plan_version_id) VALUES (?)",
+                (plan_version_id,),
+            )
+            if not has_current_approval(self.get(run_id)):
+                raise ValueError(
+                    "plan-version approval does not match current artifacts"
+                )
+            self._connection.execute(
+                """UPDATE workflow_runs SET status = ?,
+                   updated_at = strftime('%Y-%m-%dT%H:%M:%fZ', 'now') WHERE id = ?""",
+                (WorkflowStatus.READY, run_id),
+            )
         return self.get(run_id)
+
+    def revise_plan(
+        self, run_id: str, *, plan: RepairPlan, expected_plan_version_id: str | None
+    ) -> WorkflowRun:
+        """Append a policy-constrained edit and invalidate the current approval."""
+
+        with self._connection:
+            self._connection.execute("BEGIN IMMEDIATE")
+            current = self.get(run_id)
+            if current.status not in {
+                WorkflowStatus.NEEDS_REPAIR_INPUT,
+                WorkflowStatus.AWAITING_APPROVAL,
+                WorkflowStatus.READY,
+            }:
+                raise ValueError("workflow plan cannot be edited in this state")
+            if (
+                expected_plan_version_id is None
+                or current.plan_version_id != expected_plan_version_id
+            ):
+                raise ValueError("reviewed plan version is no longer current")
+            record = self.get_quality_finding(run_id)
+            validate_plan_revision(
+                QualityFinding(record.kind, record.explanation, record.confidence), plan
+            )
+            status = self._revised_plan_status(current, plan)
+            self._connection.execute(
+                """UPDATE workflow_runs SET action = ?, invalidates = ?,
+                   requires_repair_input = ?, rationale = ?, status = ?,
+                   idempotency_key = ?,
+                   updated_at = strftime('%Y-%m-%dT%H:%M:%fZ', 'now') WHERE id = ?""",
+                (
+                    plan.action,
+                    _encode_invalidates(plan.invalidates),
+                    plan.requires_repair_input,
+                    plan.rationale,
+                    status,
+                    None
+                    if status is WorkflowStatus.NEEDS_REPAIR_INPUT
+                    else current.idempotency_key,
+                    run_id,
+                ),
+            )
+            self._append_plan_version(run_id)
+        return self.get(run_id)
+
+    def _revised_plan_status(
+        self, current: WorkflowRun, plan: RepairPlan
+    ) -> WorkflowStatus:
+        if current.plan is not None and current.plan.action is plan.action:
+            if current.status is WorkflowStatus.NEEDS_REPAIR_INPUT:
+                return WorkflowStatus.NEEDS_REPAIR_INPUT
+        elif plan.requires_repair_input:
+            return WorkflowStatus.NEEDS_REPAIR_INPUT
+        return WorkflowStatus.AWAITING_APPROVAL
+
+    def _upgrade_unversioned_plans(self) -> None:
+        """Snapshot legacy plans; never infer human approval from a READY status."""
+
+        rows = self._connection.execute(
+            """SELECT id FROM workflow_runs WHERE action IS NOT NULL AND NOT EXISTS (
+                SELECT 1 FROM repair_plan_versions WHERE run_id = workflow_runs.id
+            )"""
+        ).fetchall()
+        with self._connection:
+            self._connection.execute("BEGIN IMMEDIATE")
+            for row in rows:
+                self._append_plan_version(row["id"])
+                self._connection.execute(
+                    "UPDATE workflow_runs SET status = ? WHERE id = ? AND status = ?",
+                    (WorkflowStatus.AWAITING_APPROVAL, row["id"], WorkflowStatus.READY),
+                )
+
+    def _append_plan_version(self, run_id: str) -> None:
+        current = self.get(run_id)
+        if current.plan is None:
+            raise ValueError("workflow has no repair plan to version")
+        previous = current.plan_version
+        revision = previous.revision + 1 if previous else 1
+        version_id = f"plan-{run_id}-{revision}"
+        choices = dict(previous.replacement_choices) if previous else {}
+        if previous is not None:
+            old_sources = dict(previous.sources.dependencies())
+            choices.update(
+                (k, v) for k, v in current.sources.dependencies() if old_sources[k] != v
+            )
+        key = current.idempotency_key
+        if revision > 1 and key is not None:
+            key = f"workflow-run:{run_id}:plan:{version_id}"
+            self._connection.execute(
+                "UPDATE workflow_runs SET idempotency_key = ? WHERE id = ?",
+                (key, run_id),
+            )
+        version = RepairPlanVersion(
+            version_id,
+            run_id,
+            revision,
+            current.plan,
+            current.sources,
+            current.active_video_version_id,
+            current.active_caption_version_id,
+            self.get_quality_finding(run_id).artifact_version_id,
+            tuple(sorted(choices.items())),
+            key,
+            "",
+        )
+        self._connection.execute(
+            "INSERT INTO repair_plan_versions (id, run_id, revision, snapshot) VALUES (?, ?, ?, ?)",
+            (version_id, run_id, revision, encode_plan_version(version)),
+        )
+
+    def get_plan_versions(self, run_id: str) -> tuple[RepairPlanVersion, ...]:
+        rows = self._connection.execute(
+            "SELECT snapshot, created_at FROM repair_plan_versions WHERE run_id = ? ORDER BY revision",
+            (run_id,),
+        ).fetchall()
+        return tuple(
+            decode_plan_version(row["snapshot"], row["created_at"]) for row in rows
+        )
+
+    def get_plan_approval(self, plan_version_id: str) -> PlanApproval | None:
+        row = self._connection.execute(
+            "SELECT * FROM plan_approvals WHERE plan_version_id = ?",
+            (plan_version_id,),
+        ).fetchone()
+        return PlanApproval(row["plan_version_id"], row["created_at"]) if row else None
 
     def _validate_environment_before_approval(self, run: WorkflowRun) -> None:
         if run.plan is None or run.plan.action is RepairAction.REPAIR_CAPTIONS:
@@ -999,114 +1180,136 @@ class WorkflowRepository:
     def bind_replacement(self, run_id: str, version_id: str) -> WorkflowRun:
         """Bind the exact new input required by a repair before approval."""
 
-        current = self.get(run_id)
-        if (
-            current.status is not WorkflowStatus.NEEDS_REPAIR_INPUT
-            or current.plan is None
-        ):
-            raise ValueError("workflow is not awaiting repair input")
-        target = {
-            RepairAction.REVISE_SCRIPT: (ArtifactKind.SCRIPT, "script_version_id"),
-            RepairAction.REPAIR_TTS_INPUT: (
-                ArtifactKind.TTS_INPUT,
-                "tts_input_version_id",
-            ),
-            RepairAction.CHANGE_AVATAR: (ArtifactKind.AVATAR, "avatar_version_id"),
-        }.get(current.plan.action)
-        if target is None:
-            raise ValueError("repair action has no replacement input")
-        kind, column = target
-        replacement = self.get_artifact_version(version_id)
-        if replacement.kind is not kind:
-            raise ValueError(f"replacement must be a {kind.value} version")
-        if version_id in {value for _, value in current.sources.dependencies()}:
-            raise ValueError("replacement must be a new source version")
-        key = f"workflow-run:{run_id}:{current.plan.action}:replacement:{version_id}"
-        updated = self._connection.execute(
-            f"""
-            UPDATE workflow_runs
-            SET {column} = ?, status = ?, idempotency_key = ?,
-                updated_at = strftime('%Y-%m-%dT%H:%M:%fZ', 'now')
-            WHERE id = ? AND status = ?
-            """,
-            (
-                version_id,
-                WorkflowStatus.AWAITING_APPROVAL,
-                key,
-                run_id,
-                WorkflowStatus.NEEDS_REPAIR_INPUT,
-            ),
-        )
-        self._connection.commit()
-        if updated.rowcount != 1:
-            raise RuntimeError("workflow state changed during replacement binding")
-        return self.get(run_id)
+        with self._connection:
+            self._connection.execute("BEGIN IMMEDIATE")
+            current = self.get(run_id)
+            if (
+                current.status
+                not in {
+                    WorkflowStatus.NEEDS_REPAIR_INPUT,
+                    WorkflowStatus.AWAITING_APPROVAL,
+                    WorkflowStatus.READY,
+                }
+                or current.plan is None
+            ):
+                raise ValueError("workflow is not awaiting repair input")
+            target = {
+                RepairAction.REVISE_SCRIPT: (ArtifactKind.SCRIPT, "script_version_id"),
+                RepairAction.REPAIR_TTS_INPUT: (
+                    ArtifactKind.TTS_INPUT,
+                    "tts_input_version_id",
+                ),
+                RepairAction.CHANGE_AVATAR: (ArtifactKind.AVATAR, "avatar_version_id"),
+            }.get(current.plan.action)
+            if target is None:
+                raise ValueError("repair action has no replacement input")
+            kind, column = target
+            replacement = self.get_artifact_version(version_id)
+            if replacement.kind is not kind:
+                raise ValueError(f"replacement must be a {kind.value} version")
+            if version_id in {value for _, value in current.sources.dependencies()}:
+                raise ValueError("replacement must be a new source version")
+            key = (
+                f"workflow-run:{run_id}:{current.plan.action}:replacement:{version_id}"
+            )
+            updated = self._connection.execute(
+                f"""
+                UPDATE workflow_runs
+                SET {column} = ?, status = ?, idempotency_key = ?,
+                    updated_at = strftime('%Y-%m-%dT%H:%M:%fZ', 'now')
+                WHERE id = ? AND status = ?
+                """,
+                (
+                    version_id,
+                    WorkflowStatus.AWAITING_APPROVAL,
+                    key,
+                    run_id,
+                    current.status,
+                ),
+            )
+            if updated.rowcount != 1:
+                raise RuntimeError("workflow state changed during replacement binding")
+            self._append_plan_version(run_id)
+            return self.get(run_id)
 
     def bind_tts_input(self, run_id: str, version_id: str) -> WorkflowRun:
         """Pair a revised script with its validated spoken text before approval."""
 
-        current = self.get(run_id)
-        if (
-            current.status is not WorkflowStatus.AWAITING_APPROVAL
-            or current.plan is None
-            or current.plan.action is not RepairAction.REVISE_SCRIPT
-        ):
-            raise ValueError("workflow is not awaiting revised script TTS input")
-        tts_input = self.get_tts_input_version(version_id)
-        if tts_input.script_version_id != current.sources.script_version_id:
-            raise ValueError("TTS input must derive from the selected script version")
-        if version_id == current.sources.tts_input_version_id:
-            raise ValueError("replacement TTS input must be a new version")
-        key = (
-            f"workflow-run:{run_id}:{current.plan.action}:"
-            f"replacement:{current.sources.script_version_id}:tts:{version_id}"
-        )
-        updated = self._connection.execute(
-            """
-            UPDATE workflow_runs
-            SET tts_input_version_id = ?, idempotency_key = ?,
-                updated_at = strftime('%Y-%m-%dT%H:%M:%fZ', 'now')
-            WHERE id = ? AND status = ? AND script_version_id = ?
-            """,
-            (
-                version_id,
-                key,
-                run_id,
-                WorkflowStatus.AWAITING_APPROVAL,
-                current.sources.script_version_id,
-            ),
-        )
-        self._connection.commit()
-        if updated.rowcount != 1:
-            raise RuntimeError("workflow state changed during TTS input binding")
-        return self.get(run_id)
+        with self._connection:
+            self._connection.execute("BEGIN IMMEDIATE")
+            current = self.get(run_id)
+            if (
+                current.status
+                not in {WorkflowStatus.AWAITING_APPROVAL, WorkflowStatus.READY}
+                or current.plan is None
+                or current.plan.action is not RepairAction.REVISE_SCRIPT
+            ):
+                raise ValueError("workflow is not awaiting revised script TTS input")
+            tts_input = self.get_tts_input_version(version_id)
+            if tts_input.script_version_id != current.sources.script_version_id:
+                raise ValueError(
+                    "TTS input must derive from the selected script version"
+                )
+            if version_id == current.sources.tts_input_version_id:
+                raise ValueError("replacement TTS input must be a new version")
+            key = (
+                f"workflow-run:{run_id}:{current.plan.action}:"
+                f"replacement:{current.sources.script_version_id}:tts:{version_id}"
+            )
+            updated = self._connection.execute(
+                """
+                UPDATE workflow_runs
+                SET tts_input_version_id = ?, idempotency_key = ?, status = ?,
+                    updated_at = strftime('%Y-%m-%dT%H:%M:%fZ', 'now')
+                WHERE id = ? AND status = ? AND script_version_id = ?
+                """,
+                (
+                    version_id,
+                    key,
+                    WorkflowStatus.AWAITING_APPROVAL,
+                    run_id,
+                    current.status,
+                    current.sources.script_version_id,
+                ),
+            )
+            if updated.rowcount != 1:
+                raise RuntimeError("workflow state changed during TTS input binding")
+            self._append_plan_version(run_id)
+            return self.get(run_id)
 
-    def record_submission(self, *, run_id: str, external_job_id: str) -> WorkflowRun:
+    def record_submission(
+        self, *, run_id: str, external_job_id: str, expected_plan_version_id: str | None
+    ) -> WorkflowRun:
         """Record an accepted provider job without permitting ID replacement."""
 
-        validate_external_id(external_job_id, "provider job")
-        current = self.get(run_id)
-        if current.status is WorkflowStatus.SUBMITTED:
-            if current.external_job_id != external_job_id:
-                raise ValueError("workflow already references another provider job")
-            return current
-        if current.status is not WorkflowStatus.READY:
-            raise ValueError("workflow is not ready for provider submission")
-        plan = self._require_video_submission_plan(current)
         with self._connection:
+            self._connection.execute("BEGIN IMMEDIATE")
+            validate_external_id(external_job_id, "provider job")
+            current = self.get(run_id)
+            self._require_current_plan_version(current, expected_plan_version_id)
+            if current.status is WorkflowStatus.SUBMITTED:
+                if current.external_job_id != external_job_id:
+                    raise ValueError("workflow already references another provider job")
+                return current
+            if current.status is not WorkflowStatus.READY:
+                raise ValueError("workflow is not ready for provider submission")
+            plan = self._require_video_submission_plan(current)
+            if not has_current_approval(current):
+                raise ValueError("workflow has no current plan-version approval")
             self._connection.execute(
                 """
                 INSERT INTO provider_jobs (
-                    external_job_id, run_id, idempotency_key, action,
+                    external_job_id, run_id, idempotency_key, action, plan_version_id,
                     script_version_id, tts_input_version_id,
                     avatar_version_id, voice_version_id
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """,
                 (
                     external_job_id,
                     run_id,
                     current.idempotency_key,
                     plan.action,
+                    current.plan_version_id,
                     current.sources.script_version_id,
                     current.sources.tts_input_version_id,
                     current.sources.avatar_version_id,
@@ -1129,7 +1332,13 @@ class WorkflowRepository:
             )
             if result.rowcount != 1:
                 raise RuntimeError("workflow state changed during provider submission")
-        return self.get(run_id)
+            return self.get(run_id)
+
+    def _require_current_plan_version(
+        self, run: WorkflowRun, expected: str | None
+    ) -> None:
+        if expected is None or run.plan_version_id != expected:
+            raise ValueError("submitted plan version is no longer current")
 
     def _require_video_submission_plan(self, run: WorkflowRun) -> RepairPlan:
         if run.plan is None or run.idempotency_key is None:
@@ -1238,6 +1447,7 @@ class WorkflowRepository:
             )
             if updated.rowcount != 1:
                 raise RuntimeError("workflow state changed during retry request")
+            self._append_plan_version(run_id)
         return self.get(run_id)
 
     def get_provider_job(self, external_job_id: str) -> ProviderJob:
@@ -1252,6 +1462,7 @@ class WorkflowRepository:
             run_id=row["run_id"],
             idempotency_key=row["idempotency_key"],
             action=row["action"],
+            plan_version_id=row["plan_version_id"],
             sources=VideoSources(
                 script_version_id=row["script_version_id"],
                 tts_input_version_id=row["tts_input_version_id"],
@@ -1294,6 +1505,8 @@ class WorkflowRepository:
                 question=row["clarification_question"],
                 options=_decode_options(row["clarification_options"]),
             )
+        versions = self.get_plan_versions(run_id)
+        version = versions[-1] if versions else None
         return WorkflowRun(
             id=row["id"],
             status=WorkflowStatus(row["status"]),
@@ -1320,6 +1533,8 @@ class WorkflowRepository:
             created_at=row["created_at"],
             updated_at=row["updated_at"],
             active_caption_version_id=row["active_caption_version_id"],
+            plan_version=version,
+            approval=self.get_plan_approval(version.id) if version else None,
         )
 
 

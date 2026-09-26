@@ -129,7 +129,10 @@ class EnvironmentWorkflowTests(unittest.TestCase):
         )
 
         with self.assertRaisesRegex(ValueError, "environment mismatch"):
-            self.repository.approve("visual-run")
+            self.repository.approve(
+                "visual-run",
+                plan_version_id=self.repository.get("visual-run").plan_version_id,
+            )
         with self.assertRaisesRegex(ValueError, "approved"):
             WorkflowExecutor(repository=self.repository, provider=self.provider).submit(
                 "visual-run"
@@ -144,7 +147,9 @@ class EnvironmentWorkflowTests(unittest.TestCase):
         )
         self.repository.bind_replacement("run-oven", "avatar-kitchen")
 
-        approved = self.repository.approve("run-oven")
+        approved = self.repository.approve(
+            "run-oven", plan_version_id=self.repository.get("run-oven").plan_version_id
+        )
 
         self.assertEqual(approved.status, WorkflowStatus.READY)
         self.assertEqual(approved.sources.avatar_version_id, "avatar-kitchen")
@@ -165,7 +170,9 @@ class EnvironmentWorkflowTests(unittest.TestCase):
         self.repository.bind_replacement("run-oven", "script-office")
         self.repository.bind_tts_input("run-oven", "tts-office")
 
-        approved = self.repository.approve("run-oven")
+        approved = self.repository.approve(
+            "run-oven", plan_version_id=self.repository.get("run-oven").plan_version_id
+        )
 
         self.assertEqual(approved.status, WorkflowStatus.READY)
         self.assertEqual(approved.sources.script_version_id, "script-office")

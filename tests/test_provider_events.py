@@ -57,7 +57,9 @@ class ProviderCompletionTests(unittest.TestCase):
             ),
             observed_artifact_version_id=self.observed_video_id,
         )
-        self.repository.approve(run_id)
+        self.repository.approve(
+            run_id, plan_version_id=self.repository.get(run_id).plan_version_id
+        )
         submitted = WorkflowExecutor(
             repository=self.repository, provider=self.provider
         ).submit(run_id)
@@ -161,11 +163,15 @@ class ProviderCompletionTests(unittest.TestCase):
             ),
             observed_artifact_version_id=self.observed_video_id,
         )
-        self.repository.approve("run-2")
+        self.repository.approve(
+            "run-2", plan_version_id=self.repository.get("run-2").plan_version_id
+        )
 
         with self.assertRaises(sqlite3.IntegrityError):
             self.repository.record_submission(
-                run_id="run-2", external_job_id=external_job_id
+                run_id="run-2",
+                external_job_id=external_job_id,
+                expected_plan_version_id=self.repository.get("run-2").plan_version_id,
             )
 
         self.assertEqual(self.repository.get("run-2").status, WorkflowStatus.READY)
@@ -178,7 +184,9 @@ class ProviderCompletionTests(unittest.TestCase):
         old_job_id = self.submit_run("run-1")
         awaiting_approval = self.repository.request_retry("run-1")
         self.assertEqual(awaiting_approval.status, WorkflowStatus.AWAITING_APPROVAL)
-        self.repository.approve("run-1")
+        self.repository.approve(
+            "run-1", plan_version_id=self.repository.get("run-1").plan_version_id
+        )
         new_job_id = (
             WorkflowExecutor(repository=self.repository, provider=self.provider)
             .submit("run-1")
@@ -224,14 +232,18 @@ class ProviderCompletionTests(unittest.TestCase):
             WorkflowExecutor(repository=self.repository, provider=self.provider).submit(
                 "run-1"
             )
-        self.repository.approve("run-1")
+        self.repository.approve(
+            "run-1", plan_version_id=self.repository.get("run-1").plan_version_id
+        )
         second_job_id = (
             WorkflowExecutor(repository=self.repository, provider=self.provider)
             .submit("run-1")
             .external_job_id
         )
         self.repository.request_retry("run-1")
-        self.repository.approve("run-1")
+        self.repository.approve(
+            "run-1", plan_version_id=self.repository.get("run-1").plan_version_id
+        )
         third_job_id = (
             WorkflowExecutor(repository=self.repository, provider=self.provider)
             .submit("run-1")

@@ -58,6 +58,8 @@ It currently demonstrates:
 - persisted findings and evidence tied to exact artifact versions, with facts,
   inferences, and uncertainty labeled separately (see
   [`docs/quality-evidence.md`](docs/quality-evidence.md));
+- immutable plan revisions and approval bound to exact artifact choices (see
+  [`docs/plan-versions.md`](docs/plan-versions.md));
 - a distinction between unresolved creative input and executable approval;
 - a persisted clarification request with separate script and avatar repair
   options, followed by a specific plan when a human selects one;
