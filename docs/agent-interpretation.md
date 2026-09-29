@@ -30,3 +30,41 @@ application validation; schema enforcement does not prove a diagnosis.
 Supply the key in your shell environment, never in source or command arguments.
 The fake remains the default for offline tests; tests mock OpenRouter transport
 and make no paid calls.
+
+
+## Classification contract
+
+The six required fields are `kind` (known failure string or null), `explanation`
+(nonblank text), `confidence` (finite number from 0 to 1), `evidence_indices`
+(unique zero-based indices into supplied evidence), `action` (known action or
+null), and `invalidates` (unique artifact kinds). Extra fields, duplicate keys,
+unknown values, malformed JSON and out-of-range references are rejected.
+
+`interpret_feedback` independently validates output after any provider call.
+Confidence below 0.8, no cited facts, or a null diagnosis yields clarification
+with no finding or executable decision. Unsupported diagnoses are rejected.
+Every proposal must match the exact action and invalidations from `plan_repair`;
+overrepair and underrepair both fail. An environment mismatch cannot select a
+creative branch; deterministic policy returns its human clarification request.
+
+Evidence indices preserve supplied observations and version IDs. The model's
+explanation is a diagnosis, not a newly observed fact. Structural grounding does
+not prove semantic relevance or real-media quality. Repository lineage checks
+still apply when a validated finding is saved, and human approval remains
+required before execution.
+
+Run the offline interpretation demo:
+
+```bash
+PYTHONPATH=src python3 -m media_qc_agent.review_demo
+```
+
+With `OPENROUTER_API_KEY` already set in your shell, explicitly opt into one paid
+interpretation request:
+
+```bash
+PYTHONPATH=src python3 -m media_qc_agent.review_demo --live
+```
+
+This command prints validated interpretation only. The existing durable workflow
+demo now uses the fake interpretation boundary before persisting its finding.
