@@ -23,4 +23,4 @@ The matched run supports further evaluation on cost and latency, but leaves
 the confidence/support thresholds uncalibrated. Jev's alpha transport adds
 provider-specific schema maintenance; pinned release selection and shared
 bounded HTTP transport constrain that dependency. Full results and replay
-instructions are in [the comparison note](../jev-classification.md).
+instructions are in [the comparison note](../agent/jev-classification.md).

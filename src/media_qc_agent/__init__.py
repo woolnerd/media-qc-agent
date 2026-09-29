@@ -1,6 +1,6 @@
 """Agentic media-production quality supervision."""
 
-from .domain import (
+from media_qc_agent.domain.models import (
     ArtifactKind,
     ClarificationRequest,
     FailureKind,
@@ -9,11 +9,11 @@ from .domain import (
     RepairOption,
     RepairPlan,
 )
-from .executor import SimulatedProcessCrash, WorkflowExecutor
-from .planner import plan_repair, select_repair
-from .provider import FakeVideoProvider
-from .repository import WorkflowRepository
-from .workflow import WorkflowStatus
+from media_qc_agent.domain.planner import plan_repair, select_repair
+from media_qc_agent.workflow.executor import SimulatedProcessCrash, WorkflowExecutor
+from media_qc_agent.workflow.models import WorkflowStatus
+from media_qc_agent.workflow.provider import FakeVideoProvider
+from media_qc_agent.workflow.repository import WorkflowRepository
 
 __all__ = [
     "ArtifactKind",

@@ -12,8 +12,8 @@
 - Do not commit real customer data, private media, client artifacts, or
   credentials.
 - Keep provider-specific behavior behind interfaces.
-- Complete the PR template and follow [quality gates](docs/quality-gates.md).
-  Review affected [architecture invariants](docs/architecture-invariants.md),
+- Complete the PR template and follow [quality gates](docs/development/quality-gates.md).
+  Review affected [architecture invariants](docs/architecture/architecture-invariants.md),
   failure evidence, and tradeoffs before merging.
 
 ## Before committing
@@ -21,7 +21,7 @@
 Run the full test suite:
 
 ```bash
-PYTHONPATH=src python3 -m unittest discover -s tests -v
+PYTHONPATH=src python3 -m unittest discover -s tests -t . -v
 ```
 
 Install the check tools with `python3 -m pip install -r requirements-dev.txt`,
@@ -32,9 +32,9 @@ PYTHONPATH=src python3 -m compileall -q src tests
 PYTHONPATH=src python3 -m ruff check src tests
 PYTHONPATH=src python3 -m ruff format --check src tests
 PYTHONPATH=src python3 -m mypy src tests
-PYTHONPATH=src python3 -m unittest discover -s tests -v
-PYTHONPATH=src python3 -m media_qc_agent.demo
-PYTHONPATH=src python3 -m media_qc_agent.evaluation --mask-version-labels
+PYTHONPATH=src python3 -m unittest discover -s tests -t . -v
+PYTHONPATH=src python3 -m media_qc_agent.cli.demo
+PYTHONPATH=src python3 -m media_qc_agent.cli.evaluate --mask-version-labels
 ```
 
 The GitHub Actions `verify` job runs on pull requests and pushes to `main`.

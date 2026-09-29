@@ -16,12 +16,12 @@ not reproduce a former client product or claim production-scale readiness.
   thesis: what the system should do and why.
 - [GitHub issues](https://github.com/woolnerd/media-qc-agent/issues) — active
   implementation tasks and acceptance criteria, grouped by milestones.
-- [`docs/adr/`](docs/adr/) — decisions, alternatives, and consequences.
+- [`docs/adr/`](docs/adr) — decisions, alternatives, and consequences.
 - [`PROJECT_STATE.md`](PROJECT_STATE.md) — the current handoff snapshot.
 - [`CONTRIBUTING.md`](CONTRIBUTING.md) — development and verification workflow.
-- [Architecture invariants](docs/architecture-invariants.md) — guarantees,
+- [Architecture invariants](docs/architecture/architecture-invariants.md) — guarantees,
   ownership boundaries, and regression evidence.
-- [Quality gates](docs/quality-gates.md) — architecture review, failure scenarios,
+- [Quality gates](docs/development/quality-gates.md) — architecture review, failure scenarios,
   and adversarial review before merging.
 - [`docs/adr/0010-use-readable-demo-ids.md`](docs/adr/0010-use-readable-demo-ids.md)
   — the ID format and ownership rules used by this demo.
@@ -58,21 +58,21 @@ It currently demonstrates:
   compatibility from caption defects;
 - a deterministic provider/model spoken-text gate that preserves authored text,
   normalizes unambiguous notation, and blocks unsafe TTS input versions (see
-  [`docs/spoken-text-gate.md`](docs/spoken-text-gate.md));
+  [`docs/quality/spoken-text-gate.md`](docs/quality/spoken-text-gate.md));
 - deterministic caption formatting and timing checks with evidence, plus a
   caption-only repair that keeps the accepted video (see
-  [`docs/caption-quality.md`](docs/caption-quality.md));
+  [`docs/quality/caption-quality.md`](docs/quality/caption-quality.md));
 - a synthetic script/avatar environment gate that grounds an oven/office
   mismatch in versioned metadata and asks a human to choose the repair (see
-  [`docs/environment-compatibility.md`](docs/environment-compatibility.md));
+  [`docs/quality/environment-compatibility.md`](docs/quality/environment-compatibility.md));
 - a synthetic same-shot motion-jump signal tied to an exact video version,
   with human approval before a video retry (see
-  [`docs/visual-quality-signal.md`](docs/visual-quality-signal.md));
+  [`docs/quality/visual-quality-signal.md`](docs/quality/visual-quality-signal.md));
 - persisted findings and evidence tied to exact artifact versions, with facts,
   inferences, and uncertainty labeled separately (see
-  [`docs/quality-evidence.md`](docs/quality-evidence.md));
+  [`docs/quality/quality-evidence.md`](docs/quality/quality-evidence.md));
 - immutable plan revisions and approval bound to exact artifact choices (see
-  [`docs/plan-versions.md`](docs/plan-versions.md));
+  [`docs/architecture/plan-versions.md`](docs/architecture/plan-versions.md));
 - a distinction between unresolved creative input and executable approval;
 - a persisted clarification request with separate script and avatar repair
   options, followed by a specific plan when a human selects one;
@@ -88,10 +88,10 @@ It currently demonstrates:
 It does **not** yet inspect raw images or videos, expose a provider
 callback API or UI, or generate caption content.
 An OpenRouter adapter can interpret text feedback with a low-cost model;
-see [`docs/agent-interpretation.md`](docs/agent-interpretation.md) for the explicit
+see [`docs/agent/agent-interpretation.md`](docs/agent/agent-interpretation.md) for the explicit
 live demo and its strict validation boundary.
 An optional typed Jev classifier and matched cost/latency comparison are
-documented in [`docs/jev-classification.md`](docs/jev-classification.md).
+documented in [`docs/agent/jev-classification.md`](docs/agent/jev-classification.md).
 Those remaining capabilities are planned work, and the GitHub issues keep that
 distinction explicit.
 
@@ -108,16 +108,36 @@ captions while preserving the approved script, avatar, and voice. A bad script
 has a wider invalidation boundary because its descendants no longer represent
 approved input.
 
-The code follows the same boundary: `workflow.py` defines shared run state,
-`repository.py` owns SQLite schema and transitions, and `executor.py` submits
-approved work through a small store interface and the provider adapter.
+## Repository layout
+
+```text
+src/media_qc_agent/
+  domain/       Artifact types, evidence, IDs, and pure repair policy
+  quality/      Caption, environment, spoken-text, and visual checks
+  workflow/     Run models, plan versions, SQLite persistence, execution
+  agent/        Interpretation contracts, validation, and model adapters
+  cli/          Offline demos and evaluation commands
+tests/          Mirrors the five source packages
+docs/
+  architecture/ Guarantees, approval versions, and provider transitions
+  quality/      Check behavior, evidence, and demo limitations
+  agent/        Model interpretation and comparison methods
+  development/  Quality gates and review procedure
+  adr/          Decision history
+evals/          Synthetic cases and recorded experiment results
+```
+
+The package root provides the public convenience imports. Implementation imports
+use the responsibility packages directly. Start with [the documentation guide](docs/README.md)
+for a reading order and [ADR 0019](docs/adr/0019-organize-by-responsibility.md)
+for the organization rules and tradeoffs.
 
 ## Run the tests
 
 No third-party packages are required for the current slice.
 
 ```bash
-PYTHONPATH=src python3 -m unittest discover -s tests -v
+PYTHONPATH=src python3 -m unittest discover -s tests -t . -v
 ```
 
 GitHub Actions runs the test suite, Ruff, mypy, compilation, and the synthetic
@@ -134,19 +154,19 @@ The test suite includes the uncertain-outcome case where a provider accepts a
 job and the process crashes before saving the provider job ID. The run remains
 `submitting`. On restart, the executor retries with the same idempotency key and
 receives the original job instead of creating a duplicate. This relies on the
-provider honoring that key; see [exact plan approval](docs/plan-versions.md).
+provider honoring that key; see [exact plan approval](docs/architecture/plan-versions.md).
 
 ## Run the synthetic demo
 
 From the repository root:
 
 ```bash
-PYTHONPATH=src python3 -m media_qc_agent.demo
+PYTHONPATH=src python3 -m media_qc_agent.cli.demo
 ```
 
 The output shows a stale old-job callback, the applied current-job callback,
 the active video version and its exact input versions, and a caption tied to
 that video. The demo runs in memory with a fake provider; there is no UI or
 external service to start in this milestone. See
-[`docs/provider-transitions.md`](docs/provider-transitions.md) for the callback
+[`docs/architecture/provider-transitions.md`](docs/architecture/provider-transitions.md) for the callback
 rules it exercises.
