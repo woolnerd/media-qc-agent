@@ -60,7 +60,9 @@ class ArtifactLineageTests(unittest.TestCase):
         )
 
     def submit(self, run_id: str) -> str:
-        self.repository.approve(run_id)
+        self.repository.approve(
+            run_id, plan_version_id=self.repository.get(run_id).plan_version_id
+        )
         job_id = (
             WorkflowExecutor(repository=self.repository, provider=self.provider)
             .submit(run_id)
@@ -143,7 +145,9 @@ class ArtifactLineageTests(unittest.TestCase):
         self.assertEqual(bound.status, WorkflowStatus.AWAITING_APPROVAL)
         self.assertEqual(bound.sources.script_version_id, "script-2")
         with self.assertRaisesRegex(ValueError, "TTS input"):
-            self.repository.approve("run-1")
+            self.repository.approve(
+                "run-1", plan_version_id=self.repository.get("run-1").plan_version_id
+            )
         self.repository.create_tts_input_version(
             version_id="tts-2",
             script_version_id="script-2",

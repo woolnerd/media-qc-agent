@@ -63,7 +63,9 @@ class ProviderTransitionRuleTests(unittest.TestCase):
         self.connection.close()
 
     def submit(self) -> str:
-        self.repository.approve("run-1")
+        self.repository.approve(
+            "run-1", plan_version_id=self.repository.get("run-1").plan_version_id
+        )
         job_id = (
             WorkflowExecutor(repository=self.repository, provider=self.provider)
             .submit("run-1")

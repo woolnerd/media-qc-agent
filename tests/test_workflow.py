@@ -90,7 +90,10 @@ class WorkflowIntegrationTests(unittest.TestCase):
         self.assertEqual(run.plan.action, RepairAction.REPAIR_TTS_INPUT)
         self.assertIsNone(run.idempotency_key)
         with self.assertRaisesRegex(ValueError, "not awaiting approval"):
-            self.repository.approve("tts-input-1")
+            self.repository.approve(
+                "tts-input-1",
+                plan_version_id=self.repository.get("tts-input-1").plan_version_id,
+            )
         with self.assertRaisesRegex(ValueError, "approved"):
             WorkflowExecutor(repository=self.repository, provider=self.provider).submit(
                 "tts-input-1"
@@ -126,7 +129,10 @@ class WorkflowIntegrationTests(unittest.TestCase):
         self.assertIsNone(run.plan)
         self.assertIsInstance(run.clarification, ClarificationRequest)
         with self.assertRaisesRegex(ValueError, "not awaiting approval"):
-            self.repository.approve("mismatch-1")
+            self.repository.approve(
+                "mismatch-1",
+                plan_version_id=self.repository.get("mismatch-1").plan_version_id,
+            )
 
         with self.assertRaisesRegex(ValueError, "approved"):
             WorkflowExecutor(repository=self.repository, provider=self.provider).submit(
@@ -166,7 +172,10 @@ class WorkflowIntegrationTests(unittest.TestCase):
         self.assertTrue(selected.plan.requires_repair_input)
         self.assertIsNone(selected.idempotency_key)
         with self.assertRaisesRegex(ValueError, "not awaiting approval"):
-            self.repository.approve("mismatch-script")
+            self.repository.approve(
+                "mismatch-script",
+                plan_version_id=self.repository.get("mismatch-script").plan_version_id,
+            )
         with self.assertRaisesRegex(ValueError, "approved"):
             WorkflowExecutor(repository=self.repository, provider=self.provider).submit(
                 "mismatch-script"
@@ -241,7 +250,9 @@ class WorkflowIntegrationTests(unittest.TestCase):
 
     def test_records_one_external_job_after_approval(self) -> None:
         self.create_visual_quality_run()
-        self.repository.approve("run-1")
+        self.repository.approve(
+            "run-1", plan_version_id=self.repository.get("run-1").plan_version_id
+        )
         executor = WorkflowExecutor(
             repository=self.repository,
             provider=self.provider,
@@ -255,7 +266,9 @@ class WorkflowIntegrationTests(unittest.TestCase):
 
     def test_restart_reconciles_crash_gap_without_duplicate_provider_job(self) -> None:
         self.create_visual_quality_run()
-        self.repository.approve("run-1")
+        self.repository.approve(
+            "run-1", plan_version_id=self.repository.get("run-1").plan_version_id
+        )
         first_process = WorkflowExecutor(
             repository=self.repository,
             provider=self.provider,
@@ -269,7 +282,7 @@ class WorkflowIntegrationTests(unittest.TestCase):
 
         self.assertEqual(
             self.repository.get("run-1").status,
-            WorkflowStatus.READY,
+            WorkflowStatus.SUBMITTING,
         )
         self.assertEqual(self.provider.jobs_created, 1)
 
@@ -286,7 +299,9 @@ class WorkflowIntegrationTests(unittest.TestCase):
 
     def test_repeated_execution_after_submission_is_a_no_op(self) -> None:
         self.create_visual_quality_run()
-        self.repository.approve("run-1")
+        self.repository.approve(
+            "run-1", plan_version_id=self.repository.get("run-1").plan_version_id
+        )
         executor = WorkflowExecutor(
             repository=self.repository,
             provider=self.provider,

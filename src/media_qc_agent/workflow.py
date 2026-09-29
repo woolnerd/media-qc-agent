@@ -11,6 +11,7 @@ class WorkflowStatus(StrEnum):
     NEEDS_REPAIR_INPUT = "needs_repair_input"
     AWAITING_APPROVAL = "awaiting_approval"
     READY = "ready"
+    SUBMITTING = "submitting"
     SUBMITTED = "submitted"
     SUCCEEDED = "succeeded"
 
@@ -48,6 +49,27 @@ class ArtifactVersion:
 
 
 @dataclass(frozen=True)
+class RepairPlanVersion:
+    id: str
+    run_id: str
+    revision: int
+    plan: RepairPlan
+    sources: VideoSources
+    target_video_version_id: str | None
+    target_caption_version_id: str | None
+    observed_artifact_version_id: str
+    replacement_choices: tuple[tuple[ArtifactKind, str], ...]
+    idempotency_key: str | None
+    created_at: str
+
+
+@dataclass(frozen=True)
+class PlanApproval:
+    plan_version_id: str
+    created_at: str
+
+
+@dataclass(frozen=True)
 class WorkflowRun:
     id: str
     status: WorkflowStatus
@@ -60,6 +82,27 @@ class WorkflowRun:
     created_at: str
     updated_at: str
     active_caption_version_id: str | None = None
+    plan_version: RepairPlanVersion | None = None
+    approval: PlanApproval | None = None
+
+    @property
+    def plan_version_id(self) -> str | None:
+        return self.plan_version.id if self.plan_version else None
+
+
+def has_current_approval(run: WorkflowRun) -> bool:
+    version = run.plan_version
+    return (
+        version is not None
+        and run.approval is not None
+        and run.approval.plan_version_id == version.id
+        and version.run_id == run.id
+        and version.plan == run.plan
+        and version.sources == run.sources
+        and version.idempotency_key == run.idempotency_key
+        and version.target_video_version_id == run.active_video_version_id
+        and version.target_caption_version_id == run.active_caption_version_id
+    )
 
 
 @dataclass(frozen=True)
@@ -70,6 +113,7 @@ class ProviderJob:
     action: str
     sources: VideoSources
     created_at: str
+    plan_version_id: str | None = None
 
 
 @dataclass(frozen=True)

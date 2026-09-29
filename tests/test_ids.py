@@ -99,9 +99,15 @@ class IdContractTests(unittest.TestCase):
                 sources=sources,
                 observed_artifact_version_id=observed_video_id,
             )
-            repository.approve("run-1")
+            repository.approve(
+                "run-1", plan_version_id=repository.get("run-1").plan_version_id
+            )
             with self.assertRaisesRegex(ValueError, "provider job"):
-                repository.record_submission(run_id="run-1", external_job_id=" ")
+                repository.record_submission(
+                    run_id="run-1",
+                    external_job_id=" ",
+                    expected_plan_version_id=repository.get("run-1").plan_version_id,
+                )
             with self.assertRaisesRegex(ValueError, "provider event"):
                 repository.record_completion(
                     external_job_id="job-1", external_event_id=" "

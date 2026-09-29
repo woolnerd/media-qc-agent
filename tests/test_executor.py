@@ -9,7 +9,12 @@ from media_qc_agent import (
     WorkflowExecutor,
     WorkflowStatus,
 )
-from media_qc_agent.workflow import VideoSources, WorkflowRun
+from media_qc_agent.workflow import (
+    PlanApproval,
+    RepairPlanVersion,
+    VideoSources,
+    WorkflowRun,
+)
 
 
 class InMemoryWorkflowStore:
@@ -22,7 +27,9 @@ class InMemoryWorkflowStore:
             raise KeyError(run_id)
         return self.run
 
-    def record_submission(self, *, run_id: str, external_job_id: str) -> WorkflowRun:
+    def record_submission(
+        self, *, run_id: str, external_job_id: str, expected_plan_version_id: str | None
+    ) -> WorkflowRun:
         if run_id != self.run.id:
             raise KeyError(run_id)
         self.recorded_submissions += 1
@@ -31,6 +38,15 @@ class InMemoryWorkflowStore:
             status=WorkflowStatus.SUBMITTED,
             external_job_id=external_job_id,
         )
+        return self.run
+
+    def reserve_submission(
+        self, *, run_id: str, expected_plan_version_id: str | None
+    ) -> WorkflowRun:
+        run = self.get(run_id)
+        if run.plan_version_id != expected_plan_version_id:
+            raise ValueError("plan version changed")
+        self.run = replace(run, status=WorkflowStatus.SUBMITTING)
         return self.run
 
 
@@ -52,6 +68,25 @@ class WorkflowExecutorBoundaryTests(unittest.TestCase):
             active_video_version_id=None,
             created_at="2026-09-24T00:00:00.000Z",
             updated_at="2026-09-24T00:00:00.000Z",
+        )
+        assert self.workflow_run.plan is not None
+        snapshot = RepairPlanVersion(
+            "plan-run-1-1",
+            "run-1",
+            1,
+            self.workflow_run.plan,
+            self.workflow_run.sources,
+            None,
+            None,
+            "video:observed",
+            (),
+            self.workflow_run.idempotency_key,
+            self.workflow_run.created_at,
+        )
+        self.workflow_run = replace(
+            self.workflow_run,
+            plan_version=snapshot,
+            approval=PlanApproval(snapshot.id, self.workflow_run.created_at),
         )
         self.store = InMemoryWorkflowStore(self.workflow_run)
         self.provider = FakeVideoProvider()

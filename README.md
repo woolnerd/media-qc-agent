@@ -36,11 +36,15 @@ durable workflow record
           ↓
 human approval
           ↓
+durable submission reservation (submitting)
+          ↓
 idempotent provider submission
 ```
 
 It currently demonstrates:
 
+- fifteen saved interpretation evaluation cases, with clear, ambiguous, and
+  adversarial examples for every failure class (see [`evals/`](evals/README.md));
 - a pure repair policy for five failure classes, distinguishing TTS input
   compatibility from caption defects;
 - a deterministic provider/model spoken-text gate that preserves authored text,
@@ -58,10 +62,14 @@ It currently demonstrates:
 - persisted findings and evidence tied to exact artifact versions, with facts,
   inferences, and uncertainty labeled separately (see
   [`docs/quality-evidence.md`](docs/quality-evidence.md));
+- immutable plan revisions and approval bound to exact artifact choices (see
+  [`docs/plan-versions.md`](docs/plan-versions.md));
 - a distinction between unresolved creative input and executable approval;
 - a persisted clarification request with separate script and avatar repair
   options, followed by a specific plan when a human selects one;
 - durable SQLite workflow state;
+- an atomic `ready → submitting` reservation that locks the approved plan before
+  calling the provider;
 - persisted provider jobs and deduplicated completion events;
 - immutable source, video, and caption version identities with exact lineage;
 - a stable idempotency key for external submission; and
@@ -105,10 +113,17 @@ GitHub Actions runs the test suite, Ruff, mypy, compilation, and the synthetic
 demo on every pull request and push to `main`. The workflow is described in
 [`CONTRIBUTING.md`](CONTRIBUTING.md).
 
+The provider workflow progresses through `awaiting_approval → ready → submitting
+→ submitted → succeeded`. Before the external call, a SQLite writer transaction
+rechecks approval and reserves the exact plan as `submitting`. Edits and input
+rebinding are blocked while that submission is unresolved. Caption repair uses
+its own local transaction and goes directly from `ready` to `succeeded`.
+
 The test suite includes the uncertain-outcome case where a provider accepts a
-job and the process crashes before saving the provider job ID. On restart, the
-executor retries with the same idempotency key and receives the original job
-instead of creating a duplicate.
+job and the process crashes before saving the provider job ID. The run remains
+`submitting`. On restart, the executor retries with the same idempotency key and
+receives the original job instead of creating a duplicate. This relies on the
+provider honoring that key; see [exact plan approval](docs/plan-versions.md).
 
 ## Run the synthetic demo
 
