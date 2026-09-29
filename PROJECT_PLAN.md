@@ -234,6 +234,20 @@ workers cannot advance work after losing a lease.
 
 These semantics matter more than distributing the system across services.
 
+The current provider path implements `awaiting_approval → ready → submitting →
+submitted → succeeded`. The `ready → submitting` transition atomically reserves
+the approved plan version and idempotency key before the external call. Edits
+and input rebinding are blocked while submission is unresolved. A crash or
+ambiguous provider error leaves the run `submitting`; recovery uses the same
+key, relying on provider deduplication. A new retry is permitted only from
+`submitted` or `succeeded` and requires a new plan version and approval. Local
+caption repair goes directly from `ready` to `succeeded` in one transaction.
+
+`running`, classified failure states, retry limits, and worker leases remain
+planned work. The reservation protects plan scope but does not stop concurrent
+workers from calling the provider with the same key. See
+[ADR 0018](docs/adr/0018-reserve-approved-plans-before-provider-submission.md).
+
 ## 12. Evaluation strategy
 
 A synthetic evaluation case should identify its input artifacts and versions,
