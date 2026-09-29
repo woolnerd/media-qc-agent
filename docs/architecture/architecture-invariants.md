@@ -23,6 +23,11 @@ scope. The repository owns durable transitions and artifact relationships.
 The executor owns the external call. The provider must honor idempotency keys.
 The model has no approval or media-generation authority.
 
+The [local review API](review-api.md) validates HTTP input and delegates to the
+same repository commands. It records approvals without submitting provider work.
+[HTTP boundary tests](../../tests/api/test_app.py) challenge INV-01/02/05/06
+through stale edits, exact approval, scope expansion, callbacks, and caption repair.
+
 ## Guarantees and evidence
 
 | ID | Guarantee | Boundary | Regression evidence |
