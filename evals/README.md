@@ -53,7 +53,46 @@ all offered branches. Structural validation alone cannot guarantee a correct
 diagnosis: a confident, policy-valid but wrong classification still fails the
 saved expectation.
 
-No live model scores are recorded in this initial dataset. Prompt comparison,
-traces, broader evaluation metrics, and CI evaluation reports remain milestone 5
-work. The unit suite verifies all saved cases offline and includes incorrect and
-malicious response regressions.
+## Initial live baseline
+
+[September 29 live results](results/openrouter-live-2026-09-29.json) record a
+single production-request run with `google/gemini-3.1-flash-lite`: 14 of 15 cases
+passed. The separate live smoke test also passed. No prompt/schema monkeypatches
+or retries were used for this recorded run.
+
+The adversarial TTS input case failed classification and repair scope: it was
+classified as a caption defect with caption-only repair, despite factual evidence
+of a spoken-text error. Its output passed structural and minimum-repair checks
+for the incorrectly selected class. This is a diagnostic accuracy failure; the
+saved evaluator detects it, and a correct diagnosis remains necessary before
+repair approval. No repairs or provider video jobs were executed by this run.
+
+This small synthetic run is a baseline, not a representative accuracy estimate.
+The unit suite verifies all saved cases offline and includes incorrect and
+malicious response regressions. Prompt comparison, traces, broader evaluation
+metrics, and CI evaluation reports remain milestone 5 work.
+
+## Jev comparison
+
+[September 29 matched results](results/jev-comparison-2026-09-29.json) compare
+Gemini 3.1 Flash Lite with pinned Jev 1.13 on the same 15 cases, masking label
+hints from artifact IDs for both providers. Both passed 14/15 complete cases.
+Gemini proposed the wrong repair for the adversarial TTS defect; Jev selected
+the correct class but abstained because evidence support was below threshold.
+
+Jev's median elapsed time was 0.346 seconds versus 1.669 seconds, with reported
+total costs of $0.000687792 versus $0.004763250. These are single-run results on
+synthetic cases. See [the adapter and experiment protocol](../docs/jev-classification.md)
+for the different responsibilities of model and application, limitations, and
+explicit live replay commands. The default provider remains chat.
+
+## Luna follow-up
+
+A [separate Luna run](results/luna-comparison-2026-09-29.json) used the same
+masked cases with the chat prompt and schema. Luna passed 14/15, including the
+adversarial TTS case. It omitted an uncertainty citation on an ambiguous visual
+case while asking for clarification and proposing no repair. The reported total
+cost was $0.001838600 and median elapsed time was 3.290 seconds. Its request
+had to omit `temperature` for OpenRouter's strict routing; the chat adapter now
+does so for Luna, which is the low-cost pilot default. See the
+[experiment note](../docs/jev-classification.md) for the method and limits.

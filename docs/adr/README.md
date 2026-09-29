@@ -25,4 +25,6 @@ If a decision changes, add a new ADR that supersedes the old one.
 - [`0013-use-synthetic-motion-jumps-for-video-quality.md`](0013-use-synthetic-motion-jumps-for-video-quality.md)
 - [`0014-persist-artifact-bound-quality-evidence.md`](0014-persist-artifact-bound-quality-evidence.md)
 - [`0015-bind-approval-to-immutable-plan-versions.md`](0015-bind-approval-to-immutable-plan-versions.md)
+- [`0016-adapt-typed-classification-with-application-policy.md`](0016-adapt-typed-classification-with-application-policy.md)
+- [`0017-use-luna-as-the-low-cost-chat-default.md`](0017-use-luna-as-the-low-cost-chat-default.md)
 - [`0018-reserve-approved-plans-before-provider-submission.md`](0018-reserve-approved-plans-before-provider-submission.md)

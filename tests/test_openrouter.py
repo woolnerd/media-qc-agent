@@ -40,8 +40,9 @@ class OpenRouterTests(unittest.TestCase):
             payload["messages"][0]["content"].casefold(),
             "Qwen's JSON response mode requires JSON to be named in the prompt",
         )
-        self.assertEqual(DEFAULT_MODEL, "google/gemini-3.1-flash-lite")
+        self.assertEqual(DEFAULT_MODEL, "openai/gpt-6-luna")
         self.assertEqual(payload["model"], DEFAULT_MODEL)
+        self.assertNotIn("temperature", payload)
         self.assertEqual(payload["max_tokens"], 768)
         self.assertTrue(payload["provider"]["require_parameters"])
         self.assertTrue(payload["response_format"]["json_schema"]["strict"])
@@ -50,6 +51,46 @@ class OpenRouterTests(unittest.TestCase):
         )
         self.assertNotIn("test-secret", http_request.data.decode())
         transport.assert_called_once()
+
+    @patch("media_qc_agent.openrouter.urlopen")
+    def test_gemini_override_retains_temperature_zero(
+        self, transport: MagicMock
+    ) -> None:
+        transport.return_value.__enter__.return_value.read.return_value = json.dumps(
+            {
+                "choices": [
+                    {"finish_reason": "stop", "message": {"content": '{"kind":null}'}}
+                ]
+            }
+        ).encode()
+        provider = OpenRouterModelProvider(
+            api_key="test-secret", model="google/gemini-3.1-flash-lite"
+        )
+        provider.interpret(self.request)
+        payload = json.loads(transport.call_args.args[0].data)
+        self.assertEqual(payload["temperature"], 0)
+        self.assertTrue(payload["provider"]["require_parameters"])
+
+    @patch("media_qc_agent.openrouter.urlopen")
+    def test_luna_omits_temperature_without_relaxing_schema_or_routing(
+        self, transport: MagicMock
+    ) -> None:
+        transport.return_value.__enter__.return_value.read.return_value = json.dumps(
+            {
+                "choices": [
+                    {"finish_reason": "stop", "message": {"content": '{"kind":null}'}}
+                ]
+            }
+        ).encode()
+        provider = OpenRouterModelProvider(
+            api_key="test-secret", model="openai/gpt-6-luna"
+        )
+        self.assertEqual(provider.interpret(self.request), '{"kind":null}')
+        payload = json.loads(transport.call_args.args[0].data)
+        self.assertNotIn("temperature", payload)
+        self.assertEqual(payload["max_tokens"], 768)
+        self.assertTrue(payload["provider"]["require_parameters"])
+        self.assertTrue(payload["response_format"]["json_schema"]["strict"])
 
     @patch("media_qc_agent.openrouter.urlopen")
     def test_transport_errors_are_sanitized_without_retries(

@@ -41,6 +41,11 @@ durable submission reservation (submitting)
 idempotent provider submission
 ```
 
+The TTS notation and visual-motion checks are demo-grade fixtures. Their
+profiles, samples, thresholds, and visual confidence value are illustrative;
+they have not been validated against real provider speech or human-rated video.
+A pass means only that the local rule did not fire.
+
 It currently demonstrates:
 
 - fifteen saved interpretation evaluation cases, with clear, ambiguous, and
@@ -81,6 +86,8 @@ callback API or UI, or generate caption content.
 An OpenRouter adapter can interpret text feedback with a low-cost model;
 see [`docs/agent-interpretation.md`](docs/agent-interpretation.md) for the explicit
 live demo and its strict validation boundary.
+An optional typed Jev classifier and matched cost/latency comparison are
+documented in [`docs/jev-classification.md`](docs/jev-classification.md).
 Those remaining capabilities are planned work, and the GitHub issues keep that
 distinction explicit.
 

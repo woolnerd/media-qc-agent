@@ -1,8 +1,16 @@
-"""Deterministic, provider-aware preparation of synthetic spoken text."""
+"""Demo-grade notation checks for synthetic provider-facing text."""
 
 import re
 from dataclasses import dataclass
 from enum import StrEnum
+
+DEMO_NOTICE = (
+    "Demo-grade notation check with synthetic provider profiles. "
+    "It does not synthesize speech and does not verify pronunciation, meaning, "
+    "or provider behavior. "
+    "It may flag harmless notation or miss pronunciation errors. A passing "
+    "result only means this limited rule set found no notation issue."
+)
 
 
 class Notation(StrEnum):
@@ -42,8 +50,14 @@ class SpokenTextResult:
     issues: tuple[SpokenTextIssue, ...]
 
     @property
-    def safe(self) -> bool:
+    def notation_compatible(self) -> bool:
+        """Whether this limited notation rule set found an issue."""
+
         return not self.issues
+
+    @property
+    def demo_notice(self) -> str:
+        return DEMO_NOTICE
 
 
 @dataclass(frozen=True)
@@ -167,7 +181,7 @@ def prepare_spoken_text(
     *,
     candidate_text: str | None = None,
 ) -> SpokenTextResult:
-    """Preserve authored text and normalize only unambiguous declared notation."""
+    """Normalize declared notation; do not infer actual speech quality."""
 
     if not authored_text.strip():
         raise ValueError("authored text must not be blank")

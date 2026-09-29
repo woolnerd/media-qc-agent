@@ -50,6 +50,9 @@ class VisualSignalTests(unittest.TestCase):
             all(item.jump_px_per_frame > item.threshold_px for item in result.evidence)
         )
         self.assertFalse(result.review_needed)
+        self.assertIn("illustrative", result.demo_notice)
+        self.assertIn("does not inspect video frames", result.demo_notice)
+        self.assertIn("illustrative motion-jump signal", result.finding.explanation)
 
     def test_smooth_motion_passes_and_one_spike_needs_review(self) -> None:
         smooth = check_jerky_video("video:job-1", SMOOTH)
@@ -166,6 +169,7 @@ class VisualSignalWorkflowTests(unittest.TestCase):
             all(record.artifact_version_id == self.video_id for record in records)
         )
         self.assertEqual(records[-1].role, EvidenceRole.UNCERTAINTY)
+        self.assertIn("does not inspect video frames", records[-1].statement)
         self.assertEqual(run.status, WorkflowStatus.AWAITING_APPROVAL)
         self.assertEqual(run.active_video_version_id, self.video_id)
         with self.assertRaisesRegex(ValueError, "approved"):
