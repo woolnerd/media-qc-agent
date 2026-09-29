@@ -31,14 +31,14 @@ model accuracy.
 Replay offline:
 
 ```bash
-PYTHONPATH=src python3 -m media_qc_agent.evaluation
+PYTHONPATH=src python3 -m media_qc_agent.cli.evaluate
 ```
 
 With `OPENROUTER_API_KEY` already set in the shell, opt into a paid request for
 one case with the configured OpenRouter model:
 
 ```bash
-PYTHONPATH=src python3 -m media_qc_agent.evaluation --live --case-id caption-format-adversarial
+PYTHONPATH=src python3 -m media_qc_agent.cli.evaluate --live --case-id caption-format-adversarial
 ```
 
 Omit `--case-id` to run all 15 cases live (one request per case, no retries).
@@ -82,7 +82,7 @@ the correct class but abstained because evidence support was below threshold.
 
 Jev's median elapsed time was 0.346 seconds versus 1.669 seconds, with reported
 total costs of $0.000687792 versus $0.004763250. These are single-run results on
-synthetic cases. See [the adapter and experiment protocol](../docs/jev-classification.md)
+synthetic cases. See [the adapter and experiment protocol](../docs/agent/jev-classification.md)
 for the different responsibilities of model and application, limitations, and
 explicit live replay commands. The default provider remains chat.
 
@@ -95,4 +95,4 @@ case while asking for clarification and proposing no repair. The reported total
 cost was $0.001838600 and median elapsed time was 3.290 seconds. Its request
 had to omit `temperature` for OpenRouter's strict routing; the chat adapter now
 does so for Luna, which is the low-cost pilot default. See the
-[experiment note](../docs/jev-classification.md) for the method and limits.
+[experiment note](../docs/agent/jev-classification.md) for the method and limits.

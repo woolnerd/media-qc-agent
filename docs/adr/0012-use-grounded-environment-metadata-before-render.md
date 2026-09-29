@@ -34,4 +34,4 @@ The fixture is explainable and testable before rendering, but its result is
 only as good as the supplied metadata. It does not verify what an avatar image
 actually depicts or classify a new script without metadata. Later image or
 model evaluation should provide its own evidence and accuracy measurements.
-See the [synthetic fixture guide](../environment-compatibility.md).
+See the [synthetic fixture guide](../quality/environment-compatibility.md).
