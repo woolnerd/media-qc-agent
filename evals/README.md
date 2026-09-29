@@ -85,3 +85,14 @@ total costs of $0.000687792 versus $0.004763250. These are single-run results on
 synthetic cases. See [the adapter and experiment protocol](../docs/jev-classification.md)
 for the different responsibilities of model and application, limitations, and
 explicit live replay commands. The default provider remains chat.
+
+## Luna follow-up
+
+A [separate Luna run](results/luna-comparison-2026-09-29.json) used the same
+masked cases with the chat prompt and schema. Luna passed 14/15, including the
+adversarial TTS case. It omitted an uncertainty citation on an ambiguous visual
+case while asking for clarification and proposing no repair. The reported total
+cost was $0.001838600 and median elapsed time was 3.290 seconds. Its request
+had to omit `temperature` for OpenRouter's strict routing; the current chat
+adapter has not yet been changed for Luna. See the
+[experiment note](../docs/jev-classification.md) for the method and limits.

@@ -72,6 +72,34 @@ than a default-provider switch. Fifteen synthetic cases and one run cannot
 establish representative accuracy, calibrated thresholds, or stable latency.
 The original unmasked Gemini baseline remains a separate experiment.
 
+## Luna follow-up
+
+The [saved Luna run](../evals/results/luna-comparison-2026-09-29.json) reuses the
+same masked 15 cases and existing chat prompt/schema. It is a later, separate
+run rather than a simultaneous three-model experiment. OpenRouter lists
+`openai/gpt-6-luna` at $0.10 per million input tokens and $0.50 per million
+output tokens; it supports structured JSON output. See the
+[OpenRouter model page](https://openrouter.ai/openai/gpt-6-luna) and
+[official OpenAI model documentation](https://developers.openai.com/api/docs/models/gpt-6-luna).
+
+The unchanged chat adapter returned HTTP 404 for all cases because its strict
+provider-routing request included `temperature: 0`. A one-case diagnostic
+request succeeded after omitting `temperature`. The saved Luna run makes that
+single request change while retaining the existing prompt, schema, output cap,
+strict parameter routing, validator, and scoring. The current adapter has **not**
+been changed, so setting `OPENROUTER_MODEL=openai/gpt-6-luna` alone does not work.
+
+Luna passed 14/15 complete cases, including the adversarial TTS case that
+Gemini misclassified. Its one failure was the ambiguous visual case: it asked
+for clarification and proposed no repair, but omitted the expected citation to
+a supplied uncertainty record. Median elapsed time was 3.290 seconds and
+reported cost for all 15 calls was $0.001838600. Relative to the earlier masked
+Gemini run, that is about 2.6 times cheaper and 2.0 times slower at the same
+complete-case score, with different failure consequences. This small synthetic
+result makes Luna a credible low-cost chat candidate; it does not establish
+representative accuracy or justify changing the default without a compatible
+adapter and further evaluation.
+
 ## Replay
 
 Set `OPENROUTER_API_KEY` in the process environment. The CLI does not load `.env`
