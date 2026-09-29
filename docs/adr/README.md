@@ -29,3 +29,4 @@ If a decision changes, add a new ADR that supersedes the old one.
 - [`0017-use-luna-as-the-low-cost-chat-default.md`](0017-use-luna-as-the-low-cost-chat-default.md)
 - [`0018-reserve-approved-plans-before-provider-submission.md`](0018-reserve-approved-plans-before-provider-submission.md)
 - [`0019-organize-by-responsibility.md`](0019-organize-by-responsibility.md)
+- [`0020-expose-local-review-api.md`](0020-expose-local-review-api.md)

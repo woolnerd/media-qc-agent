@@ -23,6 +23,8 @@ not reproduce a former client product or claim production-scale readiness.
   ownership boundaries, and regression evidence.
 - [Quality gates](docs/development/quality-gates.md) — architecture review, failure scenarios,
   and adversarial review before merging.
+- [Local review API](docs/architecture/review-api.md) — HTTP actions, architecture
+  diagram, and local run instructions.
 - [`docs/adr/0010-use-readable-demo-ids.md`](docs/adr/0010-use-readable-demo-ids.md)
   — the ID format and ownership rules used by this demo.
 
@@ -52,6 +54,8 @@ A pass means only that the local rule did not fire.
 
 It currently demonstrates:
 
+- a local FastAPI boundary for five illustrative scenarios, findings, plan edits,
+  exact approvals, caption repair, and fake-provider completion callbacks;
 - fifteen saved interpretation evaluation cases, with clear, ambiguous, and
   adversarial examples for every failure class (see [`evals/`](evals/README.md));
 - a pure repair policy for five failure classes, distinguishing TTS input
@@ -85,8 +89,8 @@ It currently demonstrates:
 - recovery from a crash after provider acceptance without creating a second
   paid job.
 
-It does **not** yet inspect raw images or videos, expose a provider
-callback API or UI, or generate caption content.
+It does **not** yet inspect raw images or videos, execute a durable worker,
+provide a review UI, verify real provider callbacks, or generate caption content.
 An OpenRouter adapter can interpret text feedback with a low-cost model;
 see [`docs/agent/agent-interpretation.md`](docs/agent/agent-interpretation.md) for the explicit
 live demo and its strict validation boundary.
@@ -116,8 +120,9 @@ src/media_qc_agent/
   quality/      Caption, environment, spoken-text, and visual checks
   workflow/     Run models, plan versions, SQLite persistence, execution
   agent/        Interpretation contracts, validation, and model adapters
+  api/          Synthetic scenarios, request validation, HTTP review boundary
   cli/          Offline demos and evaluation commands
-tests/          Mirrors the five source packages
+tests/          Mirrors the source responsibilities
 docs/
   architecture/ Guarantees, approval versions, and provider transitions
   quality/      Check behavior, evidence, and demo limitations
@@ -134,9 +139,10 @@ for the organization rules and tradeoffs.
 
 ## Run the tests
 
-No third-party packages are required for the current slice.
+Install runtime and test dependencies before running the full suite:
 
 ```bash
+python3 -m pip install -r requirements-dev.txt
 PYTHONPATH=src python3 -m unittest discover -s tests -t . -v
 ```
 
@@ -166,7 +172,18 @@ PYTHONPATH=src python3 -m media_qc_agent.cli.demo
 
 The output shows a stale old-job callback, the applied current-job callback,
 the active video version and its exact input versions, and a caption tied to
-that video. The demo runs in memory with a fake provider; there is no UI or
-external service to start in this milestone. See
+that video. The command-line demo runs in memory with a fake provider. See
 [`docs/architecture/provider-transitions.md`](docs/architecture/provider-transitions.md) for the callback
 rules it exercises.
+
+## Run the local review API
+
+```bash
+python3 -m pip install -r requirements.txt
+PYTHONPATH=src python3 -m media_qc_agent.cli.serve
+```
+
+Open <http://127.0.0.1:8000/docs> to try scenarios and review actions.
+State persists in `.local/review.sqlite3`. Approval records `ready`; the durable
+worker is the next issue. This loopback demo makes no live model or media-provider
+calls. See [the API guide](docs/architecture/review-api.md) for the flows and limits.
