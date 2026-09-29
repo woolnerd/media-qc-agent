@@ -6,6 +6,7 @@ from contextlib import asynccontextmanager
 from pathlib import Path
 
 from fastapi import FastAPI, Request
+from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 
 from media_qc_agent.api.actions import action_routes
@@ -35,6 +36,17 @@ def create_app(database_path: Path | str = ".local/review.sqlite3") -> FastAPI:
 
 
 def _register_errors(app: FastAPI) -> None:
+    @app.exception_handler(RequestValidationError)
+    async def invalid_request(
+        request: Request, error: RequestValidationError
+    ) -> JSONResponse:
+        # Raw input may contain nonfinite numbers or sensitive data; omit it.
+        detail = [
+            {"loc": item["loc"], "type": item["type"], "msg": item["msg"]}
+            for item in error.errors()
+        ]
+        return JSONResponse(status_code=422, content={"detail": detail})
+
     @app.exception_handler(KeyError)
     async def missing(request: Request, error: KeyError) -> JSONResponse:
         return JSONResponse(status_code=404, content={"detail": "Resource not found"})

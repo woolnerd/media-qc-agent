@@ -1,3 +1,4 @@
+import json
 import tempfile
 import unittest
 from concurrent.futures import ThreadPoolExecutor
@@ -96,6 +97,30 @@ class ApiTests(unittest.TestCase):
         self.assertEqual(
             self.client.get("/runs/run-1").json()["status"], "awaiting_approval"
         )
+
+    def test_nonfinite_numeric_input_returns_validation_error_without_mutation(
+        self,
+    ) -> None:
+        self.create("caption-format")
+        approved = self.approve()
+        for number in (float("nan"), float("inf"), float("-inf")):
+            with self.subTest(number=number):
+                response = self.client.post(
+                    "/runs/run-1/captions",
+                    content=json.dumps(
+                        {
+                            "version_id": "caption-invalid",
+                            "cues": [
+                                {"start_ms": 0, "end_ms": number, "text": "Fixed"}
+                            ],
+                        }
+                    ),
+                    headers={"Content-Type": "application/json"},
+                )
+                self.assertEqual(response.status_code, 422, response.text)
+                self.assertEqual(response.json()["detail"][0]["type"], "int_type")
+                self.assertNotIn("Out of range", response.text)
+        self.assertEqual(self.client.get("/runs/run-1").json(), approved)
 
     def test_missing_resources_and_duplicate_ids_have_safe_errors(self) -> None:
         for endpoint in (
