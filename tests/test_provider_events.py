@@ -166,6 +166,10 @@ class ProviderCompletionTests(unittest.TestCase):
         self.repository.approve(
             "run-2", plan_version_id=self.repository.get("run-2").plan_version_id
         )
+        self.repository.reserve_submission(
+            run_id="run-2",
+            expected_plan_version_id=self.repository.get("run-2").plan_version_id,
+        )
 
         with self.assertRaises(sqlite3.IntegrityError):
             self.repository.record_submission(
@@ -174,7 +178,7 @@ class ProviderCompletionTests(unittest.TestCase):
                 expected_plan_version_id=self.repository.get("run-2").plan_version_id,
             )
 
-        self.assertEqual(self.repository.get("run-2").status, WorkflowStatus.READY)
+        self.assertEqual(self.repository.get("run-2").status, WorkflowStatus.SUBMITTING)
         self.assertEqual(
             self.connection.execute("SELECT COUNT(*) FROM provider_jobs").fetchone()[0],
             1,

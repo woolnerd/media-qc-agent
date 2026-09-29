@@ -29,11 +29,18 @@ was approved. Submitted work cannot be edited; `request_retry` creates a new
 revision and requires its own approval. Each executable revision has a distinct
 idempotency key; restarting the same revision retains its key.
 
-Approval and plan writes use SQLite writer transactions. The executor requires
-an approval referencing the current snapshot and matching its exact plan,
-inputs, targets, and key before calling the video provider. Caption repair checks
-the same boundary. Recording a provider acceptance also requires the submitted
-revision ID, and the provider job stores that reference. A completion still
+Approval, plan writes, and submission reservations use SQLite writer
+transactions. Before calling the provider, the executor atomically rechecks the
+reviewed revision and approval against the exact plan, inputs, targets, and key,
+then persists `submitting`. That reservation blocks edits, replacement rebinding,
+and new retries until the accepted job is recorded. An edit that wins the writer
+transaction first causes reservation to fail before any provider call.
+
+A crash or ambiguous provider error leaves the workflow `submitting`. Restarting
+resubmits the reserved revision using the same idempotency key, so an accepted
+job can be recovered without creating a second job. Recording acceptance requires
+the reservation and revision ID; the provider job stores that reference. Caption
+repair checks approval within its own writer transaction. A completion still
 passes the existing stale-job and immutable-lineage rules.
 
 Database triggers prevent updates/deletes of plan versions and approvals. When
@@ -42,7 +49,8 @@ plans and returns legacy READY runs to awaiting approval. It never invents an
 approval for an old status. Already-submitted legacy jobs continue through their
 existing completion rules; their historical plan reference remains unknown.
 
-This milestone does not add a distributed execution lease. An edit that races a
-live provider call can make its local recording fail after provider acceptance;
-that outcome must be reconciled using the submitted revision and idempotency
-key. Durable worker coordination remains milestone 4 work.
+This reservation does not add a distributed execution lease. Concurrent workers
+can call the provider with the same reserved key; the provider must honor that
+key for deduplication. An ambiguous outcome must be reconciled with that key,
+rather than releasing the reservation and approving a new attempt. Durable
+worker coordination remains milestone 4 work.
