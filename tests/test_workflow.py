@@ -282,7 +282,7 @@ class WorkflowIntegrationTests(unittest.TestCase):
 
         self.assertEqual(
             self.repository.get("run-1").status,
-            WorkflowStatus.READY,
+            WorkflowStatus.SUBMITTING,
         )
         self.assertEqual(self.provider.jobs_created, 1)
 

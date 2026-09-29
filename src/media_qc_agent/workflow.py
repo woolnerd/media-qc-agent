@@ -11,6 +11,7 @@ class WorkflowStatus(StrEnum):
     NEEDS_REPAIR_INPUT = "needs_repair_input"
     AWAITING_APPROVAL = "awaiting_approval"
     READY = "ready"
+    SUBMITTING = "submitting"
     SUBMITTED = "submitted"
     SUCCEEDED = "succeeded"
 

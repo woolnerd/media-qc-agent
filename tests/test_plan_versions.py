@@ -1,6 +1,7 @@
 import sqlite3
 import unittest
 from dataclasses import replace
+from unittest.mock import patch
 
 from media_qc_agent import (
     ArtifactKind,
@@ -71,6 +72,108 @@ class PlanVersionTests(unittest.TestCase):
             self.repository.approve("run-1", plan_version_id=original.plan_version_id)
         self.assertEqual(edited.status, WorkflowStatus.AWAITING_APPROVAL)
         self.assertEqual(self.provider.jobs_created, 0)
+
+    def test_edit_between_read_and_submission_creates_no_external_job(self) -> None:
+        original = self.create_run()
+        self.repository.approve("run-1", plan_version_id=original.plan_version_id)
+        get = self.repository.get
+        first_read = True
+
+        def read_then_edit(run_id: str) -> WorkflowRun:
+            nonlocal first_read
+            snapshot = get(run_id)
+            if first_read:
+                first_read = False
+                assert snapshot.plan is not None
+                self.repository.revise_plan(
+                    run_id,
+                    plan=replace(snapshot.plan, rationale="Edited before submission"),
+                    expected_plan_version_id=snapshot.plan_version_id,
+                )
+            return snapshot
+
+        with (
+            patch.object(self.repository, "get", side_effect=read_then_edit),
+            self.assertRaisesRegex(ValueError, "version"),
+        ):
+            WorkflowExecutor(repository=self.repository, provider=self.provider).submit(
+                "run-1"
+            )
+        self.assertEqual(self.provider.jobs_created, 0)
+        self.assertEqual(get("run-1").status, WorkflowStatus.AWAITING_APPROVAL)
+
+    def test_edit_during_provider_call_is_blocked_and_job_is_recorded(self) -> None:
+        original = self.create_run()
+        self.repository.approve("run-1", plan_version_id=original.plan_version_id)
+        submit = self.provider.submit
+
+        def submit_while_editing(*, idempotency_key: str, action: RepairAction) -> str:
+            assert original.plan is not None
+            with self.assertRaises(ValueError):
+                self.repository.revise_plan(
+                    "run-1",
+                    plan=replace(original.plan, rationale="Edited during submission"),
+                    expected_plan_version_id=original.plan_version_id,
+                )
+            return submit(idempotency_key=idempotency_key, action=action)
+
+        with patch.object(self.provider, "submit", side_effect=submit_while_editing):
+            result = WorkflowExecutor(
+                repository=self.repository, provider=self.provider
+            ).submit("run-1")
+        self.assertEqual(self.provider.jobs_created, 1)
+        self.assertEqual(result.status, WorkflowStatus.SUBMITTED)
+        assert result.external_job_id is not None
+        self.assertEqual(
+            self.repository.get_provider_job(result.external_job_id).plan_version_id,
+            original.plan_version_id,
+        )
+
+    def test_unknown_provider_outcome_keeps_attempt_for_restart(self) -> None:
+        original = self.create_run(FailureKind.ENVIRONMENT_MISMATCH)
+        self.repository.select_repair("run-1", RepairAction.CHANGE_AVATAR)
+        bound = self.repository.bind_replacement("run-1", "avatar-2")
+        self.repository.approve("run-1", plan_version_id=bound.plan_version_id)
+        submit = self.provider.submit
+
+        def accept_then_timeout(*, idempotency_key: str, action: RepairAction) -> str:
+            submit(idempotency_key=idempotency_key, action=action)
+            raise TimeoutError("Acceptance response lost")
+
+        with (
+            patch.object(self.provider, "submit", side_effect=accept_then_timeout),
+            self.assertRaises(TimeoutError),
+        ):
+            WorkflowExecutor(repository=self.repository, provider=self.provider).submit(
+                original.id
+            )
+        restarted = WorkflowRepository(self.connection)
+        reserved = restarted.get(original.id)
+        self.assertEqual(reserved.status, WorkflowStatus.SUBMITTING)
+        self.assertEqual(reserved.plan_version_id, bound.plan_version_id)
+        self.assertEqual(reserved.idempotency_key, bound.idempotency_key)
+        with self.assertRaises(ValueError):
+            restarted.bind_replacement(original.id, "avatar-3")
+        with self.assertRaises(ValueError):
+            restarted.request_retry(original.id)
+        result = WorkflowExecutor(repository=restarted, provider=self.provider).submit(
+            original.id
+        )
+        self.assertEqual(result.status, WorkflowStatus.SUBMITTED)
+        self.assertEqual(self.provider.jobs_created, 1)
+        self.assertEqual(self.provider.submit_attempts, 2)
+
+    def test_record_submission_requires_reservation(self) -> None:
+        original = self.create_run()
+        self.repository.approve(original.id, plan_version_id=original.plan_version_id)
+        with self.assertRaisesRegex(ValueError, "reserved"):
+            self.repository.record_submission(
+                run_id=original.id,
+                external_job_id="unreserved-job",
+                expected_plan_version_id=original.plan_version_id,
+            )
+        with self.assertRaises(KeyError):
+            self.repository.get_provider_job("unreserved-job")
 
     def test_edit_invalidates_approval_and_preserves_immutable_history(self) -> None:
         original = self.create_run()
