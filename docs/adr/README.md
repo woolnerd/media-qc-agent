@@ -24,3 +24,5 @@ If a decision changes, add a new ADR that supersedes the old one.
 - [`0012-use-grounded-environment-metadata-before-render.md`](0012-use-grounded-environment-metadata-before-render.md)
 - [`0013-use-synthetic-motion-jumps-for-video-quality.md`](0013-use-synthetic-motion-jumps-for-video-quality.md)
 - [`0014-persist-artifact-bound-quality-evidence.md`](0014-persist-artifact-bound-quality-evidence.md)
+- [`0015-bind-approval-to-immutable-plan-versions.md`](0015-bind-approval-to-immutable-plan-versions.md)
+- [`0018-reserve-approved-plans-before-provider-submission.md`](0018-reserve-approved-plans-before-provider-submission.md)
