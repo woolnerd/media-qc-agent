@@ -12,7 +12,7 @@ from .domain import ArtifactKind, FailureKind, QualityFinding, RepairAction, Rep
 from .model import InterpretationRequest
 from .planner import plan_repair
 
-DEFAULT_MODEL = "qwen/qwen3.5-flash-02-23"
+DEFAULT_MODEL = "google/gemini-3.1-flash-lite"
 _ENDPOINT = "https://openrouter.ai/api/v1/chat/completions"
 _MAX_RESPONSE_BYTES = 131_072
 
