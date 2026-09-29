@@ -321,7 +321,7 @@ class WorkflowRepository:
             capabilities,
             candidate_text=candidate_text,
         )
-        if not result.safe:
+        if not result.notation_compatible:
             raise UnsafeSpokenText(result.issues)
         with self._connection:
             self._connection.execute(
@@ -867,7 +867,7 @@ class WorkflowRepository:
                 EvidenceInput(
                     EvidenceRole.UNCERTAINTY,
                     video_version_id,
-                    "Motion metric has not been confirmed by perceptual review.",
+                    checked.demo_notice,
                 ),
             ),
         )
