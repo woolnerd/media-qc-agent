@@ -35,6 +35,11 @@ class OpenRouterTests(unittest.TestCase):
         )
         self.assertEqual(http_request.get_header("Authorization"), "Bearer test-secret")
         payload = json.loads(http_request.data)
+        self.assertIn(
+            "json",
+            payload["messages"][0]["content"].casefold(),
+            "Qwen's JSON response mode requires JSON to be named in the prompt",
+        )
         self.assertEqual(payload["model"], DEFAULT_MODEL)
         self.assertEqual(payload["max_tokens"], 768)
         self.assertTrue(payload["provider"]["require_parameters"])
