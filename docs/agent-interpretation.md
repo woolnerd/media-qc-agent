@@ -15,14 +15,18 @@ and makes no claims about live model quality.
 ## OpenRouter
 
 `OpenRouterModelProvider.from_environment()` reads `OPENROUTER_API_KEY` and an
-optional `OPENROUTER_MODEL` override. The initial default is
-`google/gemini-3.1-flash-lite`, listed at $0.25 per million input tokens and $1.50
-per million output tokens when checked on September 29, 2026. Prices can change;
-see [OpenRouter model pricing](https://openrouter.ai/google/gemini-3.1-flash-lite).
+optional `OPENROUTER_MODEL` override. The low-cost pilot default is
+`openai/gpt-6-luna`, listed at $0.10 per million input tokens and $0.50 per
+million output tokens when checked on September 29, 2026. Prices can change;
+see [OpenRouter model pricing](https://openrouter.ai/openai/gpt-6-luna) and
+[official OpenAI model documentation](https://developers.openai.com/api/docs/models/gpt-6-luna).
 
 The adapter sends one request with a 30-second timeout, 768 output-token cap,
-zero temperature, and a strict JSON schema. Routing requires support for the
-requested parameters, following [OpenRouter structured output documentation](https://openrouter.ai/docs/guides/features/structured-outputs).
+and a strict JSON schema. Luna omits `temperature` because OpenRouter's strict
+parameter routing returned HTTP 404 when it was present. Other chat models,
+including the previous Gemini default, retain zero temperature. Routing
+requires support for the requested parameters, following
+[OpenRouter structured output documentation](https://openrouter.ai/docs/guides/features/structured-outputs).
 Incomplete output and transport errors fail without automatic paid retries.
 Errors omit keys and response bodies. Live output still requires independent
 application validation; schema enforcement does not prove a diagnosis.

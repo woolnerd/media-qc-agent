@@ -1,7 +1,7 @@
 # Jev classification comparison
 
 Jev is an optional typed classifier behind the existing `ModelProvider`
-interface. Gemini remains the default chat adapter while we gather broader
+interface. GPT-6 Luna is the default low-cost chat model while we gather broader
 classification evidence. Jev suits fixed label selection; its adapter supplies
 application summaries and clarification templates rather than model-written
 explanations.
@@ -82,12 +82,13 @@ output tokens; it supports structured JSON output. See the
 [OpenRouter model page](https://openrouter.ai/openai/gpt-6-luna) and
 [official OpenAI model documentation](https://developers.openai.com/api/docs/models/gpt-6-luna).
 
-The unchanged chat adapter returned HTTP 404 for all cases because its strict
+The prior chat adapter returned HTTP 404 for all cases because its strict
 provider-routing request included `temperature: 0`. A one-case diagnostic
 request succeeded after omitting `temperature`. The saved Luna run makes that
 single request change while retaining the existing prompt, schema, output cap,
-strict parameter routing, validator, and scoring. The current adapter has **not**
-been changed, so setting `OPENROUTER_MODEL=openai/gpt-6-luna` alone does not work.
+strict parameter routing, validator, and scoring. The current adapter now omits
+`temperature` for Luna, including when it is selected through
+`OPENROUTER_MODEL=openai/gpt-6-luna`. Gemini overrides retain `temperature: 0`.
 
 Luna passed 14/15 complete cases, including the adversarial TTS case that
 Gemini misclassified. Its one failure was the ambiguous visual case: it asked
@@ -96,9 +97,9 @@ a supplied uncertainty record. Median elapsed time was 3.290 seconds and
 reported cost for all 15 calls was $0.001838600. Relative to the earlier masked
 Gemini run, that is about 2.6 times cheaper and 2.0 times slower at the same
 complete-case score, with different failure consequences. This small synthetic
-result makes Luna a credible low-cost chat candidate; it does not establish
-representative accuracy or justify changing the default without a compatible
-adapter and further evaluation.
+result supports Luna as the low-cost pilot default, but it does not establish
+representative accuracy. Further evaluation is needed before relying on it for
+real media decisions.
 
 ## Replay
 

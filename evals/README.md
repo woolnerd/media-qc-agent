@@ -93,6 +93,6 @@ masked cases with the chat prompt and schema. Luna passed 14/15, including the
 adversarial TTS case. It omitted an uncertainty citation on an ambiguous visual
 case while asking for clarification and proposing no repair. The reported total
 cost was $0.001838600 and median elapsed time was 3.290 seconds. Its request
-had to omit `temperature` for OpenRouter's strict routing; the current chat
-adapter has not yet been changed for Luna. See the
+had to omit `temperature` for OpenRouter's strict routing; the chat adapter now
+does so for Luna, which is the low-cost pilot default. See the
 [experiment note](../docs/jev-classification.md) for the method and limits.
