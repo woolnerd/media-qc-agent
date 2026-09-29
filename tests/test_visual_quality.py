@@ -139,7 +139,10 @@ class VisualSignalWorkflowTests(unittest.TestCase):
             sources=self.sources,
             observed_artifact_version_id=observed_video_id,
         )
-        self.repository.approve("first-run")
+        self.repository.approve(
+            "first-run",
+            plan_version_id=self.repository.get("first-run").plan_version_id,
+        )
         job_id = self.executor.submit("first-run").external_job_id
         assert job_id is not None
         self.repository.record_completion(
@@ -173,7 +176,10 @@ class VisualSignalWorkflowTests(unittest.TestCase):
             self.executor.submit("retry-run")
         self.assertEqual(self.provider.jobs_created, 1)
 
-        self.repository.approve("retry-run")
+        self.repository.approve(
+            "retry-run",
+            plan_version_id=self.repository.get("retry-run").plan_version_id,
+        )
         next_job = self.executor.submit("retry-run").external_job_id
         assert next_job is not None
         self.assertEqual(

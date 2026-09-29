@@ -12,7 +12,8 @@ from .domain import ArtifactKind, FailureKind, QualityFinding, RepairAction, Rep
 from .model import InterpretationRequest
 from .planner import plan_repair
 
-DEFAULT_MODEL = "google/gemini-3.1-flash-lite"
+LUNA_MODEL = "openai/gpt-6-luna"
+DEFAULT_MODEL = LUNA_MODEL
 _ENDPOINT = "https://openrouter.ai/api/v1/chat/completions"
 _MAX_RESPONSE_BYTES = 131_072
 
@@ -97,11 +98,16 @@ def _content(envelope: Any) -> str:
         ) from None
 
 
+def _sampling_parameters(model: str) -> dict[str, int]:
+    return {} if model == LUNA_MODEL else {"temperature": 0}
+
+
 class OpenRouterModelProvider:
     """One bounded request, no automatic retries or paid generation tools.
 
-    Temperature zero reduces variance but does not promise deterministic live
-    output. The application must independently validate the returned JSON.
+    GPT-6 Luna omits temperature because OpenRouter cannot route its strict
+    schema request with that parameter. Other chat models retain temperature
+    zero. Live output always requires independent application validation.
     """
 
     def __init__(
@@ -125,7 +131,7 @@ class OpenRouterModelProvider:
     def interpret(self, request: InterpretationRequest) -> str:
         payload = {
             "model": self._model,
-            "temperature": 0,
+            **_sampling_parameters(self._model),
             "max_tokens": 768,
             "provider": {"require_parameters": True},
             "messages": [
@@ -141,25 +147,40 @@ class OpenRouterModelProvider:
                 },
             },
         }
-        http_request = Request(
-            _ENDPOINT,
-            data=json.dumps(payload).encode(),
-            headers={
-                "Authorization": f"Bearer {self._api_key}",
-                "Content-Type": "application/json",
-            },
-            method="POST",
+        return _content(
+            post_openrouter_json(
+                endpoint=_ENDPOINT,
+                payload=payload,
+                api_key=self._api_key,
+                timeout=self._timeout,
+            )
         )
-        try:
-            with urlopen(http_request, timeout=self._timeout) as response:
-                raw = response.read(_MAX_RESPONSE_BYTES + 1)
-        except HTTPError as error:
-            raise ModelProviderError(f"OpenRouter HTTP error {error.code}") from None
-        except (URLError, TimeoutError, OSError):
-            raise ModelProviderError("OpenRouter request failed or timed out") from None
-        if len(raw) > _MAX_RESPONSE_BYTES:
-            raise ModelProviderError("OpenRouter response exceeded size limit")
-        try:
-            return _content(json.loads(raw))
-        except (ValueError, UnicodeDecodeError, RecursionError):
-            raise ModelProviderError("OpenRouter response was not valid JSON") from None
+
+
+def post_openrouter_json(
+    *, endpoint: str, payload: dict[str, Any], api_key: str, timeout: float
+) -> Any:
+    """One bounded JSON request; errors never include credentials or response bodies."""
+
+    http_request = Request(
+        endpoint,
+        data=json.dumps(payload).encode(),
+        headers={
+            "Authorization": f"Bearer {api_key}",
+            "Content-Type": "application/json",
+        },
+        method="POST",
+    )
+    try:
+        with urlopen(http_request, timeout=timeout) as response:
+            raw = response.read(_MAX_RESPONSE_BYTES + 1)
+    except HTTPError as error:
+        raise ModelProviderError(f"OpenRouter HTTP error {error.code}") from None
+    except (URLError, TimeoutError, OSError):
+        raise ModelProviderError("OpenRouter request failed or timed out") from None
+    if len(raw) > _MAX_RESPONSE_BYTES:
+        raise ModelProviderError("OpenRouter response exceeded size limit")
+    try:
+        return json.loads(raw)
+    except (ValueError, UnicodeDecodeError, RecursionError):
+        raise ModelProviderError("OpenRouter response was not valid JSON") from None

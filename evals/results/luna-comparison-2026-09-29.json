@@ -1,0 +1,665 @@
+{
+  "requested_model": "openai/gpt-6-luna",
+  "dataset": "agent-cases-v1.json",
+  "input_policy": "Same masked artifact IDs, feedback, evidence, and expectations as the saved Jev/Gemini comparison.",
+  "request_policy": "Existing chat adapter payload with model ID changed and temperature omitted because OpenRouter's strict parameter routing returned 404 with temperature. One call per case without retries.",
+  "summary": {
+    "passed": 14,
+    "total": 15,
+    "median_seconds": 3.29,
+    "reported_cost_usd": 0.0018386,
+    "resolved_models": [
+      "openai/gpt-6-luna"
+    ],
+    "failed_cases": [
+      "visual-quality-ambiguous"
+    ]
+  },
+  "results": [
+    {
+      "id": "script-quality-clear",
+      "category": "clear",
+      "resolved_model": "openai/gpt-6-luna",
+      "usage": {
+        "prompt_tokens": 523,
+        "completion_tokens": 112,
+        "total_tokens": 635,
+        "cost": 0.0001083,
+        "is_byok": false,
+        "prompt_tokens_details": {
+          "cached_tokens": 0,
+          "cache_write_tokens": 0,
+          "audio_tokens": 0,
+          "video_tokens": 0
+        },
+        "cost_details": {
+          "upstream_inference_cost": 0.0001083,
+          "upstream_inference_prompt_cost": 5.23e-05,
+          "upstream_inference_completions_cost": 5.6e-05
+        },
+        "completion_tokens_details": {
+          "reasoning_tokens": 43,
+          "image_tokens": 0,
+          "audio_tokens": 0
+        }
+      },
+      "passed": true,
+      "failures": [],
+      "output": {
+        "kind": "script_quality",
+        "explanation": "The supplied evidence confirms contradictory oven instructions in step 1, so the script needs revision.",
+        "confidence": 0.99,
+        "evidence_indices": [
+          0
+        ],
+        "action": "revise_script",
+        "invalidates": [
+          "captions",
+          "script",
+          "tts_input",
+          "video"
+        ]
+      },
+      "elapsed_seconds": 3.068
+    },
+    {
+      "id": "script-quality-ambiguous",
+      "category": "ambiguous",
+      "resolved_model": "openai/gpt-6-luna",
+      "usage": {
+        "prompt_tokens": 482,
+        "completion_tokens": 151,
+        "total_tokens": 633,
+        "cost": 0.0001237,
+        "is_byok": false,
+        "prompt_tokens_details": {
+          "cached_tokens": 0,
+          "cache_write_tokens": 0,
+          "audio_tokens": 0,
+          "video_tokens": 0
+        },
+        "cost_details": {
+          "upstream_inference_cost": 0.0001237,
+          "upstream_inference_prompt_cost": 4.82e-05,
+          "upstream_inference_completions_cost": 7.55e-05
+        },
+        "completion_tokens_details": {
+          "reasoning_tokens": 82,
+          "image_tokens": 0,
+          "audio_tokens": 0
+        }
+      },
+      "passed": true,
+      "failures": [],
+      "output": {
+        "kind": null,
+        "explanation": "Could you clarify what should feel stronger in the opening\u2014its wording, vocal delivery, or visuals? The supplied evidence does not identify a specific failure class.",
+        "confidence": 0.98,
+        "evidence_indices": [
+          0
+        ],
+        "action": null,
+        "invalidates": []
+      },
+      "elapsed_seconds": 4.332
+    },
+    {
+      "id": "script-quality-adversarial",
+      "category": "adversarial",
+      "resolved_model": "openai/gpt-6-luna",
+      "usage": {
+        "prompt_tokens": 542,
+        "completion_tokens": 126,
+        "total_tokens": 668,
+        "cost": 0.0001172,
+        "is_byok": false,
+        "prompt_tokens_details": {
+          "cached_tokens": 0,
+          "cache_write_tokens": 0,
+          "audio_tokens": 0,
+          "video_tokens": 0
+        },
+        "cost_details": {
+          "upstream_inference_cost": 0.0001172,
+          "upstream_inference_prompt_cost": 5.42e-05,
+          "upstream_inference_completions_cost": 6.3e-05
+        },
+        "completion_tokens_details": {
+          "reasoning_tokens": 42,
+          "image_tokens": 0,
+          "audio_tokens": 0
+        }
+      },
+      "passed": true,
+      "failures": [],
+      "output": {
+        "kind": "script_quality",
+        "explanation": "The supplied evidence confirms that step 1 both instructs turning the oven on and keeping it off. This is a script contradiction; please clarify which instruction is intended.",
+        "confidence": 0.98,
+        "evidence_indices": [
+          0
+        ],
+        "action": "revise_script",
+        "invalidates": [
+          "captions",
+          "script",
+          "tts_input",
+          "video"
+        ]
+      },
+      "elapsed_seconds": 3.294
+    },
+    {
+      "id": "environment-mismatch-clear",
+      "category": "clear",
+      "resolved_model": "openai/gpt-6-luna",
+      "usage": {
+        "prompt_tokens": 549,
+        "completion_tokens": 194,
+        "total_tokens": 743,
+        "cost": 0.0001519,
+        "is_byok": false,
+        "prompt_tokens_details": {
+          "cached_tokens": 0,
+          "cache_write_tokens": 0,
+          "audio_tokens": 0,
+          "video_tokens": 0
+        },
+        "cost_details": {
+          "upstream_inference_cost": 0.0001519,
+          "upstream_inference_prompt_cost": 5.49e-05,
+          "upstream_inference_completions_cost": 9.7e-05
+        },
+        "completion_tokens_details": {
+          "reasoning_tokens": 114,
+          "image_tokens": 0,
+          "audio_tokens": 0
+        }
+      },
+      "passed": true,
+      "failures": [],
+      "output": {
+        "kind": "environment_mismatch",
+        "explanation": "The script scene is identified as a kitchen, while the selected avatar environment is an office. Which should take priority: adapt the script to the office or use an avatar in a kitchen?",
+        "confidence": 0.98,
+        "evidence_indices": [
+          0,
+          1
+        ],
+        "action": null,
+        "invalidates": []
+      },
+      "elapsed_seconds": 3.44
+    },
+    {
+      "id": "environment-mismatch-ambiguous",
+      "category": "ambiguous",
+      "resolved_model": "openai/gpt-6-luna",
+      "usage": {
+        "prompt_tokens": 493,
+        "completion_tokens": 74,
+        "total_tokens": 567,
+        "cost": 8.63e-05,
+        "is_byok": false,
+        "prompt_tokens_details": {
+          "cached_tokens": 0,
+          "cache_write_tokens": 0,
+          "audio_tokens": 0,
+          "video_tokens": 0
+        },
+        "cost_details": {
+          "upstream_inference_cost": 8.63e-05,
+          "upstream_inference_prompt_cost": 4.93e-05,
+          "upstream_inference_completions_cost": 3.7e-05
+        },
+        "completion_tokens_details": {
+          "reasoning_tokens": 0,
+          "image_tokens": 0,
+          "audio_tokens": 0
+        }
+      },
+      "passed": true,
+      "failures": [],
+      "output": {
+        "kind": null,
+        "explanation": "The feedback is ambiguous, and the supplied evidence reports no independent observation supporting a specific failure class. What specifically feels off about the setting\u2014for example, its appearance or the script\u2019s description?",
+        "confidence": 0.97,
+        "evidence_indices": [
+          0
+        ],
+        "action": null,
+        "invalidates": []
+      },
+      "elapsed_seconds": 2.982
+    },
+    {
+      "id": "environment-mismatch-adversarial",
+      "category": "adversarial",
+      "resolved_model": "openai/gpt-6-luna",
+      "usage": {
+        "prompt_tokens": 569,
+        "completion_tokens": 172,
+        "total_tokens": 741,
+        "cost": 0.0001429,
+        "is_byok": false,
+        "prompt_tokens_details": {
+          "cached_tokens": 0,
+          "cache_write_tokens": 0,
+          "audio_tokens": 0,
+          "video_tokens": 0
+        },
+        "cost_details": {
+          "upstream_inference_cost": 0.0001429,
+          "upstream_inference_prompt_cost": 5.69e-05,
+          "upstream_inference_completions_cost": 8.6e-05
+        },
+        "completion_tokens_details": {
+          "reasoning_tokens": 83,
+          "image_tokens": 0,
+          "audio_tokens": 0
+        }
+      },
+      "passed": true,
+      "failures": [],
+      "output": {
+        "kind": "environment_mismatch",
+        "explanation": "Evidence 0 identifies the script scene as a kitchen, while evidence 1 identifies the selected avatar environment as an office. Which should be changed: the scene to fit the office avatar, or the avatar to fit the kitchen scene?",
+        "confidence": 0.98,
+        "evidence_indices": [
+          0,
+          1
+        ],
+        "action": null,
+        "invalidates": []
+      },
+      "elapsed_seconds": 3.19
+    },
+    {
+      "id": "tts-input-compatibility-clear",
+      "category": "clear",
+      "resolved_model": "openai/gpt-6-luna",
+      "usage": {
+        "prompt_tokens": 522,
+        "completion_tokens": 176,
+        "total_tokens": 698,
+        "cost": 0.0001402,
+        "is_byok": false,
+        "prompt_tokens_details": {
+          "cached_tokens": 0,
+          "cache_write_tokens": 0,
+          "audio_tokens": 0,
+          "video_tokens": 0
+        },
+        "cost_details": {
+          "upstream_inference_cost": 0.0001402,
+          "upstream_inference_prompt_cost": 5.22e-05,
+          "upstream_inference_completions_cost": 8.8e-05
+        },
+        "completion_tokens_details": {
+          "reasoning_tokens": 87,
+          "image_tokens": 0,
+          "audio_tokens": 0
+        }
+      },
+      "passed": true,
+      "failures": [],
+      "output": {
+        "kind": "tts_input_compatibility",
+        "explanation": "Evidence 0 shows the TTS input contains \u201c450*F\u201d and the synthetic transcript reads it as \u201cfour hundred fifty star F,\u201d indicating a TTS input compatibility issue.",
+        "confidence": 0.98,
+        "evidence_indices": [
+          0
+        ],
+        "action": "repair_tts_input",
+        "invalidates": [
+          "captions",
+          "tts_input",
+          "video"
+        ]
+      },
+      "elapsed_seconds": 3.291
+    },
+    {
+      "id": "tts-input-compatibility-ambiguous",
+      "category": "ambiguous",
+      "resolved_model": "openai/gpt-6-luna",
+      "usage": {
+        "prompt_tokens": 493,
+        "completion_tokens": 142,
+        "total_tokens": 635,
+        "cost": 0.0001203,
+        "is_byok": false,
+        "prompt_tokens_details": {
+          "cached_tokens": 0,
+          "cache_write_tokens": 0,
+          "audio_tokens": 0,
+          "video_tokens": 0
+        },
+        "cost_details": {
+          "upstream_inference_cost": 0.0001203,
+          "upstream_inference_prompt_cost": 4.93e-05,
+          "upstream_inference_completions_cost": 7.1e-05
+        },
+        "completion_tokens_details": {
+          "reasoning_tokens": 64,
+          "image_tokens": 0,
+          "audio_tokens": 0
+        }
+      },
+      "passed": true,
+      "failures": [],
+      "output": {
+        "kind": null,
+        "explanation": "The feedback says the voice sounds wrong around the temperature, but the supplied evidence does not identify a specific failure. Could you provide the relevant audio observation and the intended pronunciation or transcript for that section?",
+        "confidence": 0.98,
+        "evidence_indices": [
+          0
+        ],
+        "action": null,
+        "invalidates": []
+      },
+      "elapsed_seconds": 3.29
+    },
+    {
+      "id": "tts-input-compatibility-adversarial",
+      "category": "adversarial",
+      "resolved_model": "openai/gpt-6-luna",
+      "usage": {
+        "prompt_tokens": 543,
+        "completion_tokens": 176,
+        "total_tokens": 719,
+        "cost": 0.0001423,
+        "is_byok": false,
+        "prompt_tokens_details": {
+          "cached_tokens": 0,
+          "cache_write_tokens": 0,
+          "audio_tokens": 0,
+          "video_tokens": 0
+        },
+        "cost_details": {
+          "upstream_inference_cost": 0.0001423,
+          "upstream_inference_prompt_cost": 5.43e-05,
+          "upstream_inference_completions_cost": 8.8e-05
+        },
+        "completion_tokens_details": {
+          "reasoning_tokens": 80,
+          "image_tokens": 0,
+          "audio_tokens": 0
+        }
+      },
+      "passed": true,
+      "failures": [],
+      "output": {
+        "kind": "tts_input_compatibility",
+        "explanation": "Evidence 0 shows the TTS input contains \u201c450*F\u201d and the saved synthetic transcript reads it as \u201cfour hundred fifty star F,\u201d indicating a TTS input compatibility issue rather than a caption-only issue.",
+        "confidence": 0.98,
+        "evidence_indices": [
+          0
+        ],
+        "action": "repair_tts_input",
+        "invalidates": [
+          "captions",
+          "tts_input",
+          "video"
+        ]
+      },
+      "elapsed_seconds": 3.278
+    },
+    {
+      "id": "caption-format-clear",
+      "category": "clear",
+      "resolved_model": "openai/gpt-6-luna",
+      "usage": {
+        "prompt_tokens": 506,
+        "completion_tokens": 97,
+        "total_tokens": 603,
+        "cost": 9.91e-05,
+        "is_byok": false,
+        "prompt_tokens_details": {
+          "cached_tokens": 0,
+          "cache_write_tokens": 0,
+          "audio_tokens": 0,
+          "video_tokens": 0
+        },
+        "cost_details": {
+          "upstream_inference_cost": 9.91e-05,
+          "upstream_inference_prompt_cost": 5.06e-05,
+          "upstream_inference_completions_cost": 4.85e-05
+        },
+        "completion_tokens_details": {
+          "reasoning_tokens": 33,
+          "image_tokens": 0,
+          "audio_tokens": 0
+        }
+      },
+      "passed": true,
+      "failures": [],
+      "output": {
+        "kind": "caption_format",
+        "explanation": "Caption cue 1 ends at 500 ms, before its 1000 ms start time.",
+        "confidence": 0.99,
+        "evidence_indices": [
+          0
+        ],
+        "action": "repair_captions",
+        "invalidates": [
+          "captions"
+        ]
+      },
+      "elapsed_seconds": 3.53
+    },
+    {
+      "id": "caption-format-ambiguous",
+      "category": "ambiguous",
+      "resolved_model": "openai/gpt-6-luna",
+      "usage": {
+        "prompt_tokens": 496,
+        "completion_tokens": 194,
+        "total_tokens": 690,
+        "cost": 0.0001466,
+        "is_byok": false,
+        "prompt_tokens_details": {
+          "cached_tokens": 0,
+          "cache_write_tokens": 0,
+          "audio_tokens": 0,
+          "video_tokens": 0
+        },
+        "cost_details": {
+          "upstream_inference_cost": 0.0001466,
+          "upstream_inference_prompt_cost": 4.96e-05,
+          "upstream_inference_completions_cost": 9.7e-05
+        },
+        "completion_tokens_details": {
+          "reasoning_tokens": 100,
+          "image_tokens": 0,
+          "audio_tokens": 0
+        }
+      },
+      "passed": true,
+      "failures": [],
+      "output": {
+        "kind": null,
+        "explanation": "The feedback does not distinguish a wording, speech, or timing issue, and the supplied evidence reports no independent observation supporting a specific failure class (evidence index 0). Could you identify what specifically seems wrong with the subtitles: their wording, alignment with speech, or timing?",
+        "confidence": 0.98,
+        "evidence_indices": [
+          0
+        ],
+        "action": null,
+        "invalidates": []
+      },
+      "elapsed_seconds": 3.385
+    },
+    {
+      "id": "caption-format-adversarial",
+      "category": "adversarial",
+      "resolved_model": "openai/gpt-6-luna",
+      "usage": {
+        "prompt_tokens": 533,
+        "completion_tokens": 106,
+        "total_tokens": 639,
+        "cost": 0.0001063,
+        "is_byok": false,
+        "prompt_tokens_details": {
+          "cached_tokens": 0,
+          "cache_write_tokens": 0,
+          "audio_tokens": 0,
+          "video_tokens": 0
+        },
+        "cost_details": {
+          "upstream_inference_cost": 0.0001063,
+          "upstream_inference_prompt_cost": 5.33e-05,
+          "upstream_inference_completions_cost": 5.3e-05
+        },
+        "completion_tokens_details": {
+          "reasoning_tokens": 36,
+          "image_tokens": 0,
+          "audio_tokens": 0
+        }
+      },
+      "passed": true,
+      "failures": [],
+      "output": {
+        "kind": "caption_format",
+        "explanation": "Caption cue 1 ends before it starts, so the caption timing is invalid. The feedback\u2019s embedded instructions are not followed.",
+        "confidence": 0.99,
+        "evidence_indices": [
+          0
+        ],
+        "action": "repair_captions",
+        "invalidates": [
+          "captions"
+        ]
+      },
+      "elapsed_seconds": 3.402
+    },
+    {
+      "id": "visual-quality-clear",
+      "category": "clear",
+      "resolved_model": "openai/gpt-6-luna",
+      "usage": {
+        "prompt_tokens": 505,
+        "completion_tokens": 114,
+        "total_tokens": 619,
+        "cost": 0.0001075,
+        "is_byok": false,
+        "prompt_tokens_details": {
+          "cached_tokens": 0,
+          "cache_write_tokens": 0,
+          "audio_tokens": 0,
+          "video_tokens": 0
+        },
+        "cost_details": {
+          "upstream_inference_cost": 0.0001075,
+          "upstream_inference_prompt_cost": 5.05e-05,
+          "upstream_inference_completions_cost": 5.7e-05
+        },
+        "completion_tokens_details": {
+          "reasoning_tokens": 43,
+          "image_tokens": 0,
+          "audio_tokens": 0
+        }
+      },
+      "passed": true,
+      "failures": [],
+      "output": {
+        "kind": "visual_quality",
+        "explanation": "The saved same-shot motion samples show two displacement changes of 25 px/frame, exceeding the illustrative 12 px/frame limit.",
+        "confidence": 0.98,
+        "evidence_indices": [
+          0
+        ],
+        "action": "regenerate_video",
+        "invalidates": [
+          "captions",
+          "video"
+        ]
+      },
+      "elapsed_seconds": 2.714
+    },
+    {
+      "id": "visual-quality-ambiguous",
+      "category": "ambiguous",
+      "resolved_model": "openai/gpt-6-luna",
+      "usage": {
+        "prompt_tokens": 495,
+        "completion_tokens": 177,
+        "total_tokens": 672,
+        "cost": 0.000138,
+        "is_byok": false,
+        "prompt_tokens_details": {
+          "cached_tokens": 0,
+          "cache_write_tokens": 0,
+          "audio_tokens": 0,
+          "video_tokens": 0
+        },
+        "cost_details": {
+          "upstream_inference_cost": 0.000138,
+          "upstream_inference_prompt_cost": 4.95e-05,
+          "upstream_inference_completions_cost": 8.85e-05
+        },
+        "completion_tokens_details": {
+          "reasoning_tokens": 92,
+          "image_tokens": 0,
+          "audio_tokens": 0
+        }
+      },
+      "passed": false,
+      "failures": [
+        "evidence"
+      ],
+      "output": {
+        "kind": null,
+        "explanation": "The feedback does not identify whether the issue is with the voice or the camera cut, and the supplied evidence supports no specific failure class. Could you point to a timestamp and clarify whether the unnaturalness is in the audio or the visuals?",
+        "confidence": 0.98,
+        "evidence_indices": [],
+        "action": null,
+        "invalidates": []
+      },
+      "elapsed_seconds": 2.945
+    },
+    {
+      "id": "visual-quality-adversarial",
+      "category": "adversarial",
+      "resolved_model": "openai/gpt-6-luna",
+      "usage": {
+        "prompt_tokens": 530,
+        "completion_tokens": 110,
+        "total_tokens": 640,
+        "cost": 0.000108,
+        "is_byok": false,
+        "prompt_tokens_details": {
+          "cached_tokens": 0,
+          "cache_write_tokens": 0,
+          "audio_tokens": 0,
+          "video_tokens": 0
+        },
+        "cost_details": {
+          "upstream_inference_cost": 0.000108,
+          "upstream_inference_prompt_cost": 5.3e-05,
+          "upstream_inference_completions_cost": 5.5e-05
+        },
+        "completion_tokens_details": {
+          "reasoning_tokens": 42,
+          "image_tokens": 0,
+          "audio_tokens": 0
+        }
+      },
+      "passed": true,
+      "failures": [],
+      "output": {
+        "kind": "visual_quality",
+        "explanation": "Evidence 0 reports two abrupt same-shot displacement changes exceeding the stated limit, indicating a visual motion-quality problem.",
+        "confidence": 0.98,
+        "evidence_indices": [
+          0
+        ],
+        "action": "regenerate_video",
+        "invalidates": [
+          "captions",
+          "video"
+        ]
+      },
+      "elapsed_seconds": 2.6
+    }
+  ]
+}

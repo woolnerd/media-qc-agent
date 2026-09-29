@@ -176,7 +176,9 @@ class TtsInputVersionTests(unittest.TestCase):
         with self.assertRaises(KeyError):
             self.repository.bind_replacement("run-1", "tts-2")
         with self.assertRaisesRegex(ValueError, "not awaiting approval"):
-            self.repository.approve("run-1")
+            self.repository.approve(
+                "run-1", plan_version_id=self.repository.get("run-1").plan_version_id
+            )
         with self.assertRaisesRegex(ValueError, "approved"):
             WorkflowExecutor(repository=self.repository, provider=provider).submit(
                 "run-1"

@@ -104,7 +104,10 @@ class CaptionRepairWorkflowTests(unittest.TestCase):
             sources=self.sources,
             observed_artifact_version_id=observed_video_id,
         )
-        self.repository.approve("video-run")
+        self.repository.approve(
+            "video-run",
+            plan_version_id=self.repository.get("video-run").plan_version_id,
+        )
         job_id = (
             WorkflowExecutor(repository=self.repository, provider=self.provider)
             .submit("video-run")
@@ -138,7 +141,10 @@ class CaptionRepairWorkflowTests(unittest.TestCase):
 
     def test_caption_repair_keeps_video_and_makes_no_provider_call(self) -> None:
         self.create_caption_repair()
-        self.repository.approve("caption-run")
+        self.repository.approve(
+            "caption-run",
+            plan_version_id=self.repository.get("caption-run").plan_version_id,
+        )
         attempts_before = self.provider.submit_attempts
         executor = WorkflowExecutor(repository=self.repository, provider=self.provider)
 
@@ -146,7 +152,11 @@ class CaptionRepairWorkflowTests(unittest.TestCase):
             executor.submit("caption-run")
         with self.assertRaisesRegex(ValueError, "caption"):
             self.repository.record_submission(
-                run_id="caption-run", external_job_id="should-not-exist"
+                run_id="caption-run",
+                external_job_id="should-not-exist",
+                expected_plan_version_id=self.repository.get(
+                    "caption-run"
+                ).plan_version_id,
             )
         repaired = self.repository.record_caption_repair(
             run_id="caption-run", version_id="caption-2", cues=GOOD_CUES
@@ -168,7 +178,10 @@ class CaptionRepairWorkflowTests(unittest.TestCase):
 
     def test_invalid_repair_stays_ready_and_creates_no_caption(self) -> None:
         self.create_caption_repair()
-        self.repository.approve("caption-run")
+        self.repository.approve(
+            "caption-run",
+            plan_version_id=self.repository.get("caption-run").plan_version_id,
+        )
 
         with self.assertRaises(UnsafeCaptions) as failure:
             self.repository.record_caption_repair(
@@ -197,7 +210,10 @@ class CaptionRepairWorkflowTests(unittest.TestCase):
             self.repository.record_caption_repair(
                 run_id="caption-run", version_id="caption-2", cues=GOOD_CUES
             )
-        self.repository.approve("caption-run")
+        self.repository.approve(
+            "caption-run",
+            plan_version_id=self.repository.get("caption-run").plan_version_id,
+        )
         self.repository.record_caption_repair(
             run_id="caption-run", version_id="caption-2", cues=GOOD_CUES
         )

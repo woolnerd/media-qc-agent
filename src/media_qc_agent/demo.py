@@ -3,11 +3,13 @@
 import json
 import sqlite3
 
-from .domain import ArtifactKind, FailureKind, QualityFinding
+from .domain import ArtifactKind
 from .environment import Environment, ScriptScene
 from .executor import WorkflowExecutor
+from .interpretation import interpret_feedback
 from .provider import FakeVideoProvider
 from .repository import WorkflowRepository
+from .review_demo import synthetic_provider, synthetic_request
 from .spoken_text import SpokenTextCapabilities
 from .workflow import VideoSources
 
@@ -44,24 +46,28 @@ def run_demo() -> dict[str, object]:
         observed_video_id = repository.create_synthetic_video_version(
             fixture_job_id="observed-fixture", sources=sources
         ).id
+        request = synthetic_request(observed_video_id)
+        interpreted = interpret_feedback(synthetic_provider(request), request)
+        assert interpreted.finding is not None
         repository.create(
             run_id="demo-run",
-            finding=QualityFinding(
-                kind=FailureKind.VISUAL_QUALITY,
-                explanation="Synthetic video has jerky motion",
-                confidence=0.95,
-            ),
+            finding=interpreted.finding,
             sources=sources,
             observed_artifact_version_id=observed_video_id,
+            evidence=interpreted.evidence,
         )
         provider = FakeVideoProvider()
         executor = WorkflowExecutor(repository=repository, provider=provider)
 
-        repository.approve("demo-run")
+        repository.approve(
+            "demo-run", plan_version_id=repository.get("demo-run").plan_version_id
+        )
         old_job = executor.submit("demo-run").external_job_id
         assert old_job is not None
         repository.request_retry("demo-run")
-        repository.approve("demo-run")
+        repository.approve(
+            "demo-run", plan_version_id=repository.get("demo-run").plan_version_id
+        )
         new_job = executor.submit("demo-run").external_job_id
         assert new_job is not None
 

@@ -2,6 +2,9 @@
 
 Status: Accepted
 
+Store interface extended by [ADR 0018](0018-reserve-approved-plans-before-provider-submission.md)
+to include `reserve_submission` before the provider call.
+
 ## Context
 
 The first slice placed workflow state, SQLite queries, and provider submission

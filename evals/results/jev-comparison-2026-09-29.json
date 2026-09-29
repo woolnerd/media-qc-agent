@@ -1,0 +1,1934 @@
+{
+  "run_at": "2026-09-29T16:26:38.281805+00:00",
+  "dataset": "agent-cases-v1.json",
+  "input_policy": "Class/difficulty hints masked from artifact version IDs for both providers. Original expectations/evidence text unchanged. No case IDs, categories, or expected labels are sent. Alternating provider order; each case runs once per provider without retries.",
+  "threshold_policy": "Existing 0.8 confidence gate; Jev evidence-support probabilities also gated at 0.8. No threshold calibration or tuning on these cases.",
+  "results": [
+    {
+      "id": "script-quality-clear",
+      "category": "clear",
+      "expected_kind": "script_quality",
+      "providers": {
+        "chat": {
+          "resolved_model": "google/gemini-3.1-flash-lite",
+          "usage": {
+            "prompt_tokens": 716,
+            "completion_tokens": 101,
+            "total_tokens": 817,
+            "cost": 0.0003305,
+            "is_byok": false,
+            "prompt_tokens_details": {
+              "cached_tokens": 0,
+              "cache_write_tokens": 0,
+              "audio_tokens": 0,
+              "video_tokens": 0
+            },
+            "cost_details": {
+              "upstream_inference_cost": 0.0003305,
+              "upstream_inference_prompt_cost": 0.000179,
+              "upstream_inference_completions_cost": 0.0001515
+            },
+            "completion_tokens_details": {
+              "reasoning_tokens": 0,
+              "image_tokens": 0,
+              "audio_tokens": 0
+            }
+          },
+          "passed": true,
+          "failures": [],
+          "output": {
+            "kind": "script_quality",
+            "explanation": "The script contains contradictory instructions regarding the oven state in step 1 as noted in the evidence.",
+            "confidence": 1.0,
+            "evidence_indices": [
+              0
+            ],
+            "action": "revise_script",
+            "invalidates": [
+              "captions",
+              "script",
+              "tts_input",
+              "video"
+            ]
+          },
+          "elapsed_seconds": 7.251
+        },
+        "jev": {
+          "resolved_model": "typesafe/jev-1.13-20260917",
+          "decision": {
+            "model": "typesafe/jev-1.13-20260917",
+            "choice": "script_quality",
+            "confidence": 1.0,
+            "probabilities": [
+              [
+                "tts_input_compatibility",
+                0.0
+              ],
+              [
+                "environment_mismatch",
+                0.0
+              ],
+              [
+                "script_quality",
+                1.0
+              ],
+              [
+                "visual_quality",
+                0.0
+              ],
+              [
+                "caption_format",
+                0.0
+              ],
+              [
+                "uncertain",
+                0.0
+              ]
+            ],
+            "evidence_support": [
+              [
+                "script_quality",
+                0,
+                0.93
+              ],
+              [
+                "environment_mismatch",
+                0,
+                0.07
+              ],
+              [
+                "tts_input_compatibility",
+                0,
+                0.2
+              ],
+              [
+                "caption_format",
+                0,
+                0.05
+              ],
+              [
+                "visual_quality",
+                0,
+                0.02
+              ]
+            ],
+            "input_tokens": 1185,
+            "output_tokens": 184,
+            "cost_usd": 4.977e-05
+          },
+          "usage": {
+            "input_tokens": 1185,
+            "output_tokens": 184,
+            "cost": 4.977e-05
+          },
+          "passed": true,
+          "failures": [],
+          "output": {
+            "kind": "script_quality",
+            "confidence": 1.0,
+            "explanation": "Application summary: Jev selected script_quality; cited supplied facts: The authored script contains both \u201cturn the oven on\u201d and \u201ckeep the oven off\u201d for step 1.",
+            "evidence_indices": [
+              0
+            ],
+            "action": "revise_script",
+            "invalidates": [
+              "captions",
+              "script",
+              "tts_input",
+              "video"
+            ]
+          },
+          "elapsed_seconds": 0.453
+        }
+      }
+    },
+    {
+      "id": "script-quality-ambiguous",
+      "category": "ambiguous",
+      "expected_kind": null,
+      "providers": {
+        "jev": {
+          "resolved_model": "typesafe/jev-1.13-20260917",
+          "decision": {
+            "model": "typesafe/jev-1.13-20260917",
+            "choice": "uncertain",
+            "confidence": 1.0,
+            "probabilities": [
+              [
+                "tts_input_compatibility",
+                0.0
+              ],
+              [
+                "environment_mismatch",
+                0.0
+              ],
+              [
+                "script_quality",
+                0.0
+              ],
+              [
+                "visual_quality",
+                0.0
+              ],
+              [
+                "uncertain",
+                1.0
+              ],
+              [
+                "caption_format",
+                0.0
+              ]
+            ],
+            "evidence_support": [],
+            "input_tokens": 661,
+            "output_tokens": 76,
+            "cost_usd": 2.7762e-05
+          },
+          "usage": {
+            "input_tokens": 661,
+            "output_tokens": 76,
+            "cost": 2.7762e-05
+          },
+          "passed": true,
+          "failures": [],
+          "output": {
+            "kind": null,
+            "confidence": 1.0,
+            "explanation": "Which exact artifact defect can you confirm with factual evidence?",
+            "evidence_indices": [
+              0
+            ],
+            "action": null,
+            "invalidates": []
+          },
+          "elapsed_seconds": 0.324
+        },
+        "chat": {
+          "resolved_model": "google/gemini-3.1-flash-lite",
+          "usage": {
+            "prompt_tokens": 665,
+            "completion_tokens": 83,
+            "total_tokens": 748,
+            "cost": 0.00029075,
+            "is_byok": false,
+            "prompt_tokens_details": {
+              "cached_tokens": 0,
+              "cache_write_tokens": 0,
+              "audio_tokens": 0,
+              "video_tokens": 0
+            },
+            "cost_details": {
+              "upstream_inference_cost": 0.00029075,
+              "upstream_inference_prompt_cost": 0.00016625,
+              "upstream_inference_completions_cost": 0.0001245
+            },
+            "completion_tokens_details": {
+              "reasoning_tokens": 0,
+              "image_tokens": 0,
+              "audio_tokens": 0
+            }
+          },
+          "passed": true,
+          "failures": [],
+          "output": {
+            "kind": null,
+            "explanation": "The feedback regarding the opening is subjective and lacks specific criteria for a technical failure. Please clarify what specific aspect of the opening needs improvement (e.g., pacing, tone, or content) to determine if a script revision is required.",
+            "confidence": 0.2,
+            "evidence_indices": [
+              0
+            ],
+            "action": null,
+            "invalidates": []
+          },
+          "elapsed_seconds": 1.864
+        }
+      }
+    },
+    {
+      "id": "script-quality-adversarial",
+      "category": "adversarial",
+      "expected_kind": "script_quality",
+      "providers": {
+        "chat": {
+          "resolved_model": "google/gemini-3.1-flash-lite",
+          "usage": {
+            "prompt_tokens": 736,
+            "completion_tokens": 95,
+            "total_tokens": 831,
+            "cost": 0.0003265,
+            "is_byok": false,
+            "prompt_tokens_details": {
+              "cached_tokens": 0,
+              "cache_write_tokens": 0,
+              "audio_tokens": 0,
+              "video_tokens": 0
+            },
+            "cost_details": {
+              "upstream_inference_cost": 0.0003265,
+              "upstream_inference_prompt_cost": 0.000184,
+              "upstream_inference_completions_cost": 0.0001425
+            },
+            "completion_tokens_details": {
+              "reasoning_tokens": 0,
+              "image_tokens": 0,
+              "audio_tokens": 0
+            }
+          },
+          "passed": true,
+          "failures": [],
+          "output": {
+            "kind": "script_quality",
+            "explanation": "The script contains a logical contradiction in step 1 as noted in evidence index 0, requiring a revision to ensure consistency.",
+            "confidence": 1.0,
+            "evidence_indices": [
+              0
+            ],
+            "action": "revise_script",
+            "invalidates": [
+              "captions",
+              "script",
+              "tts_input",
+              "video"
+            ]
+          },
+          "elapsed_seconds": 1.482
+        },
+        "jev": {
+          "resolved_model": "typesafe/jev-1.13-20260917",
+          "decision": {
+            "model": "typesafe/jev-1.13-20260917",
+            "choice": "script_quality",
+            "confidence": 1.0,
+            "probabilities": [
+              [
+                "visual_quality",
+                0.0
+              ],
+              [
+                "caption_format",
+                0.0
+              ],
+              [
+                "tts_input_compatibility",
+                0.0
+              ],
+              [
+                "uncertain",
+                0.0
+              ],
+              [
+                "environment_mismatch",
+                0.0
+              ],
+              [
+                "script_quality",
+                1.0
+              ]
+            ],
+            "evidence_support": [
+              [
+                "script_quality",
+                0,
+                0.93
+              ],
+              [
+                "environment_mismatch",
+                0,
+                0.07
+              ],
+              [
+                "tts_input_compatibility",
+                0,
+                0.08
+              ],
+              [
+                "caption_format",
+                0,
+                0.03
+              ],
+              [
+                "visual_quality",
+                0,
+                0.02
+              ]
+            ],
+            "input_tokens": 1204,
+            "output_tokens": 184,
+            "cost_usd": 5.0568e-05
+          },
+          "usage": {
+            "input_tokens": 1204,
+            "output_tokens": 184,
+            "cost": 5.0568e-05
+          },
+          "passed": true,
+          "failures": [],
+          "output": {
+            "kind": "script_quality",
+            "confidence": 1.0,
+            "explanation": "Application summary: Jev selected script_quality; cited supplied facts: The authored script contains both \u201cturn the oven on\u201d and \u201ckeep the oven off\u201d for step 1.",
+            "evidence_indices": [
+              0
+            ],
+            "action": "revise_script",
+            "invalidates": [
+              "captions",
+              "script",
+              "tts_input",
+              "video"
+            ]
+          },
+          "elapsed_seconds": 0.377
+        }
+      }
+    },
+    {
+      "id": "environment-mismatch-clear",
+      "category": "clear",
+      "expected_kind": "environment_mismatch",
+      "providers": {
+        "jev": {
+          "resolved_model": "typesafe/jev-1.13-20260917",
+          "decision": {
+            "model": "typesafe/jev-1.13-20260917",
+            "choice": "environment_mismatch",
+            "confidence": 0.99,
+            "probabilities": [
+              [
+                "script_quality",
+                0.0
+              ],
+              [
+                "caption_format",
+                0.0
+              ],
+              [
+                "uncertain",
+                0.0
+              ],
+              [
+                "visual_quality",
+                0.0
+              ],
+              [
+                "tts_input_compatibility",
+                0.0
+              ],
+              [
+                "environment_mismatch",
+                1.0
+              ]
+            ],
+            "evidence_support": [
+              [
+                "script_quality",
+                0,
+                0.64
+              ],
+              [
+                "environment_mismatch",
+                0,
+                0.81
+              ],
+              [
+                "tts_input_compatibility",
+                0,
+                0.15
+              ],
+              [
+                "caption_format",
+                0,
+                0.03
+              ],
+              [
+                "visual_quality",
+                0,
+                0.02
+              ],
+              [
+                "script_quality",
+                1,
+                0.74
+              ],
+              [
+                "environment_mismatch",
+                1,
+                0.94
+              ],
+              [
+                "tts_input_compatibility",
+                1,
+                0.09
+              ],
+              [
+                "caption_format",
+                1,
+                0.03
+              ],
+              [
+                "visual_quality",
+                1,
+                0.02
+              ]
+            ],
+            "input_tokens": 1721,
+            "output_tokens": 295,
+            "cost_usd": 7.2282e-05
+          },
+          "usage": {
+            "input_tokens": 1721,
+            "output_tokens": 295,
+            "cost": 7.2282e-05
+          },
+          "passed": true,
+          "failures": [],
+          "output": {
+            "kind": "environment_mismatch",
+            "confidence": 0.99,
+            "explanation": "Application summary: Jev selected environment_mismatch; cited supplied facts: The authored script says \u201copen the oven door\u201d; script-scene metadata identifies a kitchen. Selected avatar metadata identifies an office environment.",
+            "evidence_indices": [
+              0,
+              1
+            ],
+            "action": null,
+            "invalidates": []
+          },
+          "elapsed_seconds": 0.333
+        },
+        "chat": {
+          "resolved_model": "google/gemini-3.1-flash-lite",
+          "usage": {
+            "prompt_tokens": 739,
+            "completion_tokens": 83,
+            "total_tokens": 822,
+            "cost": 0.00030925,
+            "is_byok": false,
+            "prompt_tokens_details": {
+              "cached_tokens": 0,
+              "cache_write_tokens": 0,
+              "audio_tokens": 0,
+              "video_tokens": 0
+            },
+            "cost_details": {
+              "upstream_inference_cost": 0.00030925,
+              "upstream_inference_prompt_cost": 0.00018475,
+              "upstream_inference_completions_cost": 0.0001245
+            },
+            "completion_tokens_details": {
+              "reasoning_tokens": 0,
+              "image_tokens": 0,
+              "audio_tokens": 0
+            }
+          },
+          "passed": true,
+          "failures": [],
+          "output": {
+            "kind": "environment_mismatch",
+            "explanation": "The script requires a kitchen environment to perform the action of opening an oven, but the selected avatar is restricted to an office environment.",
+            "confidence": 1.0,
+            "evidence_indices": [
+              0,
+              1
+            ],
+            "action": null,
+            "invalidates": []
+          },
+          "elapsed_seconds": 1.438
+        }
+      }
+    },
+    {
+      "id": "environment-mismatch-ambiguous",
+      "category": "ambiguous",
+      "expected_kind": null,
+      "providers": {
+        "chat": {
+          "resolved_model": "google/gemini-3.1-flash-lite",
+          "usage": {
+            "prompt_tokens": 676,
+            "completion_tokens": 101,
+            "total_tokens": 777,
+            "cost": 0.0003205,
+            "is_byok": false,
+            "prompt_tokens_details": {
+              "cached_tokens": 0,
+              "cache_write_tokens": 0,
+              "audio_tokens": 0,
+              "video_tokens": 0
+            },
+            "cost_details": {
+              "upstream_inference_cost": 0.0003205,
+              "upstream_inference_prompt_cost": 0.000169,
+              "upstream_inference_completions_cost": 0.0001515
+            },
+            "completion_tokens_details": {
+              "reasoning_tokens": 0,
+              "image_tokens": 0,
+              "audio_tokens": 0
+            }
+          },
+          "passed": true,
+          "failures": [],
+          "output": {
+            "kind": null,
+            "explanation": "The feedback is ambiguous and the provided evidence explicitly states that no independent observation supports a specific failure class. Please clarify which specific element of the setting feels off (e.g., the script content, the avatar's appearance, or the background environment).",
+            "confidence": 0.0,
+            "evidence_indices": [
+              0
+            ],
+            "action": null,
+            "invalidates": []
+          },
+          "elapsed_seconds": 1.888
+        },
+        "jev": {
+          "resolved_model": "typesafe/jev-1.13-20260917",
+          "decision": {
+            "model": "typesafe/jev-1.13-20260917",
+            "choice": "uncertain",
+            "confidence": 1.0,
+            "probabilities": [
+              [
+                "uncertain",
+                1.0
+              ],
+              [
+                "script_quality",
+                0.0
+              ],
+              [
+                "visual_quality",
+                0.0
+              ],
+              [
+                "environment_mismatch",
+                0.0
+              ],
+              [
+                "tts_input_compatibility",
+                0.0
+              ],
+              [
+                "caption_format",
+                0.0
+              ]
+            ],
+            "evidence_support": [],
+            "input_tokens": 672,
+            "output_tokens": 76,
+            "cost_usd": 2.8224e-05
+          },
+          "usage": {
+            "input_tokens": 672,
+            "output_tokens": 76,
+            "cost": 2.8224e-05
+          },
+          "passed": true,
+          "failures": [],
+          "output": {
+            "kind": null,
+            "confidence": 1.0,
+            "explanation": "Which exact artifact defect can you confirm with factual evidence?",
+            "evidence_indices": [
+              0
+            ],
+            "action": null,
+            "invalidates": []
+          },
+          "elapsed_seconds": 0.337
+        }
+      }
+    },
+    {
+      "id": "environment-mismatch-adversarial",
+      "category": "adversarial",
+      "expected_kind": "environment_mismatch",
+      "providers": {
+        "jev": {
+          "resolved_model": "typesafe/jev-1.13-20260917",
+          "decision": {
+            "model": "typesafe/jev-1.13-20260917",
+            "choice": "environment_mismatch",
+            "confidence": 0.99,
+            "probabilities": [
+              [
+                "caption_format",
+                0.0
+              ],
+              [
+                "script_quality",
+                0.01
+              ],
+              [
+                "tts_input_compatibility",
+                0.0
+              ],
+              [
+                "visual_quality",
+                0.0
+              ],
+              [
+                "uncertain",
+                0.0
+              ],
+              [
+                "environment_mismatch",
+                0.99
+              ]
+            ],
+            "evidence_support": [
+              [
+                "script_quality",
+                0,
+                0.65
+              ],
+              [
+                "environment_mismatch",
+                0,
+                0.85
+              ],
+              [
+                "tts_input_compatibility",
+                0,
+                0.19
+              ],
+              [
+                "caption_format",
+                0,
+                0.03
+              ],
+              [
+                "visual_quality",
+                0,
+                0.02
+              ],
+              [
+                "script_quality",
+                1,
+                0.61
+              ],
+              [
+                "environment_mismatch",
+                1,
+                0.94
+              ],
+              [
+                "tts_input_compatibility",
+                1,
+                0.09
+              ],
+              [
+                "caption_format",
+                1,
+                0.03
+              ],
+              [
+                "visual_quality",
+                1,
+                0.03
+              ]
+            ],
+            "input_tokens": 1741,
+            "output_tokens": 295,
+            "cost_usd": 7.3122e-05
+          },
+          "usage": {
+            "input_tokens": 1741,
+            "output_tokens": 295,
+            "cost": 7.3122e-05
+          },
+          "passed": true,
+          "failures": [],
+          "output": {
+            "kind": "environment_mismatch",
+            "confidence": 0.99,
+            "explanation": "Application summary: Jev selected environment_mismatch; cited supplied facts: The authored script says \u201copen the oven door\u201d; script-scene metadata identifies a kitchen. Selected avatar metadata identifies an office environment.",
+            "evidence_indices": [
+              0,
+              1
+            ],
+            "action": null,
+            "invalidates": []
+          },
+          "elapsed_seconds": 0.373
+        },
+        "chat": {
+          "resolved_model": "google/gemini-3.1-flash-lite",
+          "usage": {
+            "prompt_tokens": 759,
+            "completion_tokens": 93,
+            "total_tokens": 852,
+            "cost": 0.00032925,
+            "is_byok": false,
+            "prompt_tokens_details": {
+              "cached_tokens": 0,
+              "cache_write_tokens": 0,
+              "audio_tokens": 0,
+              "video_tokens": 0
+            },
+            "cost_details": {
+              "upstream_inference_cost": 0.00032925,
+              "upstream_inference_prompt_cost": 0.00018975,
+              "upstream_inference_completions_cost": 0.0001395
+            },
+            "completion_tokens_details": {
+              "reasoning_tokens": 0,
+              "image_tokens": 0,
+              "audio_tokens": 0
+            }
+          },
+          "passed": true,
+          "failures": [],
+          "output": {
+            "kind": "environment_mismatch",
+            "explanation": "The script requires a kitchen environment to perform the action of opening an oven, but the selected avatar is restricted to an office environment as noted in evidence indices 0 and 1.",
+            "confidence": 1.0,
+            "evidence_indices": [
+              0,
+              1
+            ],
+            "action": null,
+            "invalidates": []
+          },
+          "elapsed_seconds": 1.771
+        }
+      }
+    },
+    {
+      "id": "tts-input-compatibility-clear",
+      "category": "clear",
+      "expected_kind": "tts_input_compatibility",
+      "providers": {
+        "chat": {
+          "resolved_model": "google/gemini-3.1-flash-lite",
+          "usage": {
+            "prompt_tokens": 720,
+            "completion_tokens": 111,
+            "total_tokens": 831,
+            "cost": 0.0003465,
+            "is_byok": false,
+            "prompt_tokens_details": {
+              "cached_tokens": 0,
+              "cache_write_tokens": 0,
+              "audio_tokens": 0,
+              "video_tokens": 0
+            },
+            "cost_details": {
+              "upstream_inference_cost": 0.0003465,
+              "upstream_inference_prompt_cost": 0.00018,
+              "upstream_inference_completions_cost": 0.0001665
+            },
+            "completion_tokens_details": {
+              "reasoning_tokens": 0,
+              "image_tokens": 0,
+              "audio_tokens": 0
+            }
+          },
+          "passed": true,
+          "failures": [],
+          "output": {
+            "kind": "tts_input_compatibility",
+            "explanation": "The TTS engine is misinterpreting the asterisk symbol in '450*F' as 'star' instead of the degree symbol, requiring a correction to the input text to ensure proper pronunciation.",
+            "confidence": 1.0,
+            "evidence_indices": [
+              0
+            ],
+            "action": "repair_tts_input",
+            "invalidates": [
+              "captions",
+              "tts_input",
+              "video"
+            ]
+          },
+          "elapsed_seconds": 1.589
+        },
+        "jev": {
+          "resolved_model": "typesafe/jev-1.13-20260917",
+          "decision": {
+            "model": "typesafe/jev-1.13-20260917",
+            "choice": "tts_input_compatibility",
+            "confidence": 1.0,
+            "probabilities": [
+              [
+                "tts_input_compatibility",
+                1.0
+              ],
+              [
+                "script_quality",
+                0.0
+              ],
+              [
+                "visual_quality",
+                0.0
+              ],
+              [
+                "caption_format",
+                0.0
+              ],
+              [
+                "uncertain",
+                0.0
+              ],
+              [
+                "environment_mismatch",
+                0.0
+              ]
+            ],
+            "evidence_support": [
+              [
+                "script_quality",
+                0,
+                0.42
+              ],
+              [
+                "environment_mismatch",
+                0,
+                0.06
+              ],
+              [
+                "tts_input_compatibility",
+                0,
+                0.81
+              ],
+              [
+                "caption_format",
+                0,
+                0.06
+              ],
+              [
+                "visual_quality",
+                0,
+                0.02
+              ]
+            ],
+            "input_tokens": 1185,
+            "output_tokens": 188,
+            "cost_usd": 4.977e-05
+          },
+          "usage": {
+            "input_tokens": 1185,
+            "output_tokens": 188,
+            "cost": 4.977e-05
+          },
+          "passed": true,
+          "failures": [],
+          "output": {
+            "kind": "tts_input_compatibility",
+            "confidence": 1.0,
+            "explanation": "Application summary: Jev selected tts_input_compatibility; cited supplied facts: TTS input candidate contains \u201c450*F\u201d; the saved synthetic provider transcript says \u201cfour hundred fifty star F\u201d.",
+            "evidence_indices": [
+              0
+            ],
+            "action": "repair_tts_input",
+            "invalidates": [
+              "captions",
+              "tts_input",
+              "video"
+            ]
+          },
+          "elapsed_seconds": 0.315
+        }
+      }
+    },
+    {
+      "id": "tts-input-compatibility-ambiguous",
+      "category": "ambiguous",
+      "expected_kind": null,
+      "providers": {
+        "jev": {
+          "resolved_model": "typesafe/jev-1.13-20260917",
+          "decision": {
+            "model": "typesafe/jev-1.13-20260917",
+            "choice": "uncertain",
+            "confidence": 1.0,
+            "probabilities": [
+              [
+                "tts_input_compatibility",
+                0.0
+              ],
+              [
+                "environment_mismatch",
+                0.0
+              ],
+              [
+                "script_quality",
+                0.0
+              ],
+              [
+                "visual_quality",
+                0.0
+              ],
+              [
+                "uncertain",
+                1.0
+              ],
+              [
+                "caption_format",
+                0.0
+              ]
+            ],
+            "evidence_support": [],
+            "input_tokens": 672,
+            "output_tokens": 76,
+            "cost_usd": 2.8224e-05
+          },
+          "usage": {
+            "input_tokens": 672,
+            "output_tokens": 76,
+            "cost": 2.8224e-05
+          },
+          "passed": true,
+          "failures": [],
+          "output": {
+            "kind": null,
+            "confidence": 1.0,
+            "explanation": "Which exact artifact defect can you confirm with factual evidence?",
+            "evidence_indices": [
+              0
+            ],
+            "action": null,
+            "invalidates": []
+          },
+          "elapsed_seconds": 0.35
+        },
+        "chat": {
+          "resolved_model": "google/gemini-3.1-flash-lite",
+          "usage": {
+            "prompt_tokens": 676,
+            "completion_tokens": 96,
+            "total_tokens": 772,
+            "cost": 0.000313,
+            "is_byok": false,
+            "prompt_tokens_details": {
+              "cached_tokens": 0,
+              "cache_write_tokens": 0,
+              "audio_tokens": 0,
+              "video_tokens": 0
+            },
+            "cost_details": {
+              "upstream_inference_cost": 0.000313,
+              "upstream_inference_prompt_cost": 0.000169,
+              "upstream_inference_completions_cost": 0.000144
+            },
+            "completion_tokens_details": {
+              "reasoning_tokens": 0,
+              "image_tokens": 0,
+              "audio_tokens": 0
+            }
+          },
+          "passed": true,
+          "failures": [],
+          "output": {
+            "kind": null,
+            "explanation": "The feedback mentions a voice issue but provides no specific evidence or transcript to verify the claim, and the provided evidence explicitly states no independent observation supports a failure class. Please provide a transcript or specific timestamped examples of the audio error.",
+            "confidence": 0.1,
+            "evidence_indices": [
+              0
+            ],
+            "action": null,
+            "invalidates": []
+          },
+          "elapsed_seconds": 1.669
+        }
+      }
+    },
+    {
+      "id": "tts-input-compatibility-adversarial",
+      "category": "adversarial",
+      "expected_kind": "tts_input_compatibility",
+      "providers": {
+        "chat": {
+          "resolved_model": "google/gemini-3.1-flash-lite",
+          "usage": {
+            "prompt_tokens": 741,
+            "completion_tokens": 93,
+            "total_tokens": 834,
+            "cost": 0.00032475,
+            "is_byok": false,
+            "prompt_tokens_details": {
+              "cached_tokens": 0,
+              "cache_write_tokens": 0,
+              "audio_tokens": 0,
+              "video_tokens": 0
+            },
+            "cost_details": {
+              "upstream_inference_cost": 0.00032475,
+              "upstream_inference_prompt_cost": 0.00018525,
+              "upstream_inference_completions_cost": 0.0001395
+            },
+            "completion_tokens_details": {
+              "reasoning_tokens": 0,
+              "image_tokens": 0,
+              "audio_tokens": 0
+            }
+          },
+          "passed": false,
+          "failures": [
+            "classification",
+            "repair_scope"
+          ],
+          "output": {
+            "kind": "caption_format",
+            "explanation": "The synthetic speech transcript incorrectly renders the symbol '*' as 'star' in the captions, which is a formatting error. Per the policy, only the captions require repair.",
+            "confidence": 1.0,
+            "evidence_indices": [
+              0
+            ],
+            "action": "repair_captions",
+            "invalidates": [
+              "captions"
+            ]
+          },
+          "elapsed_seconds": 1.725
+        },
+        "jev": {
+          "resolved_model": "typesafe/jev-1.13-20260917",
+          "decision": {
+            "model": "typesafe/jev-1.13-20260917",
+            "choice": "tts_input_compatibility",
+            "confidence": 0.89,
+            "probabilities": [
+              [
+                "environment_mismatch",
+                0.0
+              ],
+              [
+                "caption_format",
+                0.06
+              ],
+              [
+                "uncertain",
+                0.03
+              ],
+              [
+                "script_quality",
+                0.0
+              ],
+              [
+                "tts_input_compatibility",
+                0.91
+              ],
+              [
+                "visual_quality",
+                0.0
+              ]
+            ],
+            "evidence_support": [
+              [
+                "script_quality",
+                0,
+                0.21
+              ],
+              [
+                "environment_mismatch",
+                0,
+                0.04
+              ],
+              [
+                "tts_input_compatibility",
+                0,
+                0.65
+              ],
+              [
+                "caption_format",
+                0,
+                0.23
+              ],
+              [
+                "visual_quality",
+                0,
+                0.02
+              ]
+            ],
+            "input_tokens": 1206,
+            "output_tokens": 188,
+            "cost_usd": 5.0652e-05
+          },
+          "usage": {
+            "input_tokens": 1206,
+            "output_tokens": 188,
+            "cost": 5.0652e-05
+          },
+          "passed": false,
+          "failures": [
+            "classification",
+            "evidence",
+            "clarification",
+            "repair_scope"
+          ],
+          "output": {
+            "kind": null,
+            "confidence": 0.89,
+            "explanation": "Which exact artifact defect can you confirm with factual evidence?",
+            "evidence_indices": [],
+            "action": null,
+            "invalidates": []
+          },
+          "elapsed_seconds": 0.351
+        }
+      }
+    },
+    {
+      "id": "caption-format-clear",
+      "category": "clear",
+      "expected_kind": "caption_format",
+      "providers": {
+        "jev": {
+          "resolved_model": "typesafe/jev-1.13-20260917",
+          "decision": {
+            "model": "typesafe/jev-1.13-20260917",
+            "choice": "caption_format",
+            "confidence": 1.0,
+            "probabilities": [
+              [
+                "caption_format",
+                1.0
+              ],
+              [
+                "tts_input_compatibility",
+                0.0
+              ],
+              [
+                "uncertain",
+                0.0
+              ],
+              [
+                "visual_quality",
+                0.0
+              ],
+              [
+                "script_quality",
+                0.0
+              ],
+              [
+                "environment_mismatch",
+                0.0
+              ]
+            ],
+            "evidence_support": [
+              [
+                "script_quality",
+                0,
+                0.15
+              ],
+              [
+                "environment_mismatch",
+                0,
+                0.03
+              ],
+              [
+                "tts_input_compatibility",
+                0,
+                0.05
+              ],
+              [
+                "caption_format",
+                0,
+                0.91
+              ],
+              [
+                "visual_quality",
+                0,
+                0.02
+              ]
+            ],
+            "input_tokens": 1181,
+            "output_tokens": 184,
+            "cost_usd": 4.9602e-05
+          },
+          "usage": {
+            "input_tokens": 1181,
+            "output_tokens": 184,
+            "cost": 4.9602e-05
+          },
+          "passed": true,
+          "failures": [],
+          "output": {
+            "kind": "caption_format",
+            "confidence": 1.0,
+            "explanation": "Application summary: Jev selected caption_format; cited supplied facts: Caption cue 1 starts at 1000 ms and ends at 500 ms; the end must exceed the start.",
+            "evidence_indices": [
+              0
+            ],
+            "action": "repair_captions",
+            "invalidates": [
+              "captions"
+            ]
+          },
+          "elapsed_seconds": 0.35
+        },
+        "chat": {
+          "resolved_model": "google/gemini-3.1-flash-lite",
+          "usage": {
+            "prompt_tokens": 694,
+            "completion_tokens": 96,
+            "total_tokens": 790,
+            "cost": 0.0003175,
+            "is_byok": false,
+            "prompt_tokens_details": {
+              "cached_tokens": 0,
+              "cache_write_tokens": 0,
+              "audio_tokens": 0,
+              "video_tokens": 0
+            },
+            "cost_details": {
+              "upstream_inference_cost": 0.0003175,
+              "upstream_inference_prompt_cost": 0.0001735,
+              "upstream_inference_completions_cost": 0.000144
+            },
+            "completion_tokens_details": {
+              "reasoning_tokens": 0,
+              "image_tokens": 0,
+              "audio_tokens": 0
+            }
+          },
+          "passed": true,
+          "failures": [],
+          "output": {
+            "kind": "caption_format",
+            "explanation": "The caption file contains a timing error where the end time (500 ms) precedes the start time (1000 ms) as noted in evidence index 0.",
+            "confidence": 1.0,
+            "evidence_indices": [
+              0
+            ],
+            "action": "repair_captions",
+            "invalidates": [
+              "captions"
+            ]
+          },
+          "elapsed_seconds": 1.89
+        }
+      }
+    },
+    {
+      "id": "caption-format-ambiguous",
+      "category": "ambiguous",
+      "expected_kind": null,
+      "providers": {
+        "chat": {
+          "resolved_model": "google/gemini-3.1-flash-lite",
+          "usage": {
+            "prompt_tokens": 679,
+            "completion_tokens": 98,
+            "total_tokens": 777,
+            "cost": 0.00031675,
+            "is_byok": false,
+            "prompt_tokens_details": {
+              "cached_tokens": 0,
+              "cache_write_tokens": 0,
+              "audio_tokens": 0,
+              "video_tokens": 0
+            },
+            "cost_details": {
+              "upstream_inference_cost": 0.00031675,
+              "upstream_inference_prompt_cost": 0.00016975,
+              "upstream_inference_completions_cost": 0.000147
+            },
+            "completion_tokens_details": {
+              "reasoning_tokens": 0,
+              "image_tokens": 0,
+              "audio_tokens": 0
+            }
+          },
+          "passed": true,
+          "failures": [],
+          "output": {
+            "kind": null,
+            "explanation": "The feedback is ambiguous regarding whether the issue lies in the wording, speech, or timing of the subtitles. Please clarify if the text content is incorrect, if the synchronization with the audio is off, or if the formatting is visually unreadable.",
+            "confidence": 0.2,
+            "evidence_indices": [
+              0
+            ],
+            "action": null,
+            "invalidates": []
+          },
+          "elapsed_seconds": 1.464
+        },
+        "jev": {
+          "resolved_model": "typesafe/jev-1.13-20260917",
+          "decision": {
+            "model": "typesafe/jev-1.13-20260917",
+            "choice": "uncertain",
+            "confidence": 1.0,
+            "probabilities": [
+              [
+                "script_quality",
+                0.0
+              ],
+              [
+                "environment_mismatch",
+                0.0
+              ],
+              [
+                "tts_input_compatibility",
+                0.0
+              ],
+              [
+                "caption_format",
+                0.0
+              ],
+              [
+                "visual_quality",
+                0.0
+              ],
+              [
+                "uncertain",
+                1.0
+              ]
+            ],
+            "evidence_support": [],
+            "input_tokens": 675,
+            "output_tokens": 76,
+            "cost_usd": 2.835e-05
+          },
+          "usage": {
+            "input_tokens": 675,
+            "output_tokens": 76,
+            "cost": 2.835e-05
+          },
+          "passed": true,
+          "failures": [],
+          "output": {
+            "kind": null,
+            "confidence": 1.0,
+            "explanation": "Which exact artifact defect can you confirm with factual evidence?",
+            "evidence_indices": [
+              0
+            ],
+            "action": null,
+            "invalidates": []
+          },
+          "elapsed_seconds": 0.346
+        }
+      }
+    },
+    {
+      "id": "caption-format-adversarial",
+      "category": "adversarial",
+      "expected_kind": "caption_format",
+      "providers": {
+        "jev": {
+          "resolved_model": "typesafe/jev-1.13-20260917",
+          "decision": {
+            "model": "typesafe/jev-1.13-20260917",
+            "choice": "caption_format",
+            "confidence": 1.0,
+            "probabilities": [
+              [
+                "script_quality",
+                0.0
+              ],
+              [
+                "environment_mismatch",
+                0.0
+              ],
+              [
+                "tts_input_compatibility",
+                0.0
+              ],
+              [
+                "caption_format",
+                1.0
+              ],
+              [
+                "visual_quality",
+                0.0
+              ],
+              [
+                "uncertain",
+                0.0
+              ]
+            ],
+            "evidence_support": [
+              [
+                "script_quality",
+                0,
+                0.04
+              ],
+              [
+                "environment_mismatch",
+                0,
+                0.03
+              ],
+              [
+                "tts_input_compatibility",
+                0,
+                0.04
+              ],
+              [
+                "caption_format",
+                0,
+                0.93
+              ],
+              [
+                "visual_quality",
+                0,
+                0.02
+              ]
+            ],
+            "input_tokens": 1211,
+            "output_tokens": 184,
+            "cost_usd": 5.0862e-05
+          },
+          "usage": {
+            "input_tokens": 1211,
+            "output_tokens": 184,
+            "cost": 5.0862e-05
+          },
+          "passed": true,
+          "failures": [],
+          "output": {
+            "kind": "caption_format",
+            "confidence": 1.0,
+            "explanation": "Application summary: Jev selected caption_format; cited supplied facts: Caption cue 1 starts at 1000 ms and ends at 500 ms; the end must exceed the start.",
+            "evidence_indices": [
+              0
+            ],
+            "action": "repair_captions",
+            "invalidates": [
+              "captions"
+            ]
+          },
+          "elapsed_seconds": 0.39
+        },
+        "chat": {
+          "resolved_model": "google/gemini-3.1-flash-lite",
+          "usage": {
+            "prompt_tokens": 723,
+            "completion_tokens": 94,
+            "total_tokens": 817,
+            "cost": 0.00032175,
+            "is_byok": false,
+            "prompt_tokens_details": {
+              "cached_tokens": 0,
+              "cache_write_tokens": 0,
+              "audio_tokens": 0,
+              "video_tokens": 0
+            },
+            "cost_details": {
+              "upstream_inference_cost": 0.00032175,
+              "upstream_inference_prompt_cost": 0.00018075,
+              "upstream_inference_completions_cost": 0.000141
+            },
+            "completion_tokens_details": {
+              "reasoning_tokens": 0,
+              "image_tokens": 0,
+              "audio_tokens": 0
+            }
+          },
+          "passed": true,
+          "failures": [],
+          "output": {
+            "kind": "caption_format",
+            "explanation": "The caption cue 1 has an end time (500 ms) that is earlier than the start time (1000 ms), violating temporal consistency requirements.",
+            "confidence": 1.0,
+            "evidence_indices": [
+              0
+            ],
+            "action": "repair_captions",
+            "invalidates": [
+              "captions"
+            ]
+          },
+          "elapsed_seconds": 1.607
+        }
+      }
+    },
+    {
+      "id": "visual-quality-clear",
+      "category": "clear",
+      "expected_kind": "visual_quality",
+      "providers": {
+        "chat": {
+          "resolved_model": "google/gemini-3.1-flash-lite",
+          "usage": {
+            "prompt_tokens": 694,
+            "completion_tokens": 99,
+            "total_tokens": 793,
+            "cost": 0.000322,
+            "is_byok": false,
+            "prompt_tokens_details": {
+              "cached_tokens": 0,
+              "cache_write_tokens": 0,
+              "audio_tokens": 0,
+              "video_tokens": 0
+            },
+            "cost_details": {
+              "upstream_inference_cost": 0.000322,
+              "upstream_inference_prompt_cost": 0.0001735,
+              "upstream_inference_completions_cost": 0.0001485
+            },
+            "completion_tokens_details": {
+              "reasoning_tokens": 0,
+              "image_tokens": 0,
+              "audio_tokens": 0
+            }
+          },
+          "passed": true,
+          "failures": [],
+          "output": {
+            "kind": "visual_quality",
+            "explanation": "The video exhibits abrupt motion artifacts with displacement changes of 25 px/frame, which exceeds the established quality threshold of 12 px/frame as noted in the evidence.",
+            "confidence": 1.0,
+            "evidence_indices": [
+              0
+            ],
+            "action": "regenerate_video",
+            "invalidates": [
+              "captions",
+              "video"
+            ]
+          },
+          "elapsed_seconds": 1.702
+        },
+        "jev": {
+          "resolved_model": "typesafe/jev-1.13-20260917",
+          "decision": {
+            "model": "typesafe/jev-1.13-20260917",
+            "choice": "visual_quality",
+            "confidence": 1.0,
+            "probabilities": [
+              [
+                "caption_format",
+                0.0
+              ],
+              [
+                "script_quality",
+                0.0
+              ],
+              [
+                "visual_quality",
+                1.0
+              ],
+              [
+                "uncertain",
+                0.0
+              ],
+              [
+                "environment_mismatch",
+                0.0
+              ],
+              [
+                "tts_input_compatibility",
+                0.0
+              ]
+            ],
+            "evidence_support": [
+              [
+                "script_quality",
+                0,
+                0.11
+              ],
+              [
+                "environment_mismatch",
+                0,
+                0.07
+              ],
+              [
+                "tts_input_compatibility",
+                0,
+                0.03
+              ],
+              [
+                "caption_format",
+                0,
+                0.04
+              ],
+              [
+                "visual_quality",
+                0,
+                0.93
+              ]
+            ],
+            "input_tokens": 1181,
+            "output_tokens": 184,
+            "cost_usd": 4.9602e-05
+          },
+          "usage": {
+            "input_tokens": 1181,
+            "output_tokens": 184,
+            "cost": 4.9602e-05
+          },
+          "passed": true,
+          "failures": [],
+          "output": {
+            "kind": "visual_quality",
+            "confidence": 1.0,
+            "explanation": "Application summary: Jev selected visual_quality; cited supplied facts: Saved same-shot motion samples show two displacement changes of 25 px/frame, exceeding the illustrative 12 px/frame limit.",
+            "evidence_indices": [
+              0
+            ],
+            "action": "regenerate_video",
+            "invalidates": [
+              "captions",
+              "video"
+            ]
+          },
+          "elapsed_seconds": 0.319
+        }
+      }
+    },
+    {
+      "id": "visual-quality-ambiguous",
+      "category": "ambiguous",
+      "expected_kind": null,
+      "providers": {
+        "jev": {
+          "resolved_model": "typesafe/jev-1.13-20260917",
+          "decision": {
+            "model": "typesafe/jev-1.13-20260917",
+            "choice": "uncertain",
+            "confidence": 1.0,
+            "probabilities": [
+              [
+                "uncertain",
+                1.0
+              ],
+              [
+                "script_quality",
+                0.0
+              ],
+              [
+                "visual_quality",
+                0.0
+              ],
+              [
+                "environment_mismatch",
+                0.0
+              ],
+              [
+                "tts_input_compatibility",
+                0.0
+              ],
+              [
+                "caption_format",
+                0.0
+              ]
+            ],
+            "evidence_support": [],
+            "input_tokens": 675,
+            "output_tokens": 76,
+            "cost_usd": 2.835e-05
+          },
+          "usage": {
+            "input_tokens": 675,
+            "output_tokens": 76,
+            "cost": 2.835e-05
+          },
+          "passed": true,
+          "failures": [],
+          "output": {
+            "kind": null,
+            "confidence": 1.0,
+            "explanation": "Which exact artifact defect can you confirm with factual evidence?",
+            "evidence_indices": [
+              0
+            ],
+            "action": null,
+            "invalidates": []
+          },
+          "elapsed_seconds": 0.346
+        },
+        "chat": {
+          "resolved_model": "google/gemini-3.1-flash-lite",
+          "usage": {
+            "prompt_tokens": 679,
+            "completion_tokens": 89,
+            "total_tokens": 768,
+            "cost": 0.00030325,
+            "is_byok": false,
+            "prompt_tokens_details": {
+              "cached_tokens": 0,
+              "cache_write_tokens": 0,
+              "audio_tokens": 0,
+              "video_tokens": 0
+            },
+            "cost_details": {
+              "upstream_inference_cost": 0.00030325,
+              "upstream_inference_prompt_cost": 0.00016975,
+              "upstream_inference_completions_cost": 0.0001335
+            },
+            "completion_tokens_details": {
+              "reasoning_tokens": 0,
+              "image_tokens": 0,
+              "audio_tokens": 0
+            }
+          },
+          "passed": true,
+          "failures": [],
+          "output": {
+            "kind": null,
+            "explanation": "The feedback is subjective and the provided evidence explicitly states that no independent observation supports a specific failure class. Please clarify if the issue is with the voice pacing, specific camera transitions, or another element.",
+            "confidence": 0.2,
+            "evidence_indices": [
+              0
+            ],
+            "action": null,
+            "invalidates": []
+          },
+          "elapsed_seconds": 1.625
+        }
+      }
+    },
+    {
+      "id": "visual-quality-adversarial",
+      "category": "adversarial",
+      "expected_kind": "visual_quality",
+      "providers": {
+        "chat": {
+          "resolved_model": "google/gemini-3.1-flash-lite",
+          "usage": {
+            "prompt_tokens": 720,
+            "completion_tokens": 74,
+            "total_tokens": 794,
+            "cost": 0.000291,
+            "is_byok": false,
+            "prompt_tokens_details": {
+              "cached_tokens": 0,
+              "cache_write_tokens": 0,
+              "audio_tokens": 0,
+              "video_tokens": 0
+            },
+            "cost_details": {
+              "upstream_inference_cost": 0.000291,
+              "upstream_inference_prompt_cost": 0.00018,
+              "upstream_inference_completions_cost": 0.000111
+            },
+            "completion_tokens_details": {
+              "reasoning_tokens": 0,
+              "image_tokens": 0,
+              "audio_tokens": 0
+            }
+          },
+          "passed": true,
+          "failures": [],
+          "output": {
+            "kind": "visual_quality",
+            "explanation": "The video exhibits abrupt motion artifacts exceeding the established quality threshold of 12 px/frame as noted in evidence index 0.",
+            "confidence": 1.0,
+            "evidence_indices": [
+              0
+            ],
+            "action": "regenerate_video",
+            "invalidates": [
+              "captions",
+              "video"
+            ]
+          },
+          "elapsed_seconds": 1.338
+        },
+        "jev": {
+          "resolved_model": "typesafe/jev-1.13-20260917",
+          "decision": {
+            "model": "typesafe/jev-1.13-20260917",
+            "choice": "visual_quality",
+            "confidence": 1.0,
+            "probabilities": [
+              [
+                "tts_input_compatibility",
+                0.0
+              ],
+              [
+                "environment_mismatch",
+                0.0
+              ],
+              [
+                "uncertain",
+                0.0
+              ],
+              [
+                "script_quality",
+                0.0
+              ],
+              [
+                "caption_format",
+                0.0
+              ],
+              [
+                "visual_quality",
+                1.0
+              ]
+            ],
+            "evidence_support": [
+              [
+                "script_quality",
+                0,
+                0.05
+              ],
+              [
+                "environment_mismatch",
+                0,
+                0.05
+              ],
+              [
+                "tts_input_compatibility",
+                0,
+                0.04
+              ],
+              [
+                "caption_format",
+                0,
+                0.02
+              ],
+              [
+                "visual_quality",
+                0,
+                0.91
+              ]
+            ],
+            "input_tokens": 1206,
+            "output_tokens": 184,
+            "cost_usd": 5.0652e-05
+          },
+          "usage": {
+            "input_tokens": 1206,
+            "output_tokens": 184,
+            "cost": 5.0652e-05
+          },
+          "passed": true,
+          "failures": [],
+          "output": {
+            "kind": "visual_quality",
+            "confidence": 1.0,
+            "explanation": "Application summary: Jev selected visual_quality; cited supplied facts: Saved same-shot motion samples show two displacement changes of 25 px/frame, exceeding the illustrative 12 px/frame limit.",
+            "evidence_indices": [
+              0
+            ],
+            "action": "regenerate_video",
+            "invalidates": [
+              "captions",
+              "video"
+            ]
+          },
+          "elapsed_seconds": 0.33
+        }
+      }
+    }
+  ],
+  "summary": {
+    "chat": {
+      "passed": 14,
+      "total": 15,
+      "median_seconds": 1.669,
+      "reported_cost_usd": 0.00476325,
+      "resolved_models": [
+        "google/gemini-3.1-flash-lite"
+      ],
+      "failed_cases": [
+        "tts-input-compatibility-adversarial"
+      ]
+    },
+    "jev": {
+      "passed": 14,
+      "total": 15,
+      "median_seconds": 0.346,
+      "reported_cost_usd": 0.000687792,
+      "resolved_models": [
+        "typesafe/jev-1.13-20260917"
+      ],
+      "failed_cases": [
+        "tts-input-compatibility-adversarial"
+      ]
+    }
+  }
+}

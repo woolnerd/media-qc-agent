@@ -1,5 +1,21 @@
 # Provider completion transitions
 
+## Submission boundary
+
+Video-provider work follows `ready → submitting → submitted → succeeded`.
+`reserve_submission` atomically verifies the reviewed plan version and current
+approval, then commits `submitting` before the provider call. That state blocks
+plan edits, input rebinding, and new retries. `record_submission` requires the
+reserved version and records the accepted job before moving to `submitted`.
+
+A crash or ambiguous provider error keeps the run `submitting`. Resume the
+same attempt with the same idempotency key, which the provider must honor for
+deduplication. The reservation is durable plan protection; distributed worker
+leases remain planned work. See [exact plan approval](plan-versions.md) and
+[ADR 0018](adr/0018-reserve-approved-plans-before-provider-submission.md).
+
+## Completion handling
+
 Each submitted provider job snapshots the script, TTS input, avatar, and voice
 version IDs. The run holds the current job ID and active video version ID.
 Callback handling takes a SQLite write lock, records the event, and applies
