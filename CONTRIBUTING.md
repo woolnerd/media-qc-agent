@@ -12,6 +12,9 @@
 - Do not commit real customer data, private media, client artifacts, or
   credentials.
 - Keep provider-specific behavior behind interfaces.
+- Complete the PR template and follow [quality gates](docs/quality-gates.md).
+  Review affected [architecture invariants](docs/architecture-invariants.md),
+  failure evidence, and tradeoffs before merging.
 
 ## Before committing
 
@@ -31,6 +34,7 @@ PYTHONPATH=src python3 -m ruff format --check src tests
 PYTHONPATH=src python3 -m mypy src tests
 PYTHONPATH=src python3 -m unittest discover -s tests -v
 PYTHONPATH=src python3 -m media_qc_agent.demo
+PYTHONPATH=src python3 -m media_qc_agent.evaluation --mask-version-labels
 ```
 
 The GitHub Actions `verify` job runs on pull requests and pushes to `main`.
@@ -45,4 +49,5 @@ through `C901`; split decision logic when a function exceeds it.
   changes.
 - Maintain active implementation work and acceptance criteria in GitHub issues.
 - Record consequential technical choices in `docs/adr/`.
-- Update `PROJECT_STATE.md` at meaningful handoffs rather than after every task.
+- `PROJECT_STATE.md` is an opt-in handoff; create or update it only when explicitly
+  requested by the user.

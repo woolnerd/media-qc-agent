@@ -19,6 +19,10 @@ not reproduce a former client product or claim production-scale readiness.
 - [`docs/adr/`](docs/adr/) — decisions, alternatives, and consequences.
 - [`PROJECT_STATE.md`](PROJECT_STATE.md) — the current handoff snapshot.
 - [`CONTRIBUTING.md`](CONTRIBUTING.md) — development and verification workflow.
+- [Architecture invariants](docs/architecture-invariants.md) — guarantees,
+  ownership boundaries, and regression evidence.
+- [Quality gates](docs/quality-gates.md) — architecture review, failure scenarios,
+  and adversarial review before merging.
 - [`docs/adr/0010-use-readable-demo-ids.md`](docs/adr/0010-use-readable-demo-ids.md)
   — the ID format and ownership rules used by this demo.
 
