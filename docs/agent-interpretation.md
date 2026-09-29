@@ -16,9 +16,9 @@ and makes no claims about live model quality.
 
 `OpenRouterModelProvider.from_environment()` reads `OPENROUTER_API_KEY` and an
 optional `OPENROUTER_MODEL` override. The initial default is
-`qwen/qwen3.5-flash-02-23`, listed at $0.065 per million input tokens and $0.26
-per million output tokens when checked on September 26, 2026. Prices can change;
-see [OpenRouter model pricing](https://openrouter.ai/qwen/qwen3.5-flash-02-23).
+`google/gemini-3.1-flash-lite`, listed at $0.25 per million input tokens and $1.50
+per million output tokens when checked on September 29, 2026. Prices can change;
+see [OpenRouter model pricing](https://openrouter.ai/google/gemini-3.1-flash-lite).
 
 The adapter sends one request with a 30-second timeout, 768 output-token cap,
 zero temperature, and a strict JSON schema. Routing requires support for the

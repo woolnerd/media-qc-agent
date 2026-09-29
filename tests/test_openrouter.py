@@ -40,6 +40,7 @@ class OpenRouterTests(unittest.TestCase):
             payload["messages"][0]["content"].casefold(),
             "Qwen's JSON response mode requires JSON to be named in the prompt",
         )
+        self.assertEqual(DEFAULT_MODEL, "google/gemini-3.1-flash-lite")
         self.assertEqual(payload["model"], DEFAULT_MODEL)
         self.assertEqual(payload["max_tokens"], 768)
         self.assertTrue(payload["provider"]["require_parameters"])
