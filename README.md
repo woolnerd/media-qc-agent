@@ -77,6 +77,8 @@ callback API or UI, or generate caption content.
 An OpenRouter adapter can interpret text feedback with a low-cost model;
 see [`docs/agent-interpretation.md`](docs/agent-interpretation.md) for the explicit
 live demo and its strict validation boundary.
+An optional typed Jev classifier and matched cost/latency comparison are
+documented in [`docs/jev-classification.md`](docs/jev-classification.md).
 Those remaining capabilities are planned work, and the GitHub issues keep that
 distinction explicit.
 

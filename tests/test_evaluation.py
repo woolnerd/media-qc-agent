@@ -1,9 +1,12 @@
+import io
 import json
 import tempfile
 import unittest
+from contextlib import redirect_stdout
 from dataclasses import replace
 from pathlib import Path
 from typing import Any
+from unittest.mock import patch
 
 from media_qc_agent.domain import ArtifactKind, FailureKind, RepairAction, RepairPlan
 from media_qc_agent.evaluation import (
@@ -11,6 +14,8 @@ from media_qc_agent.evaluation import (
     evaluate_case,
     fixture_provider,
     load_cases,
+    main,
+    mask_version_labels,
     score_interpretation,
 )
 from media_qc_agent.interpretation import interpret_feedback
@@ -18,6 +23,71 @@ from media_qc_agent.model import FakeModelProvider
 
 
 class EvaluationDatasetTests(unittest.TestCase):
+    def test_cli_selects_live_provider_and_keeps_offline_runs_fake(self) -> None:
+        cases = tuple(mask_version_labels(case) for case in load_cases())
+        fake = fixture_provider(cases)
+        for name, live in (("chat", True), ("jev", True), ("jev", False)):
+            arguments = ["evaluation", "--provider", name, "--mask-version-labels"]
+            if live:
+                arguments.append("--live")
+            output = io.StringIO()
+            with (
+                self.subTest(provider=name, live=live),
+                patch("sys.argv", arguments),
+                patch(
+                    "media_qc_agent.evaluation.OpenRouterModelProvider.from_environment",
+                    return_value=fake,
+                ) as chat,
+                patch(
+                    "media_qc_agent.evaluation.JevModelProvider.from_environment",
+                    return_value=fake,
+                ) as jev,
+                redirect_stdout(output),
+                self.assertRaises(SystemExit) as exit_context,
+            ):
+                main()
+            self.assertEqual(exit_context.exception.code, 0)
+            self.assertEqual(chat.call_count, int(live and name == "chat"))
+            self.assertEqual(jev.call_count, int(live and name == "jev"))
+            report = json.loads(output.getvalue())
+            self.assertEqual(report["provider"], name if live else "fake")
+            self.assertTrue(report["version_labels_masked"])
+            self.assertEqual(report["passed"], 15)
+
+    def test_masked_versions_remove_labels_and_preserve_evidence_links(self) -> None:
+        cases = load_cases()
+        for original in cases:
+            masked = mask_version_labels(original)
+            with self.subTest(case=original.id):
+                self.assertEqual(masked.id, original.id)
+                self.assertEqual(masked.expected, original.expected)
+                self.assertEqual(masked.request.feedback, original.request.feedback)
+                for old, new in zip(
+                    original.request.evidence, masked.request.evidence, strict=True
+                ):
+                    self.assertNotEqual(
+                        old.artifact_version_id, new.artifact_version_id
+                    )
+                    self.assertIn(
+                        new.artifact_version_id, masked.request.artifact_version_ids
+                    )
+                    self.assertEqual(
+                        (old.role, old.statement, old.observed, old.limit),
+                        (new.role, new.statement, new.observed, new.limit),
+                    )
+                self.assertTrue(
+                    evaluate_case(masked, fixture_provider((masked,))).passed
+                )
+        self.assertEqual(
+            len(
+                {
+                    mask_version_labels(case).request.artifact_version_ids
+                    for case in cases
+                }
+            ),
+            1,
+        )
+
     def test_dataset_covers_each_failure_class_and_difficulty(self) -> None:
         cases = load_cases()
         self.assertEqual(len(cases), 15)

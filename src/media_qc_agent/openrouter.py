@@ -141,25 +141,40 @@ class OpenRouterModelProvider:
                 },
             },
         }
-        http_request = Request(
-            _ENDPOINT,
-            data=json.dumps(payload).encode(),
-            headers={
-                "Authorization": f"Bearer {self._api_key}",
-                "Content-Type": "application/json",
-            },
-            method="POST",
+        return _content(
+            post_openrouter_json(
+                endpoint=_ENDPOINT,
+                payload=payload,
+                api_key=self._api_key,
+                timeout=self._timeout,
+            )
         )
-        try:
-            with urlopen(http_request, timeout=self._timeout) as response:
-                raw = response.read(_MAX_RESPONSE_BYTES + 1)
-        except HTTPError as error:
-            raise ModelProviderError(f"OpenRouter HTTP error {error.code}") from None
-        except (URLError, TimeoutError, OSError):
-            raise ModelProviderError("OpenRouter request failed or timed out") from None
-        if len(raw) > _MAX_RESPONSE_BYTES:
-            raise ModelProviderError("OpenRouter response exceeded size limit")
-        try:
-            return _content(json.loads(raw))
-        except (ValueError, UnicodeDecodeError, RecursionError):
-            raise ModelProviderError("OpenRouter response was not valid JSON") from None
+
+
+def post_openrouter_json(
+    *, endpoint: str, payload: dict[str, Any], api_key: str, timeout: float
+) -> Any:
+    """One bounded JSON request; errors never include credentials or response bodies."""
+
+    http_request = Request(
+        endpoint,
+        data=json.dumps(payload).encode(),
+        headers={
+            "Authorization": f"Bearer {api_key}",
+            "Content-Type": "application/json",
+        },
+        method="POST",
+    )
+    try:
+        with urlopen(http_request, timeout=timeout) as response:
+            raw = response.read(_MAX_RESPONSE_BYTES + 1)
+    except HTTPError as error:
+        raise ModelProviderError(f"OpenRouter HTTP error {error.code}") from None
+    except (URLError, TimeoutError, OSError):
+        raise ModelProviderError("OpenRouter request failed or timed out") from None
+    if len(raw) > _MAX_RESPONSE_BYTES:
+        raise ModelProviderError("OpenRouter response exceeded size limit")
+    try:
+        return json.loads(raw)
+    except (ValueError, UnicodeDecodeError, RecursionError):
+        raise ModelProviderError("OpenRouter response was not valid JSON") from None

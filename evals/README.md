@@ -71,3 +71,17 @@ This small synthetic run is a baseline, not a representative accuracy estimate.
 The unit suite verifies all saved cases offline and includes incorrect and
 malicious response regressions. Prompt comparison, traces, broader evaluation
 metrics, and CI evaluation reports remain milestone 5 work.
+
+## Jev comparison
+
+[September 29 matched results](results/jev-comparison-2026-09-29.json) compare
+Gemini 3.1 Flash Lite with pinned Jev 1.13 on the same 15 cases, masking label
+hints from artifact IDs for both providers. Both passed 14/15 complete cases.
+Gemini proposed the wrong repair for the adversarial TTS defect; Jev selected
+the correct class but abstained because evidence support was below threshold.
+
+Jev's median elapsed time was 0.346 seconds versus 1.669 seconds, with reported
+total costs of $0.000687792 versus $0.004763250. These are single-run results on
+synthetic cases. See [the adapter and experiment protocol](../docs/jev-classification.md)
+for the different responsibilities of model and application, limitations, and
+explicit live replay commands. The default provider remains chat.

@@ -2,7 +2,7 @@
 
 import argparse
 import json
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from pathlib import Path
 from typing import Any
 
@@ -15,6 +15,7 @@ from .domain import (
 )
 from .ids import validate_artifact_version_id, validate_external_id
 from .interpretation import Interpretation, interpret_feedback
+from .jev import JevModelProvider
 from .model import FakeModelProvider, InterpretationRequest, ModelProvider
 from .openrouter import ModelProviderError, OpenRouterModelProvider
 from .quality_records import EvidenceInput, EvidenceRole
@@ -176,6 +177,32 @@ def fixture_provider(cases: tuple[EvaluationCase, ...]) -> FakeModelProvider:
     return FakeModelProvider({case.request: case.fake_response for case in cases})
 
 
+def mask_version_labels(case: EvaluationCase) -> EvaluationCase:
+    """Remove taxonomy/difficulty hints from synthetic version names for comparison.
+
+    Keep artifact kind prefixes and all evidence text, roles and lineage links.
+    This is evaluation-only; never persist these masked versions as a repair.
+    """
+
+    ids = {
+        version: "video:benchmark"
+        if version.startswith("video:")
+        else version.split("-", 1)[0] + "-benchmark"
+        for version in case.request.artifact_version_ids
+    }
+    request = replace(
+        case.request,
+        artifact_version_ids=tuple(
+            ids[version] for version in case.request.artifact_version_ids
+        ),
+        evidence=tuple(
+            replace(item, artifact_version_id=ids[item.artifact_version_id])
+            for item in case.request.evidence
+        ),
+    )
+    return replace(case, request=request)
+
+
 def _repair_scopes(
     result: Interpretation,
 ) -> dict[RepairAction, frozenset[ArtifactKind]]:
@@ -225,26 +252,37 @@ def main() -> None:
     parser.add_argument("--dataset", type=Path, default=DEFAULT_DATASET)
     parser.add_argument("--case-id", help="Replay only one saved case")
     parser.add_argument(
+        "--mask-version-labels",
+        action="store_true",
+        help="Remove class/difficulty hints from synthetic version IDs",
+    )
+    parser.add_argument(
+        "--provider",
+        choices=("chat", "jev"),
+        default="chat",
+        help="Provider used for --live requests",
+    )
+    parser.add_argument(
         "--live",
         action="store_true",
         help="Make a paid OpenRouter request per selected case",
     )
     args = parser.parse_args()
     cases = load_cases(args.dataset)
+    if args.mask_version_labels:
+        cases = tuple(mask_version_labels(case) for case in cases)
     if args.case_id:
         cases = tuple(case for case in cases if case.id == args.case_id)
         if not cases:
             parser.error("case ID was not found")
-    provider: ModelProvider = (
-        OpenRouterModelProvider.from_environment()
-        if args.live
-        else fixture_provider(cases)
-    )
+    provider = _evaluation_provider(cases, live=args.live, provider_name=args.provider)
     results = tuple(evaluate_case(case, provider) for case in cases)
     print(
         json.dumps(
             {
                 "mode": "live" if args.live else "fixture",
+                "provider": args.provider if args.live else "fake",
+                "version_labels_masked": args.mask_version_labels,
                 "passed": sum(result.passed for result in results),
                 "total": len(results),
                 "results": [
@@ -256,6 +294,16 @@ def main() -> None:
         )
     )
     raise SystemExit(0 if all(result.passed for result in results) else 1)
+
+
+def _evaluation_provider(
+    cases: tuple[EvaluationCase, ...], *, live: bool, provider_name: str
+) -> ModelProvider:
+    if not live:
+        return fixture_provider(cases)
+    if provider_name == "jev":
+        return JevModelProvider.from_environment()
+    return OpenRouterModelProvider.from_environment()
 
 
 if __name__ == "__main__":
