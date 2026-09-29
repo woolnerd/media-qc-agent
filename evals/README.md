@@ -53,7 +53,21 @@ all offered branches. Structural validation alone cannot guarantee a correct
 diagnosis: a confident, policy-valid but wrong classification still fails the
 saved expectation.
 
-No live model scores are recorded in this initial dataset. Prompt comparison,
-traces, broader evaluation metrics, and CI evaluation reports remain milestone 5
-work. The unit suite verifies all saved cases offline and includes incorrect and
-malicious response regressions.
+## Initial live baseline
+
+[September 29 live results](results/openrouter-live-2026-09-29.json) record a
+single production-request run with `google/gemini-3.1-flash-lite`: 14 of 15 cases
+passed. The separate live smoke test also passed. No prompt/schema monkeypatches
+or retries were used for this recorded run.
+
+The adversarial TTS input case failed classification and repair scope: it was
+classified as a caption defect with caption-only repair, despite factual evidence
+of a spoken-text error. Its output passed structural and minimum-repair checks
+for the incorrectly selected class. This is a diagnostic accuracy failure; the
+saved evaluator detects it, and a correct diagnosis remains necessary before
+repair approval. No repairs or provider video jobs were executed by this run.
+
+This small synthetic run is a baseline, not a representative accuracy estimate.
+The unit suite verifies all saved cases offline and includes incorrect and
+malicious response regressions. Prompt comparison, traces, broader evaluation
+metrics, and CI evaluation reports remain milestone 5 work.
