@@ -40,6 +40,15 @@ class InMemoryWorkflowStore:
         )
         return self.run
 
+    def reserve_submission(
+        self, *, run_id: str, expected_plan_version_id: str | None
+    ) -> WorkflowRun:
+        run = self.get(run_id)
+        if run.plan_version_id != expected_plan_version_id:
+            raise ValueError("plan version changed")
+        self.run = replace(run, status=WorkflowStatus.SUBMITTING)
+        return self.run
+
 
 class WorkflowExecutorBoundaryTests(unittest.TestCase):
     def setUp(self) -> None:

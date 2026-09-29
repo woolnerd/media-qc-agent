@@ -1277,6 +1277,36 @@ class WorkflowRepository:
             self._append_plan_version(run_id)
             return self.get(run_id)
 
+    def reserve_submission(
+        self, *, run_id: str, expected_plan_version_id: str | None
+    ) -> WorkflowRun:
+        """Lock the approved revision before an external submission can begin.
+
+        A repeated reservation resumes the same durable attempt and key.
+        Provider errors leave it reserved because acceptance may be unknown.
+        """
+
+        with self._connection:
+            self._connection.execute("BEGIN IMMEDIATE")
+            current = self.get(run_id)
+            self._require_current_plan_version(current, expected_plan_version_id)
+            if current.status is WorkflowStatus.SUBMITTED:
+                return current
+            if current.status not in {WorkflowStatus.READY, WorkflowStatus.SUBMITTING}:
+                raise ValueError("workflow is not ready for provider submission")
+            self._require_video_submission_plan(current)
+            if not has_current_approval(current):
+                raise ValueError("workflow has no current plan-version approval")
+            self._connection.execute(
+                """
+                UPDATE workflow_runs
+                SET status = ?, updated_at = strftime('%Y-%m-%dT%H:%M:%fZ', 'now')
+                WHERE id = ?
+                """,
+                (WorkflowStatus.SUBMITTING, run_id),
+            )
+            return self.get(run_id)
+
     def record_submission(
         self, *, run_id: str, external_job_id: str, expected_plan_version_id: str | None
     ) -> WorkflowRun:
@@ -1291,9 +1321,9 @@ class WorkflowRepository:
                 if current.external_job_id != external_job_id:
                     raise ValueError("workflow already references another provider job")
                 return current
-            if current.status is not WorkflowStatus.READY:
-                raise ValueError("workflow is not ready for provider submission")
             plan = self._require_video_submission_plan(current)
+            if current.status is not WorkflowStatus.SUBMITTING:
+                raise ValueError("workflow has no reserved provider submission")
             if not has_current_approval(current):
                 raise ValueError("workflow has no current plan-version approval")
             self._connection.execute(
@@ -1327,7 +1357,7 @@ class WorkflowRepository:
                     WorkflowStatus.SUBMITTED,
                     external_job_id,
                     run_id,
-                    WorkflowStatus.READY,
+                    WorkflowStatus.SUBMITTING,
                 ),
             )
             if result.rowcount != 1:
