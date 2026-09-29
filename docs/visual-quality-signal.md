@@ -1,5 +1,14 @@
 # Synthetic visual-quality signal
 
+> **Demo-grade check.** This function consumes supplied synthetic displacement
+> samples; it does not inspect video frames. The default 12 px threshold, two-
+> crossing rule, and 0.85 confidence value are illustrative and uncalibrated.
+> A pass does not establish that a video is smooth or acceptable to viewers;
+> purposeful motion may be flagged and unnatural motion may be missed.
+
+Every `VisualSignalCheck` exposes this warning as `demo_notice`. Findings also
+store it as uncertainty evidence against the observed video version.
+
 `check_jerky_video` accepts consecutive frame-motion samples for an exact
 video artifact version. Each sample holds a frame index, nonnegative measured
 displacement in pixels, and an optional declared shot boundary. The current

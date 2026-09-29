@@ -41,6 +41,11 @@ durable submission reservation (submitting)
 idempotent provider submission
 ```
 
+The TTS notation and visual-motion checks are demo-grade fixtures. Their
+profiles, samples, thresholds, and visual confidence value are illustrative;
+they have not been validated against real provider speech or human-rated video.
+A pass means only that the local rule did not fire.
+
 It currently demonstrates:
 
 - fifteen saved interpretation evaluation cases, with clear, ambiguous, and

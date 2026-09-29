@@ -1,4 +1,4 @@
-"""Synthetic frame-motion evidence for a bounded jerky-video signal."""
+"""Demo-grade motion-jump signal from supplied synthetic measurements."""
 
 import math
 from dataclasses import dataclass
@@ -9,6 +9,13 @@ from .domain import FailureKind, QualityFinding
 MOTION_JUMP_THRESHOLD_PX = 12.0
 MIN_ABRUPT_CHANGES = 2
 MIN_SAMPLES = 4
+DEMO_NOTICE = (
+    "Demo-grade illustrative motion-jump signal. It does not inspect video frames. "
+    "The supplied samples, default 12 px threshold, two-jump rule, and 0.85 confidence "
+    "are not calibrated against human judgments. A pass does not establish "
+    "smooth or acceptable video; purposeful motion may be flagged and unnatural "
+    "motion may be missed."
+)
 
 
 @dataclass(frozen=True)
@@ -33,6 +40,10 @@ class VisualSignalCheck:
     evidence: tuple[VisualEvidence, ...]
     review_needed: bool
     reason: str | None
+
+    @property
+    def demo_notice(self) -> str:
+        return DEMO_NOTICE
 
 
 def _validate_samples(samples: tuple[MotionSample, ...]) -> None:
@@ -76,7 +87,7 @@ def check_jerky_video(
     *,
     threshold_px: float = MOTION_JUMP_THRESHOLD_PX,
 ) -> VisualSignalCheck:
-    """Flag repeated abrupt changes in synthetic same-shot motion measurements."""
+    """Flag illustrative jumps in supplied samples, not raw-video quality."""
 
     if not video_version_id.strip():
         raise ValueError("video version ID must not be blank")
@@ -96,9 +107,11 @@ def check_jerky_video(
     finding = QualityFinding(
         kind=FailureKind.VISUAL_QUALITY,
         explanation=(
-            f"{video_version_id} has {len(evidence)} same-shot motion jumps "
+            f"This illustrative motion-jump signal found {len(evidence)} "
+            f"same-shot jumps in {video_version_id} "
             f"above {threshold_px:g} px per frame."
         ),
+        # Required by the demo finding schema; this is not a calibrated probability.
         confidence=0.85,
     )
     return VisualSignalCheck(finding, evidence, False, None)

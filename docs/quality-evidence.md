@@ -9,6 +9,10 @@ artifact-version reference, a statement, and one of three roles:
 - **Inference:** the conclusion drawn from those facts.
 - **Uncertainty:** a known limit on what the gate has established.
 
+Here, a fact means the value supplied to or read by a gate, not independent
+validation of raw media. In particular, the visual gate's motion values are
+synthetic inputs and its threshold is uncalibrated.
+
 The environment gate records the script phrase and declared avatar environment
 as facts, the mismatch as an inference, and the absence of pixel inspection as
 uncertainty. The visual gate records each above-threshold motion jump against

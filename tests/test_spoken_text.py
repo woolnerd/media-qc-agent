@@ -43,6 +43,9 @@ class SpokenTextGateTests(unittest.TestCase):
             "and set power to 50 percent.",
         )
         self.assertEqual(result.issues, ())
+        self.assertTrue(result.notation_compatible)
+        self.assertIn("synthetic provider profiles", result.demo_notice)
+        self.assertIn("does not verify pronunciation", result.demo_notice)
 
     def test_capability_profile_controls_which_notation_is_retained(self) -> None:
         authored = "Heat to 450°C, carry 5 km, and set power to 50%."
@@ -59,6 +62,7 @@ class SpokenTextGateTests(unittest.TestCase):
         self.assertIn("ambiguous_temperature", {issue.code for issue in result.issues})
         self.assertIn("unsupported_symbol", {issue.code for issue in result.issues})
         self.assertIn("450*F", {issue.token for issue in result.issues})
+        self.assertFalse(result.notation_compatible)
 
     def test_ambiguous_unit_is_not_guessed(self) -> None:
         result = prepare_spoken_text("Move it 5m.", LITERAL_MODEL)
