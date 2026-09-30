@@ -10,9 +10,9 @@ from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 
 from media_qc_agent.api.actions import action_routes
-from media_qc_agent.api.database import Database
 from media_qc_agent.api.scenarios import DEMO_NOTICE, seed_scenarios
 from media_qc_agent.api.views import read_routes
+from media_qc_agent.workflow.database import Database
 
 
 def create_app(database_path: Path | str = ".local/review.sqlite3") -> FastAPI:
