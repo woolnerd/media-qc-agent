@@ -39,6 +39,8 @@ through stale edits, exact approval, scope expansion, callbacks, and caption rep
 | INV-05 | Each generated artifact retains its exact input lineage. A stale or duplicate completion cannot promote an obsolete video or create a second version. | Provider-job snapshots and completion transaction | [Artifact tests](../../tests/workflow/test_artifact_lineage.py), [provider-event tests](../../tests/workflow/test_provider_events.py) |
 | INV-06 | Caption-only repair preserves the accepted video and creates no video-provider job. | Local caption transaction and executor guard | [Caption tests](../../tests/quality/test_captions.py) |
 | INV-07 | Accepted citations refer to supplied evidence records and artifact IDs. Facts, inferences, and uncertainty remain distinguishable. | Request and interpretation validation; evidence storage | [Interpretation tests](../../tests/agent/test_interpretation.py), [evidence tests](../../tests/domain/test_evidence.py) |
+| INV-08 | Worker claims bind the exact run and plan to an owner and attempt; expired owners cannot commit or change a newer lease. Recovery uses the same key and a durable bounded budget. | Queue claim and fenced repository transactions | [Worker tests](../../tests/workflow/test_worker.py) |
+| INV-09 | Worker capacity includes old outstanding jobs and uncertain reservations; requesting a retry or exhausting recovery does not silently free their slots. | Shared SQLite worker policy and claim transaction | [Worker capacity tests](../../tests/workflow/test_worker.py) |
 
 For each affected invariant, the PR should name a test and describe the failure
 sequence it rules out. Test counts alone are insufficient evidence.
@@ -47,9 +49,9 @@ sequence it rules out. Test counts alone are insufficient evidence.
 
 - SQLite serializes writers. The reservation commits before the network call,
   keeping network latency outside the write transaction.
-- Reservation protects plan scope. It does not implement a worker lease or
-  prevent two workers from submitting the same key. Provider deduplication is
-  necessary for avoiding duplicate external jobs.
+- Reservation protects plan scope. The durable worker adds leases and fences
+  local commits. A slow call can outlive a lease and overlap a recovered call
+  with the same key; provider deduplication remains necessary for one external job.
 - A timeout can mean the provider accepted the job. Keeping `submitting` can
   delay edits, but preserves the recovery key until acceptance is reconciled.
 - Structural validation and citation integrity do not establish that a model's

@@ -10,6 +10,7 @@ check or model adapter as needed.
 | How does approval survive edits and crashes? | [Plan versions](architecture/plan-versions.md) |
 | Which callbacks can change the accepted video? | [Provider transitions](architecture/provider-transitions.md) |
 | How do I review synthetic runs over HTTP? | [Local review API](architecture/review-api.md) |
+| How do workers recover and bound provider work? | [Durable worker](architecture/durable-worker.md) |
 | What checks are illustrative, and what evidence do they store? | [Quality evidence](quality/quality-evidence.md), [spoken text](quality/spoken-text-gate.md), [captions](quality/caption-quality.md), [environment](quality/environment-compatibility.md), [visual signal](quality/visual-quality-signal.md) |
 | What does the LLM decide, and how do we evaluate it? | [Interpretation](agent/agent-interpretation.md), [Jev comparison](agent/jev-classification.md), [evaluation cases](../evals/README.md) |
 | What evidence is needed before merge? | [Quality gates](development/quality-gates.md), [contributing](../CONTRIBUTING.md) |
@@ -22,7 +23,7 @@ check or model adapter as needed.
 | `domain` | Shared types, evidence records, identifiers, pure minimum-repair policy | Standard library and domain code |
 | `quality` | Deterministic, illustrative media checks | Domain |
 | `agent` | Model requests, output validation, OpenRouter/Jev adapters | Domain |
-| `workflow` | Run state, immutable plan versions, SQLite transitions, provider execution | Domain and quality checks |
+| `workflow` | Run state, plan versions, SQLite connections/transitions, provider execution, worker leases | Domain and quality checks |
 | `api` | Request validation, synthetic scenarios, HTTP review actions | Domain, quality, workflow, FastAPI |
 | `cli` | Demo assembly, case loading, evaluation scoring, executable commands | The other packages |
 

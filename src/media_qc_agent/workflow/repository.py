@@ -2,6 +2,8 @@
 
 import json
 import sqlite3
+import time
+from collections.abc import Callable
 
 from media_qc_agent.domain.evidence import (
     EvidenceInput,
@@ -66,6 +68,11 @@ from media_qc_agent.workflow.plan_versions import (
     encode_plan_version,
     validate_plan_revision,
 )
+from media_qc_agent.workflow.worker_models import SubmissionLease
+from media_qc_agent.workflow.worker_queue import (
+    initialize_worker_schema,
+    require_submission_lease,
+)
 
 _SOURCE_ORDER = (
     ArtifactKind.SCRIPT,
@@ -77,8 +84,11 @@ _SOURCE_ORDER = (
 
 
 class WorkflowRepository:
-    def __init__(self, connection: sqlite3.Connection) -> None:
+    def __init__(
+        self, connection: sqlite3.Connection, *, clock: Callable[[], float] = time.time
+    ) -> None:
         self._connection = connection
+        self._clock = clock
         self._connection.row_factory = sqlite3.Row
 
     def initialize(self) -> None:
@@ -262,6 +272,7 @@ class WorkflowRepository:
                 "ALTER TABLE provider_jobs ADD COLUMN plan_version_id TEXT REFERENCES repair_plan_versions(id)"
             )
         self._upgrade_unversioned_plans()
+        initialize_worker_schema(self._connection)
         self._connection.commit()
 
     def create_source_version(
@@ -1286,7 +1297,11 @@ class WorkflowRepository:
             return self.get(run_id)
 
     def reserve_submission(
-        self, *, run_id: str, expected_plan_version_id: str | None
+        self,
+        *,
+        run_id: str,
+        expected_plan_version_id: str | None,
+        lease: SubmissionLease | None = None,
     ) -> WorkflowRun:
         """Lock the approved revision before an external submission can begin.
 
@@ -1296,6 +1311,9 @@ class WorkflowRepository:
 
         with self._connection:
             self._connection.execute("BEGIN IMMEDIATE")
+            require_submission_lease(
+                self._connection, lease, self._clock(), run_id, expected_plan_version_id
+            )
             current = self.get(run_id)
             self._require_current_plan_version(current, expected_plan_version_id)
             if current.status is WorkflowStatus.SUBMITTED:
@@ -1316,12 +1334,20 @@ class WorkflowRepository:
             return self.get(run_id)
 
     def record_submission(
-        self, *, run_id: str, external_job_id: str, expected_plan_version_id: str | None
+        self,
+        *,
+        run_id: str,
+        external_job_id: str,
+        expected_plan_version_id: str | None,
+        lease: SubmissionLease | None = None,
     ) -> WorkflowRun:
         """Record an accepted provider job without permitting ID replacement."""
 
         with self._connection:
             self._connection.execute("BEGIN IMMEDIATE")
+            require_submission_lease(
+                self._connection, lease, self._clock(), run_id, expected_plan_version_id
+            )
             validate_external_id(external_job_id, "provider job")
             current = self.get(run_id)
             self._require_current_plan_version(current, expected_plan_version_id)

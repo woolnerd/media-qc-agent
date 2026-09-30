@@ -9,7 +9,7 @@ from typing import Any
 from fastapi.testclient import TestClient
 
 from media_qc_agent.api.app import create_app
-from media_qc_agent.api.database import Database
+from media_qc_agent.workflow.database import Database
 from media_qc_agent.workflow.executor import WorkflowExecutor
 from media_qc_agent.workflow.provider import FakeVideoProvider
 

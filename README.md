@@ -25,6 +25,8 @@ not reproduce a former client product or claim production-scale readiness.
   and adversarial review before merging.
 - [Local review API](docs/architecture/review-api.md) — HTTP actions, architecture
   diagram, and local run instructions.
+- [Durable worker](docs/architecture/durable-worker.md) — leases, retry bounds,
+  provider capacity, and process restart recovery.
 - [`docs/adr/0010-use-readable-demo-ids.md`](docs/adr/0010-use-readable-demo-ids.md)
   — the ID format and ownership rules used by this demo.
 
@@ -56,6 +58,8 @@ It currently demonstrates:
 
 - a local FastAPI boundary for five illustrative scenarios, findings, plan edits,
   exact approvals, caption repair, and fake-provider completion callbacks;
+- a durable worker with exact-plan leases, bounded recovery attempts, shared
+  outstanding-job capacity, and a persistent synthetic provider ledger;
 - fifteen saved interpretation evaluation cases, with clear, ambiguous, and
   adversarial examples for every failure class (see [`evals/`](evals/README.md));
 - a pure repair policy for five failure classes, distinguishing TTS input
@@ -89,8 +93,8 @@ It currently demonstrates:
 - recovery from a crash after provider acceptance without creating a second
   paid job.
 
-It does **not** yet inspect raw images or videos, execute a durable worker,
-provide a review UI, verify real provider callbacks, or generate caption content.
+It does **not** yet inspect raw images or videos, provide a review UI, verify real
+provider callbacks, or generate caption content.
 An OpenRouter adapter can interpret text feedback with a low-cost model;
 see [`docs/agent/agent-interpretation.md`](docs/agent/agent-interpretation.md) for the explicit
 live demo and its strict validation boundary.
@@ -179,11 +183,21 @@ rules it exercises.
 ## Run the local review API
 
 ```bash
+python3 -m venv .venv
+source .venv/bin/activate
 python3 -m pip install -r requirements.txt
 PYTHONPATH=src python3 -m media_qc_agent.cli.serve
 ```
 
 Open <http://127.0.0.1:8000/docs> to try scenarios and review actions.
-State persists in `.local/review.sqlite3`. Approval records `ready`; the durable
-worker is the next issue. This loopback demo makes no live model or media-provider
+State persists in `.local/review.sqlite3`. Approval records `ready`; start the
+worker in another terminal using the same environment:
+
+```bash
+PYTHONPATH=src python3 -m media_qc_agent.cli.worker
+```
+
+The worker stores provider state in `.local/review.provider.sqlite3` and records
+submitted job IDs. Complete a fake job through the callback API to release its
+capacity. This loopback demo makes no live model or media-provider
 calls. See [the API guide](docs/architecture/review-api.md) for the flows and limits.

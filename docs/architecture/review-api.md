@@ -27,7 +27,7 @@ flowchart TD
     API --> Repo[Repository: policy and atomic transitions]
     Repo --> DB[(SQLite: evidence, plans, approvals)]
     Repo --> Ready[Approved READY run]
-    Ready -. Issue 17 .-> Worker[Durable worker]
+    Ready --> Worker[Durable worker]
     Worker -. Reserved idempotent submission .-> Provider[Fake provider]
     Provider --> Callback[Completion callback API]
     Callback --> Repo
@@ -38,7 +38,7 @@ flowchart TD
 Handlers delegate transition decisions to the repository. Each synchronous
 request opens, uses, and closes its connection in the same thread, with foreign
 keys enabled on every connection. Approval records `ready`. External submission
-stays in the executor and the planned worker (#17); a request never submits video
+stays in the executor and [durable worker](durable-worker.md); a request never submits video
 work. Caption-only repair can complete locally after approval.
 
 ## Resources and commands
@@ -85,7 +85,7 @@ The command serves one process on loopback. Multiple server processes sharing
 startup seeding are unsupported. There is no authentication, callback signature
 verification, real media generation, artifact authoring API, or review UI (#18).
 Keep this synthetic demo local; real ingress needs authentication and provider
-verification. Approved video work remains `ready` until the worker is added.
+verification. Start the worker separately to execute approved video work.
 
 [HTTP tests](../../tests/api/test_app.py) exercise all five scenarios, stale
 approvals and edits, repair scope, derived TTS, local captions, stale/duplicate

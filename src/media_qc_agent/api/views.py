@@ -3,9 +3,9 @@
 from fastapi import APIRouter
 from fastapi.encoders import jsonable_encoder
 
-from media_qc_agent.api.database import Database
 from media_qc_agent.api.scenarios import REPLACEMENTS, SCENARIOS, create_scenario_run
 from media_qc_agent.api.schemas import CreateRun
+from media_qc_agent.workflow.database import Database
 
 
 def scenario_routes(database: Database) -> APIRouter:

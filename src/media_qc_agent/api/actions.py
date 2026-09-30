@@ -2,7 +2,6 @@
 
 from fastapi import APIRouter
 
-from media_qc_agent.api.database import Database
 from media_qc_agent.api.schemas import (
     ApprovePlan,
     BindArtifact,
@@ -12,6 +11,7 @@ from media_qc_agent.api.schemas import (
     SelectRepair,
 )
 from media_qc_agent.quality.captions import CaptionCue
+from media_qc_agent.workflow.database import Database
 
 
 def action_routes(database: Database) -> APIRouter:
