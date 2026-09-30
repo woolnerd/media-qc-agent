@@ -9,7 +9,10 @@ from pathlib import Path
 
 from media_qc_agent.domain.ids import validate_run_id
 from media_qc_agent.workflow.database import Database
-from media_qc_agent.workflow.durable_provider import DurableFakeVideoProvider
+from media_qc_agent.workflow.durable_provider import (
+    DurableFakeVideoProvider,
+    provider_ledger_path,
+)
 from media_qc_agent.workflow.worker import DurableWorker
 from media_qc_agent.workflow.worker_models import WorkerPolicy
 
@@ -34,9 +37,7 @@ def main() -> None:
     workflow_path.parent.mkdir(parents=True, exist_ok=True)
     with database.repository() as repository:
         repository.initialize()
-    provider = DurableFakeVideoProvider(
-        workflow_path.with_name(workflow_path.name + ".provider.sqlite3")
-    )
+    provider = DurableFakeVideoProvider(provider_ledger_path(workflow_path))
     worker = DurableWorker(
         database,
         provider,

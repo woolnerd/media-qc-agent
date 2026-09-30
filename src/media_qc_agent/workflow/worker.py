@@ -62,11 +62,21 @@ class DurableWorker:
         self.policy = policy or WorkerPolicy()
         self.clock = clock
 
-    def run_once(self, *, crash_after_provider_accepts: bool = False) -> WorkerResult:
+    def run_once(
+        self,
+        *,
+        crash_after_provider_accepts: bool = False,
+        run_id: str | None = None,
+        expected_plan_version_id: str | None = None,
+    ) -> WorkerResult:
         with self.database.connection() as connection:
             repository = WorkflowRepository(connection, clock=self.clock)
             queue = SubmissionQueue(connection, repository, self.policy, self.clock)
-            lease = queue.claim(self.owner)
+            lease = queue.claim(
+                self.owner,
+                run_id=run_id,
+                expected_plan_version_id=expected_plan_version_id,
+            )
             if lease is None:
                 return WorkerResult("idle")
             return self._execute(queue, lease, crash_after_provider_accepts)

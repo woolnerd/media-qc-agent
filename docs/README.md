@@ -9,6 +9,7 @@ check or model adapter as needed.
 | Who owns decisions and side effects? | [Architecture invariants](architecture/architecture-invariants.md) |
 | How does approval survive edits and crashes? | [Plan versions](architecture/plan-versions.md) |
 | Which callbacks can change the accepted video? | [Provider transitions](architecture/provider-transitions.md) |
+| How do I review runs and demonstrate recovery in the browser? | [Review surface](architecture/review-surface.md) |
 | How do I review synthetic runs over HTTP? | [Local review API](architecture/review-api.md) |
 | How do workers recover and bound provider work? | [Durable worker](architecture/durable-worker.md) |
 | What checks are illustrative, and what evidence do they store? | [Quality evidence](quality/quality-evidence.md), [spoken text](quality/spoken-text-gate.md), [captions](quality/caption-quality.md), [environment](quality/environment-compatibility.md), [visual signal](quality/visual-quality-signal.md) |
@@ -24,7 +25,7 @@ check or model adapter as needed.
 | `quality` | Deterministic, illustrative media checks | Domain |
 | `agent` | Model requests, output validation, OpenRouter/Jev adapters | Domain |
 | `workflow` | Run state, plan versions, SQLite connections/transitions, provider execution, worker leases | Domain and quality checks |
-| `api` | Request validation, synthetic scenarios, HTTP review actions | Domain, quality, workflow, FastAPI |
+| `api` | Request validation, synthetic scenarios, HTTP review actions, pure HTML rendering, synthetic fault controls | Domain, quality, workflow, FastAPI |
 | `cli` | Demo assembly, case loading, evaluation scoring, executable commands | The other packages |
 
 ```mermaid

@@ -517,7 +517,12 @@ class WorkflowRepository:
         return tuple(CaptionCue(**item) for item in json.loads(row["cues_json"]))
 
     def record_caption_repair(
-        self, *, run_id: str, version_id: str, cues: tuple[CaptionCue, ...]
+        self,
+        *,
+        run_id: str,
+        version_id: str,
+        cues: tuple[CaptionCue, ...],
+        expected_plan_version_id: str | None = None,
     ) -> ArtifactVersion:
         """Promote a validated caption version without a provider video job."""
 
@@ -528,6 +533,7 @@ class WorkflowRepository:
         with self._connection:
             self._connection.execute("BEGIN IMMEDIATE")
             run = self.get(run_id)
+            self._require_optional_version(run, expected_plan_version_id)
             if (
                 run.status is not WorkflowStatus.READY
                 or run.plan is None
@@ -1196,12 +1202,19 @@ class WorkflowRepository:
         if self.check_environment(run.sources).finding is not None:
             raise ValueError("environment mismatch must be resolved before approval")
 
-    def bind_replacement(self, run_id: str, version_id: str) -> WorkflowRun:
+    def bind_replacement(
+        self,
+        run_id: str,
+        version_id: str,
+        *,
+        expected_plan_version_id: str | None = None,
+    ) -> WorkflowRun:
         """Bind the exact new input required by a repair before approval."""
 
         with self._connection:
             self._connection.execute("BEGIN IMMEDIATE")
             current = self.get(run_id)
+            self._require_optional_version(current, expected_plan_version_id)
             if (
                 current.status
                 not in {
@@ -1251,12 +1264,19 @@ class WorkflowRepository:
             self._append_plan_version(run_id)
             return self.get(run_id)
 
-    def bind_tts_input(self, run_id: str, version_id: str) -> WorkflowRun:
+    def bind_tts_input(
+        self,
+        run_id: str,
+        version_id: str,
+        *,
+        expected_plan_version_id: str | None = None,
+    ) -> WorkflowRun:
         """Pair a revised script with its validated spoken text before approval."""
 
         with self._connection:
             self._connection.execute("BEGIN IMMEDIATE")
             current = self.get(run_id)
+            self._require_optional_version(current, expected_plan_version_id)
             if (
                 current.status
                 not in {WorkflowStatus.AWAITING_APPROVAL, WorkflowStatus.READY}
@@ -1404,6 +1424,10 @@ class WorkflowRepository:
         if expected is None or run.plan_version_id != expected:
             raise ValueError("submitted plan version is no longer current")
 
+    def _require_optional_version(self, run: WorkflowRun, expected: str | None) -> None:
+        if expected is not None:
+            self._require_current_plan_version(run, expected)
+
     def _require_video_submission_plan(self, run: WorkflowRun) -> RepairPlan:
         if run.plan is None or run.idempotency_key is None:
             raise ValueError("workflow has no executable repair plan")
@@ -1477,12 +1501,15 @@ class WorkflowRepository:
                     )
         return self.get(job.run_id)
 
-    def request_retry(self, run_id: str) -> WorkflowRun:
+    def request_retry(
+        self, run_id: str, *, expected_plan_version_id: str | None = None
+    ) -> WorkflowRun:
         """Supersede an in-flight job and require approval for a new attempt."""
 
         with self._connection:
             self._connection.execute("BEGIN IMMEDIATE")
             current = self.get(run_id)
+            self._require_optional_version(current, expected_plan_version_id)
             if (
                 current.status
                 not in {WorkflowStatus.SUBMITTED, WorkflowStatus.SUCCEEDED}
@@ -1513,6 +1540,37 @@ class WorkflowRepository:
                 raise RuntimeError("workflow state changed during retry request")
             self._append_plan_version(run_id)
         return self.get(run_id)
+
+    def list_run_ids(self) -> tuple[str, ...]:
+        rows = self._connection.execute(
+            "SELECT id FROM workflow_runs ORDER BY created_at DESC, id LIMIT 100"
+        ).fetchall()
+        return tuple(row["id"] for row in rows)
+
+    def list_provider_jobs(self, run_id: str) -> tuple[ProviderJob, ...]:
+        rows = self._connection.execute(
+            "SELECT external_job_id FROM provider_jobs WHERE run_id = ? ORDER BY created_at, external_job_id",
+            (run_id,),
+        ).fetchall()
+        return tuple(self.get_provider_job(row[0]) for row in rows)
+
+    def list_provider_events(self, run_id: str) -> tuple[ProviderEvent, ...]:
+        rows = self._connection.execute(
+            """SELECT e.external_event_id FROM provider_events e JOIN provider_jobs j
+               ON j.external_job_id = e.external_job_id WHERE j.run_id = ?
+               ORDER BY e.created_at, e.external_event_id""",
+            (run_id,),
+        ).fetchall()
+        return tuple(self.get_provider_event(row[0]) for row in rows)
+
+    def generated_videos(self, run_id: str) -> tuple[ArtifactVersion, ...]:
+        rows = self._connection.execute(
+            """SELECT v.id FROM artifact_versions v JOIN provider_jobs j
+               ON j.external_job_id = v.external_job_id WHERE j.run_id = ?
+               AND v.kind = 'video' ORDER BY v.created_at, v.id""",
+            (run_id,),
+        ).fetchall()
+        return tuple(self.get_artifact_version(row[0]) for row in rows)
 
     def get_provider_job(self, external_job_id: str) -> ProviderJob:
         row = self._connection.execute(
