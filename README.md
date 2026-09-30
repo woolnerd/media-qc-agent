@@ -197,7 +197,7 @@ worker in another terminal using the same environment:
 PYTHONPATH=src python3 -m media_qc_agent.cli.worker
 ```
 
-The worker stores provider state in `.local/review.provider.sqlite3` and records
+The worker stores provider state in `.local/review.sqlite3.provider.sqlite3` and records
 submitted job IDs. Complete a fake job through the callback API to release its
 capacity. This loopback demo makes no live model or media-provider
 calls. See [the API guide](docs/architecture/review-api.md) for the flows and limits.

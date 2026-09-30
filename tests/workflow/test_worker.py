@@ -37,7 +37,7 @@ class WorkerTests(unittest.TestCase):
         self.addCleanup(directory.cleanup)
         self.path = Path(directory.name) / "workflow.sqlite3"
         self.database = Database(self.path)
-        self.provider_path = self.path.with_suffix(".provider.sqlite3")
+        self.provider_path = self.path.with_name(self.path.name + ".provider.sqlite3")
         self.provider = DurableFakeVideoProvider(self.provider_path)
         self.clock = Clock()
         with self.database.repository() as repository:
@@ -139,6 +139,50 @@ class WorkerTests(unittest.TestCase):
         )
         self.assertEqual(json.loads(result.stdout)["outcome"], "submitted")
         self.assertEqual(DurableFakeVideoProvider(self.provider_path).jobs_created, 1)
+
+    def run_cli(self, path: Path) -> None:
+        source = Path(__file__).resolve().parents[2] / "src"
+        subprocess.run(
+            [
+                sys.executable,
+                "-m",
+                "media_qc_agent.cli.worker",
+                "--once",
+                "--database",
+                str(path),
+            ],
+            env={**os.environ, "PYTHONPATH": str(source)},
+            capture_output=True,
+            text=True,
+            check=True,
+            timeout=10,
+        )
+
+    def test_different_database_extensions_do_not_share_provider_ledgers(self) -> None:
+        self.create()
+        other = self.path.with_suffix(".db")
+        with (
+            self.database.connection() as source,
+            Database(other).connection() as target,
+        ):
+            source.backup(target)
+        self.run_cli(self.path)
+        self.run_cli(other)
+        ledgers = [
+            path.with_name(path.name + ".provider.sqlite3")
+            for path in (self.path, other)
+        ]
+        for ledger in ledgers:
+            self.assertTrue(ledger.exists())
+            self.assertEqual(DurableFakeVideoProvider(ledger).jobs_created, 1)
+
+    def test_symlink_alias_uses_the_same_provider_ledger(self) -> None:
+        self.create()
+        alias = self.path.with_name("alias.sqlite3")
+        alias.symlink_to(self.path)
+        self.run_cli(alias)
+        self.assertEqual(self.provider.jobs_created, 1)
+        self.assertFalse(alias.with_name(alias.name + ".provider.sqlite3").exists())
 
     def test_two_workers_cannot_claim_the_same_live_lease(self) -> None:
         self.create()

@@ -21,7 +21,9 @@ PYTHONPATH=src python3 -m media_qc_agent.cli.worker --once
 ```
 
 `--database` defaults to `.local/review.sqlite3`, matching the API. The synthetic
-provider stores its ledger in the adjacent `.local/review.provider.sqlite3`.
+provider stores its ledger in `.local/review.sqlite3.provider.sqlite3`.
+The CLI resolves symlink paths and appends the provider suffix to the full
+workflow filename. Symlink aliases share a ledger; different file extensions stay isolated.
 Keep both files for restart recovery. `--owner` accepts a readable slug; its
 default includes the process ID. Multiple worker processes can share the same
 workflow/provider files. Each process handles one submission at a time.

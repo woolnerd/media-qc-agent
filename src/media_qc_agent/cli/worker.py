@@ -29,11 +29,14 @@ def main() -> None:
         validate_run_id(args.owner)
     except ValueError as error:
         parser.error(str(error))
-    database = Database(args.database)
-    args.database.parent.mkdir(parents=True, exist_ok=True)
+    workflow_path = args.database.resolve()
+    database = Database(workflow_path)
+    workflow_path.parent.mkdir(parents=True, exist_ok=True)
     with database.repository() as repository:
         repository.initialize()
-    provider = DurableFakeVideoProvider(args.database.with_suffix(".provider.sqlite3"))
+    provider = DurableFakeVideoProvider(
+        workflow_path.with_name(workflow_path.name + ".provider.sqlite3")
+    )
     worker = DurableWorker(
         database,
         provider,
