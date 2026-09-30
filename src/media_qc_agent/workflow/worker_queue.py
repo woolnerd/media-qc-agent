@@ -103,9 +103,9 @@ class SubmissionQueue:
 
     def claim(self, owner: str) -> SubmissionLease | None:
         validate_run_id(owner)
-        now = self.clock()
         with self.connection:
             self.connection.execute("BEGIN IMMEDIATE")
+            now = self.clock()
             row = self._candidate(now)
             if row is None:
                 return None
@@ -178,10 +178,10 @@ class SubmissionQueue:
             )
 
     def fail(self, lease: SubmissionLease, error: Exception, *, retryable: bool) -> str:
-        now = self.clock()
         stopped = not retryable or lease.attempt >= self.policy.max_attempts
         with self.connection:
             self.connection.execute("BEGIN IMMEDIATE")
+            now = self.clock()
             require_lease(self.connection, lease, now)
             self.connection.execute(
                 """UPDATE worker_attempts SET lease_owner = NULL, lease_until = NULL,

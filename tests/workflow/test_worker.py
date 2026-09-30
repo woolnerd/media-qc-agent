@@ -354,6 +354,34 @@ class WorkerTests(unittest.TestCase):
                     lease=lease,
                 )
 
+    def test_claim_starts_lease_after_acquiring_writer_transaction(self) -> None:
+        self.create()
+        with self.queue() as queue:
+
+            def acquiring_writer(statement: str) -> None:
+                if statement == "BEGIN IMMEDIATE":
+                    self.clock.now += 31
+
+            # Advance time while BEGIN executes, simulating time spent acquiring a writer.
+            queue.connection.set_trace_callback(acquiring_writer)
+            lease = queue.claim("worker-a")
+            assert lease is not None
+            self.assertEqual(lease.expires_at, self.clock.now + 30)
+
+    def test_failure_rechecks_expiry_after_acquiring_writer_transaction(self) -> None:
+        self.create()
+        with self.queue() as queue:
+            lease = queue.claim("worker-a")
+            assert lease is not None
+
+            def acquiring_writer(statement: str) -> None:
+                if statement == "BEGIN IMMEDIATE":
+                    self.clock.now = lease.expires_at
+
+            queue.connection.set_trace_callback(acquiring_writer)
+            with self.assertRaises(LeaseLost):
+                queue.fail(lease, TimeoutError(), retryable=True)
+
     def test_explicit_retry_does_not_hide_old_outstanding_job_from_capacity(
         self,
     ) -> None:
