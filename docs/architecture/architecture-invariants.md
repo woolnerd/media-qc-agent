@@ -24,7 +24,11 @@ The executor owns the external call. The provider must honor idempotency keys.
 The model has no approval or media-generation authority.
 
 The [local review API](review-api.md) validates HTTP input and delegates to the
-same repository commands. It records approvals without submitting provider work.
+same repository commands. Approval records READY. The explicit browser fault
+harness steps a targeted durable worker with the persistent fake provider;
+submission still uses the worker reservation and lease fences.
+[Browser boundary tests](../../tests/api/test_review.py) exercise exact-plan
+forms, targeted claims, restart recovery, duplicate callbacks, and escaping.
 [HTTP boundary tests](../../tests/api/test_app.py) challenge INV-01/02/05/06
 through stale edits, exact approval, scope expansion, callbacks, and caption repair.
 

@@ -72,6 +72,31 @@ def require_submission_lease(
     require_lease(connection, lease, now)
 
 
+def load_worker_policy(connection: sqlite3.Connection) -> WorkerPolicy:
+    row = connection.execute("SELECT * FROM worker_policy WHERE id = 1").fetchone()
+    if row is None:
+        return WorkerPolicy()
+    return WorkerPolicy(
+        max_in_flight=row["max_in_flight"],
+        max_attempts=row["max_attempts"],
+        lease_seconds=row["lease_seconds"],
+        backoff_seconds=row["backoff_seconds"],
+        max_backoff_seconds=row["max_backoff_seconds"],
+    )
+
+
+def outstanding_capacity(connection: sqlite3.Connection) -> int:
+    row = connection.execute(
+        """SELECT
+          (SELECT count(*) FROM provider_jobs j WHERE NOT EXISTS
+            (SELECT 1 FROM provider_events e WHERE e.external_job_id = j.external_job_id))
+          + (SELECT count(*) FROM workflow_runs pending WHERE pending.status = 'submitting'
+             AND NOT EXISTS (SELECT 1 FROM provider_jobs j
+               WHERE j.idempotency_key = pending.idempotency_key))"""
+    ).fetchone()
+    return int(row[0])
+
+
 class SubmissionQueue:
     def __init__(
         self,
@@ -101,12 +126,18 @@ class SubmissionQueue:
                     "workers sharing a database must use its persisted policy"
                 )
 
-    def claim(self, owner: str) -> SubmissionLease | None:
+    def claim(
+        self,
+        owner: str,
+        *,
+        run_id: str | None = None,
+        expected_plan_version_id: str | None = None,
+    ) -> SubmissionLease | None:
         validate_run_id(owner)
         with self.connection:
             self.connection.execute("BEGIN IMMEDIATE")
             now = self.clock()
-            row = self._candidate(now)
+            row = self._candidate(now, run_id, expected_plan_version_id)
             if row is None:
                 return None
             current = self.repository.get(row["run_id"])
@@ -127,7 +158,9 @@ class SubmissionQueue:
             )
             return lease
 
-    def _candidate(self, now: float) -> sqlite3.Row | None:
+    def _candidate(
+        self, now: float, run_id: str | None, expected_plan_version_id: str | None
+    ) -> sqlite3.Row | None:
         return self.connection.execute(
             """
             SELECT r.id AS run_id, p.id AS plan_version_id, coalesce(w.attempts, 0) AS attempts
@@ -137,19 +170,25 @@ class SubmissionQueue:
             JOIN plan_approvals a ON a.plan_version_id = p.id
             LEFT JOIN worker_attempts w ON w.plan_version_id = p.id
             WHERE r.status IN ('ready', 'submitting') AND r.action <> 'repair_captions'
+              AND (? IS NULL OR r.id = ?) AND (? IS NULL OR p.id = ?)
               AND coalesce(w.stopped, 0) = 0 AND coalesce(w.attempts, 0) < ?
               AND coalesce(w.next_attempt_at, 0) <= ?
               AND (w.lease_until IS NULL OR w.lease_until <= ?)
-              AND (r.status = 'submitting' OR
-                ((SELECT count(*) FROM provider_jobs j WHERE NOT EXISTS
-                   (SELECT 1 FROM provider_events e WHERE e.external_job_id = j.external_job_id))
-                 + (SELECT count(*) FROM workflow_runs pending WHERE pending.status = 'submitting'
-                    AND NOT EXISTS (SELECT 1 FROM provider_jobs j
-                      WHERE j.idempotency_key = pending.idempotency_key))) < ?)
+              AND (r.status = 'submitting' OR ? < ?)
             ORDER BY CASE r.status WHEN 'submitting' THEN 0 ELSE 1 END, r.created_at, r.id
             LIMIT 1
             """,
-            (self.policy.max_attempts, now, now, self.policy.max_in_flight),
+            (
+                run_id,
+                run_id,
+                expected_plan_version_id,
+                expected_plan_version_id,
+                self.policy.max_attempts,
+                now,
+                now,
+                outstanding_capacity(self.connection),
+                self.policy.max_in_flight,
+            ),
         ).fetchone()
 
     def _record_claim(self, lease: SubmissionLease) -> None:

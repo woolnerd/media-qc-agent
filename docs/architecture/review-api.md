@@ -12,7 +12,8 @@ python3 -m pip install -r requirements.txt
 PYTHONPATH=src python3 -m media_qc_agent.cli.serve
 ```
 
-Open <http://127.0.0.1:8000/docs> for interactive API documentation. State lives
+Open <http://127.0.0.1:8000/> for the [review surface](review-surface.md) or
+<http://127.0.0.1:8000/docs> for interactive API documentation. State lives
 in `.local/review.sqlite3`, ignored by Git. `--database /path/to/demo.sqlite3`
 and `--port 8001` override the defaults. Use a dedicated demo database; the
 `*-api-*` fixture namespace is reserved. Startup seeds immutable fixtures and
@@ -38,8 +39,9 @@ flowchart TD
 Handlers delegate transition decisions to the repository. Each synchronous
 request opens, uses, and closes its connection in the same thread, with foreign
 keys enabled on every connection. Approval records `ready`. External submission
-stays in the executor and [durable worker](durable-worker.md); a request never submits video
-work. Caption-only repair can complete locally after approval.
+stays in the executor and [durable worker](durable-worker.md). JSON review actions
+record state only. The browser fault harness can explicitly step a targeted
+worker using the persistent fake provider; it makes no live provider calls. Caption-only repair can complete locally after approval.
 
 ## Resources and commands
 
@@ -83,9 +85,11 @@ array; lineage is an ordered array of `[kind, version_id]` pairs.
 
 The command serves one process on loopback. Multiple server processes sharing
 startup seeding are unsupported. There is no authentication, callback signature
-verification, real media generation, artifact authoring API, or review UI (#18).
+verification, real media generation, or artifact authoring API.
 Keep this synthetic demo local; real ingress needs authentication and provider
-verification. Start the worker separately to execute approved video work.
+verification. Start the worker separately for automatic execution or step the synthetic worker
+through the browser controls. Review forms require the same Origin when supplied;
+allowed hosts are loopback/localhost and the test client. These guards are not authentication.
 
 [HTTP tests](../../tests/api/test_app.py) exercise all five scenarios, stale
 approvals and edits, repair scope, derived TTS, local captions, stale/duplicate

@@ -1,22 +1,31 @@
 """FastAPI factory for a single-process, local-only synthetic review demo."""
 
 import sqlite3
-from collections.abc import AsyncIterator
+import time
+from collections.abc import AsyncIterator, Callable
 from contextlib import asynccontextmanager
 from pathlib import Path
 
 from fastapi import FastAPI, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
+from starlette.middleware.trustedhost import TrustedHostMiddleware
 
 from media_qc_agent.api.actions import action_routes
+from media_qc_agent.api.demo_controls import DemoControls
+from media_qc_agent.api.review_routes import review_routes
 from media_qc_agent.api.scenarios import DEMO_NOTICE, seed_scenarios
 from media_qc_agent.api.views import read_routes
 from media_qc_agent.workflow.database import Database
 
 
-def create_app(database_path: Path | str = ".local/review.sqlite3") -> FastAPI:
+def create_app(
+    database_path: Path | str = ".local/review.sqlite3",
+    *,
+    clock: Callable[[], float] = time.time,
+) -> FastAPI:
     database = Database(Path(database_path))
+    controls = DemoControls(database, clock)
 
     @asynccontextmanager
     async def lifespan(app: FastAPI) -> AsyncIterator[None]:
@@ -24,6 +33,7 @@ def create_app(database_path: Path | str = ".local/review.sqlite3") -> FastAPI:
         with database.repository() as repository:
             repository.initialize()
             seed_scenarios(repository)
+        controls.initialize()
         yield
 
     app = FastAPI(
@@ -31,6 +41,10 @@ def create_app(database_path: Path | str = ".local/review.sqlite3") -> FastAPI:
     )
     app.include_router(read_routes(database))
     app.include_router(action_routes(database))
+    app.include_router(review_routes(database, controls))
+    app.add_middleware(
+        TrustedHostMiddleware, allowed_hosts=["127.0.0.1", "localhost", "testserver"]
+    )
     _register_errors(app)
     return app
 

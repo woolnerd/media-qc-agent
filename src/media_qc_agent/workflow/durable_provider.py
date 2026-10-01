@@ -6,6 +6,11 @@ from contextlib import closing
 from pathlib import Path
 
 
+def provider_ledger_path(workflow_path: Path) -> Path:
+    canonical = workflow_path.resolve()
+    return canonical.with_name(canonical.name + ".provider.sqlite3")
+
+
 class DurableFakeVideoProvider:
     def __init__(self, path: Path) -> None:
         self.path = path
@@ -52,3 +57,11 @@ class DurableFakeVideoProvider:
             )
         finally:
             connection.close()
+
+    def job_for_key(self, key: str) -> str | None:
+        with closing(sqlite3.connect(self.path)) as connection:
+            row = connection.execute(
+                "SELECT external_job_id FROM fake_provider_jobs WHERE idempotency_key = ?",
+                (key,),
+            ).fetchone()
+        return str(row[0]) if row else None

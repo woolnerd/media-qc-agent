@@ -23,6 +23,8 @@ not reproduce a former client product or claim production-scale readiness.
   ownership boundaries, and regression evidence.
 - [Quality gates](docs/development/quality-gates.md) — architecture review, failure scenarios,
   and adversarial review before merging.
+- [Review surface](docs/architecture/review-surface.md) — browser walkthrough, fault controls,
+  and architecture tradeoffs.
 - [Local review API](docs/architecture/review-api.md) — HTTP actions, architecture
   diagram, and local run instructions.
 - [Durable worker](docs/architecture/durable-worker.md) — leases, retry bounds,
@@ -56,6 +58,8 @@ A pass means only that the local rule did not fire.
 
 It currently demonstrates:
 
+- a browser review surface with immutable plans, exact approvals, evidence, lineage,
+  interruption recovery, and duplicate callback controls;
 - a local FastAPI boundary for five illustrative scenarios, findings, plan edits,
   exact approvals, caption repair, and fake-provider completion callbacks;
 - a durable worker with exact-plan leases, bounded recovery attempts, shared
@@ -93,7 +97,7 @@ It currently demonstrates:
 - recovery from a crash after provider acceptance without creating a second
   paid job.
 
-It does **not** yet inspect raw images or videos, provide a review UI, verify real
+It does **not** yet inspect raw images or videos, verify real
 provider callbacks, or generate caption content.
 An OpenRouter adapter can interpret text feedback with a low-cost model;
 see [`docs/agent/agent-interpretation.md`](docs/agent/agent-interpretation.md) for the explicit
@@ -189,8 +193,10 @@ python3 -m pip install -r requirements.txt
 PYTHONPATH=src python3 -m media_qc_agent.cli.serve
 ```
 
-Open <http://127.0.0.1:8000/docs> to try scenarios and review actions.
-State persists in `.local/review.sqlite3`. Approval records `ready`; start the
+Open <http://127.0.0.1:8000/> for the review lab or <http://127.0.0.1:8000/docs>
+for the JSON API. The UI can step the synthetic worker and inject an interruption;
+see [the browser walkthrough](docs/architecture/review-surface.md).
+State persists in `.local/review.sqlite3`. Approval records `ready`; for automatic execution, start the
 worker in another terminal using the same environment:
 
 ```bash
