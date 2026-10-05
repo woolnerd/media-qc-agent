@@ -191,6 +191,7 @@ class DemoControls:
             owner="review-demo",
             policy=policy,
             clock=self.clock,
+            observer=self.database.observer,
         )
         try:
             result = worker.run_once(

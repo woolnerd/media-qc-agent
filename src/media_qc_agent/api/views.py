@@ -43,6 +43,20 @@ def read_routes(database: Database) -> APIRouter:
                 "evidence": repository.get_quality_evidence(finding.id),
             }
 
+    @router.get("/runs/{run_id}/observability")
+    def observability(run_id: str) -> object:
+        with database.repository() as repository:
+            return {
+                "durable_counts": repository.execution_counts(run_id),
+                "job_timings": tuple(
+                    {
+                        "external_job_id": job.external_job_id,
+                        "timing": repository.get_job_timing(job.external_job_id),
+                    }
+                    for job in repository.list_provider_jobs(run_id)
+                ),
+            }
+
     @router.get("/runs/{run_id}/plans")
     def plans(run_id: str) -> object:
         with database.repository() as repository:

@@ -45,6 +45,7 @@ through stale edits, exact approval, scope expansion, callbacks, and caption rep
 | INV-07 | Accepted citations refer to supplied evidence records and artifact IDs. Facts, inferences, and uncertainty remain distinguishable. | Request and interpretation validation; evidence storage | [Interpretation tests](../../tests/agent/test_interpretation.py), [evidence tests](../../tests/domain/test_evidence.py) |
 | INV-08 | Worker claims bind the exact run and plan to an owner and attempt; expired owners cannot commit or change a newer lease. Recovery uses the same key and a durable bounded budget. | Queue claim and fenced repository transactions | [Worker tests](../../tests/workflow/test_worker.py) |
 | INV-09 | Worker capacity includes old outstanding jobs and uncertain reservations; requesting a retry or exhausting recovery does not silently free their slots. | Shared SQLite worker policy and claim transaction | [Worker capacity tests](../../tests/workflow/test_worker.py) |
+| INV-10 | Observability cannot initiate provider retries or undo commits. Commit events follow successful transactions; correlation uses the exact job/plan snapshot. | Isolated sinks, short spans, durable accounting | [Telemetry tests](../../tests/workflow/test_telemetry.py), [tracing tests](../../tests/workflow/test_tracing.py), [metrics tests](../../tests/workflow/test_metrics.py) |
 
 For each affected invariant, the PR should name a test and describe the failure
 sequence it rules out. Test counts alone are insufficient evidence.
