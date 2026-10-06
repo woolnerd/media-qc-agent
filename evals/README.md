@@ -41,6 +41,10 @@ one case with the configured OpenRouter model:
 PYTHONPATH=src python3 -m media_qc_agent.cli.evaluate --live --case-id caption-format-adversarial
 ```
 
+Add `--traces PATH` to write one JSONL record per case with the model and
+prompt version, synthetic inputs, raw output, outcome, and score. See
+[model traces](../docs/agent/model-traces.md).
+
 Omit `--case-id` to run all 15 cases live (one request per case, no retries).
 `OPENROUTER_MODEL` can override the low-cost default. `--dataset` selects a saved
 dataset path. The evaluator prints per-case failures and exits nonzero on any
@@ -69,8 +73,9 @@ repair approval. No repairs or provider video jobs were executed by this run.
 
 This small synthetic run is a baseline, not a representative accuracy estimate.
 The unit suite verifies all saved cases offline and includes incorrect and
-malicious response regressions. Prompt comparison, traces, broader evaluation
-metrics, and CI evaluation reports remain milestone 5 work.
+malicious response regressions. Prompt comparison, broader evaluation metrics,
+and CI evaluation reports remain milestone 5 work. Saved results
+predate prompt versioning and do not record a prompt version.
 
 ## Jev comparison
 

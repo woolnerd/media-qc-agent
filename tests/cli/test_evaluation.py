@@ -8,6 +8,10 @@ from pathlib import Path
 from typing import Any
 from unittest.mock import patch
 
+from opentelemetry.sdk.trace import TracerProvider
+from opentelemetry.sdk.trace.export import SimpleSpanProcessor
+from opentelemetry.sdk.trace.export.in_memory_span_exporter import InMemorySpanExporter
+
 from media_qc_agent.agent.contracts import FakeModelProvider
 from media_qc_agent.agent.interpretation import interpret_feedback
 from media_qc_agent.cli.evaluate import (
@@ -18,6 +22,7 @@ from media_qc_agent.cli.evaluate import (
     main,
     mask_version_labels,
     score_interpretation,
+    trace_record,
 )
 from media_qc_agent.domain.models import (
     ArtifactKind,
@@ -196,3 +201,105 @@ class EvaluationDatasetTests(unittest.TestCase):
                 path.write_text(json.dumps(sample))
                 with self.subTest(mutation=mutation), self.assertRaises(ValueError):
                     load_cases(path)
+
+
+class EvaluationTraceTests(unittest.TestCase):
+    def setUp(self) -> None:
+        self.exporter = InMemorySpanExporter()
+        provider = TracerProvider()
+        provider.add_span_processor(SimpleSpanProcessor(self.exporter))
+        self.addCleanup(provider.shutdown)
+        self.tracer = provider.get_tracer("test")
+        self.cases = {case.id: case for case in load_cases()}
+
+    def test_case_span_wraps_the_turn_and_records_the_score(self) -> None:
+        case = self.cases["visual-quality-adversarial"]
+        wrong = json.loads(case.fake_response)
+        wrong.update(
+            kind="caption_format", action="repair_captions", invalidates=["captions"]
+        )
+        provider = FakeModelProvider({case.request: json.dumps(wrong)})
+        result = evaluate_case(case, provider, tracer=self.tracer)
+        spans = {span.name: span for span in self.exporter.get_finished_spans()}
+        root = spans["eval.case"]
+        self.assertEqual(
+            spans["agent.interpret"].parent and spans["agent.interpret"].parent.span_id,
+            root.context.span_id,
+        )
+        self.assertEqual(
+            dict(root.attributes or {}),
+            {
+                "eval.case_id": case.id,
+                "eval.category": "adversarial",
+                "eval.passed": False,
+                "eval.failures": result.failures,
+            },
+        )
+        assert result.turn is not None
+        self.assertEqual(result.turn.trace_id, f"{root.context.trace_id:032x}")
+
+    def test_record_keeps_synthetic_inputs_output_version_and_score(self) -> None:
+        case = self.cases["environment-mismatch-clear"]
+        result = evaluate_case(case, fixture_provider((case,)), tracer=self.tracer)
+        record = json.loads(json.dumps(trace_record(case, result)))
+        self.assertEqual(
+            record["model"],
+            {"provider": "fake", "model": "fixture", "prompt_version": "fixture"},
+        )
+        self.assertEqual(record["case_id"], case.id)
+        self.assertEqual(record["category"], "clear")
+        self.assertEqual(
+            record["artifact_version_ids"], list(case.request.artifact_version_ids)
+        )
+        self.assertEqual(record["input"]["feedback"], case.request.feedback)
+        self.assertEqual(len(record["input"]["evidence"]), len(case.request.evidence))
+        self.assertEqual(record["raw_output"], case.fake_response)
+        self.assertEqual(record["outcome"], "accepted")
+        self.assertEqual(
+            record["interpretation"],
+            {
+                "kind": "environment_mismatch",
+                "clarification": "creative",
+                "cited_evidence_indices": list(case.expected.evidence_indices),
+                "repair_scopes": {
+                    "change_avatar": ["avatar", "captions", "video"],
+                    "revise_script": ["captions", "script", "tts_input", "video"],
+                },
+            },
+        )
+        self.assertEqual(record["score"], {"passed": True, "failures": []})
+        self.assertRegex(record["trace_id"], r"\A[0-9a-f]{32}\Z")
+
+    def test_rejected_output_is_recorded_without_an_interpretation(self) -> None:
+        case = self.cases["caption-format-adversarial"]
+        malicious = json.loads(case.fake_response)
+        malicious.update(action="regenerate_video", invalidates=["video", "captions"])
+        raw = json.dumps(malicious)
+        result = evaluate_case(case, FakeModelProvider({case.request: raw}))
+        record = trace_record(case, result)
+        self.assertEqual(record["outcome"], "rejected")
+        self.assertIsNone(record["interpretation"])
+        self.assertEqual(record["raw_output"], raw)
+        self.assertIsNone(record["trace_id"])
+        self.assertEqual(
+            record["score"],
+            {"passed": False, "failures": ["provider_or_validation_error"]},
+        )
+
+    def test_cli_writes_one_trace_line_per_case_and_reports_identity(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "nested" / "traces.jsonl"
+            output = io.StringIO()
+            with (
+                patch("sys.argv", ["evaluation", "--traces", str(path)]),
+                redirect_stdout(output),
+                self.assertRaises(SystemExit) as exit_context,
+            ):
+                main()
+            self.assertEqual(exit_context.exception.code, 0)
+            lines = [json.loads(line) for line in path.read_text().splitlines()]
+        report = json.loads(output.getvalue())
+        self.assertEqual(report["model"]["prompt_version"], "fixture")
+        self.assertEqual(report["traces"], str(path))
+        self.assertEqual([line["case_id"] for line in lines], list(self.cases))
+        self.assertTrue(all(line["score"]["passed"] for line in lines))

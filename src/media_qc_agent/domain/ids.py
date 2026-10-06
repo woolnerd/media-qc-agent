@@ -1,5 +1,6 @@
 """Small, readable ID contract for the synthetic workflow."""
 
+import hashlib
 import re
 
 from media_qc_agent.domain.models import ArtifactKind
@@ -12,6 +13,12 @@ _ARTIFACT_PREFIX = {
     ArtifactKind.VOICE: "voice-",
     ArtifactKind.CAPTIONS: "caption-",
 }
+
+
+def reference(value: str | None) -> str | None:
+    """SHA-256 correlation reference shared by every trace; not anonymization."""
+
+    return hashlib.sha256(value.encode()).hexdigest() if value is not None else None
 
 
 def validate_run_id(run_id: str) -> None:

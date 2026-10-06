@@ -6,10 +6,14 @@ import os
 from dataclasses import asdict, dataclass
 from typing import Any
 
-from media_qc_agent.agent.contracts import InterpretationRequest
+from media_qc_agent.agent.contracts import (
+    InterpretationRequest,
+    ModelIdentity,
+    prompt_version,
+)
 from media_qc_agent.agent.interpretation import MIN_CONFIDENCE
 from media_qc_agent.agent.openrouter import ModelProviderError, post_openrouter_json
-from media_qc_agent.domain.evidence import EvidenceRole
+from media_qc_agent.domain.evidence import EvidenceInput, EvidenceRole
 from media_qc_agent.domain.models import FailureKind, QualityFinding, RepairPlan
 from media_qc_agent.domain.planner import plan_repair
 
@@ -74,6 +78,19 @@ def jev_payload(request: InterpretationRequest, model: str) -> dict[str, Any]:
                 },
             }
     return {"model": model, "state": asdict(request), "questions": questions}
+
+
+# One fact exercises every question template; the probe text itself is constant.
+_PROMPT_PROBE = InterpretationRequest(
+    "probe", ("probe-1",), (EvidenceInput(EvidenceRole.FACT, "probe-1", "probe"),)
+)
+
+
+def jev_prompt_version() -> str:
+    """Version the question templates and criteria, independent of model choice."""
+
+    questions = jev_payload(_PROMPT_PROBE, "unversioned")["questions"]
+    return prompt_version("jev", questions)
 
 
 def _number(value: Any, *, probability: bool = True) -> float:
@@ -213,6 +230,10 @@ class JevModelProvider:
         self._api_key = api_key
         self._model = model
         self._timeout = timeout
+
+    @property
+    def identity(self) -> ModelIdentity:
+        return ModelIdentity("openrouter-jev", self._model, jev_prompt_version())
 
     @classmethod
     def from_environment(cls) -> "JevModelProvider":

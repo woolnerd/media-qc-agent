@@ -2,27 +2,34 @@
 
 import argparse
 import json
-from dataclasses import dataclass, replace
+from dataclasses import asdict, dataclass, replace
 from pathlib import Path
 from typing import Any
+
+from opentelemetry import trace
+from opentelemetry.trace import Tracer
 
 from media_qc_agent.agent.contracts import (
     FakeModelProvider,
     InterpretationRequest,
     ModelProvider,
 )
-from media_qc_agent.agent.interpretation import Interpretation, interpret_feedback
+from media_qc_agent.agent.interpretation import (
+    Interpretation,
+    clarification_type,
+    repair_scopes,
+)
 from media_qc_agent.agent.jev import JevModelProvider
-from media_qc_agent.agent.openrouter import ModelProviderError, OpenRouterModelProvider
+from media_qc_agent.agent.openrouter import OpenRouterModelProvider
+from media_qc_agent.agent.tracing import (
+    InterpretationTurn,
+    annotate,
+    interpret_traced,
+    safe_span,
+)
 from media_qc_agent.domain.evidence import EvidenceInput, EvidenceRole
 from media_qc_agent.domain.ids import validate_artifact_version_id, validate_external_id
-from media_qc_agent.domain.models import (
-    ArtifactKind,
-    ClarificationRequest,
-    FailureKind,
-    RepairAction,
-    RepairPlan,
-)
+from media_qc_agent.domain.models import ArtifactKind, FailureKind, RepairAction
 
 DEFAULT_DATASET = Path(__file__).resolve().parents[3] / "evals" / "agent-cases-v1.json"
 _CATEGORIES = {"clear", "ambiguous", "adversarial"}
@@ -52,6 +59,7 @@ class EvaluationCase:
 class CaseResult:
     case_id: str
     failures: tuple[str, ...]
+    turn: InterpretationTurn | None = None
 
     @property
     def passed(self) -> bool:
@@ -207,22 +215,6 @@ def mask_version_labels(case: EvaluationCase) -> EvaluationCase:
     return replace(case, request=request)
 
 
-def _repair_scopes(
-    result: Interpretation,
-) -> dict[RepairAction, frozenset[ArtifactKind]]:
-    if isinstance(result.decision, RepairPlan):
-        return {result.decision.action: result.decision.invalidates}
-    if isinstance(result.decision, ClarificationRequest):
-        return {option.action: option.invalidates for option in result.decision.options}
-    return {}
-
-
-def _clarification_type(result: Interpretation) -> str:
-    if result.clarification is not None:
-        return "diagnostic"
-    return "creative" if isinstance(result.decision, ClarificationRequest) else "none"
-
-
 def score_interpretation(case: EvaluationCase, result: Interpretation) -> CaseResult:
     expected = case.expected
     failures = []
@@ -232,9 +224,9 @@ def score_interpretation(case: EvaluationCase, result: Interpretation) -> CaseRe
         case.request.evidence[i] for i in expected.evidence_indices
     }:
         failures.append("evidence")
-    if _clarification_type(result) != expected.clarification:
+    if clarification_type(result) != expected.clarification:
         failures.append("clarification")
-    scopes = _repair_scopes(result)
+    scopes = repair_scopes(result)
     if (
         scopes != dict(expected.invalidations_by_action)
         or set(scopes) & expected.forbidden_actions
@@ -243,12 +235,91 @@ def score_interpretation(case: EvaluationCase, result: Interpretation) -> CaseRe
     return CaseResult(case.id, tuple(failures))
 
 
-def evaluate_case(case: EvaluationCase, provider: ModelProvider) -> CaseResult:
-    try:
-        result = interpret_feedback(provider, case.request)
-    except (ValueError, ModelProviderError):
-        return CaseResult(case.id, ("provider_or_validation_error",))
-    return score_interpretation(case, result)
+def score_turn(case: EvaluationCase, turn: InterpretationTurn) -> CaseResult:
+    """Keep failure labels stable so new runs compare with saved results."""
+
+    if turn.interpretation is None:
+        return CaseResult(case.id, ("provider_or_validation_error",), turn)
+    return replace(score_interpretation(case, turn.interpretation), turn=turn)
+
+
+def evaluate_case(
+    case: EvaluationCase, provider: ModelProvider, *, tracer: Tracer | None = None
+) -> CaseResult:
+    """Score one traced turn; the score is recorded on the enclosing case span."""
+
+    tracer = tracer or trace.get_tracer("media_qc_agent.evaluation")
+    with safe_span(tracer, "eval.case") as span:
+        result = score_turn(
+            case, interpret_traced(provider, case.request, tracer=tracer)
+        )
+        annotate(
+            span,
+            {
+                "eval.case_id": case.id,
+                "eval.category": case.category,
+                "eval.passed": result.passed,
+                "eval.failures": result.failures,
+            },
+        )
+    return result
+
+
+def _interpretation_record(
+    request: InterpretationRequest, interpretation: Interpretation | None
+) -> dict[str, Any] | None:
+    if interpretation is None:
+        return None
+    finding = interpretation.finding
+    return {
+        "kind": finding.kind.value if finding else None,
+        "clarification": clarification_type(interpretation),
+        "cited_evidence_indices": [
+            request.evidence.index(item) for item in interpretation.evidence
+        ],
+        "repair_scopes": {
+            action.value: sorted(kind.value for kind in kinds)
+            for action, kinds in sorted(repair_scopes(interpretation).items())
+        },
+    }
+
+
+def trace_record(case: EvaluationCase, result: CaseResult) -> dict[str, Any]:
+    """Full synthetic inputs and outputs for one case; never for real review data.
+
+    `trace_id` joins the record to exported spans when a tracer SDK is configured.
+    """
+
+    turn = result.turn
+    if turn is None:
+        raise ValueError("case result has no recorded interpretation turn")
+    return {
+        "case_id": case.id,
+        "category": case.category,
+        "failure_class": case.failure_class.value,
+        "model": asdict(turn.identity),
+        "trace_id": turn.trace_id,
+        "artifact_version_ids": list(turn.request.artifact_version_ids),
+        "input": {
+            "feedback": turn.request.feedback,
+            "evidence": [asdict(item) for item in turn.request.evidence],
+        },
+        "raw_output": turn.raw_output,
+        "outcome": turn.outcome.value,
+        "interpretation": _interpretation_record(turn.request, turn.interpretation),
+        "score": {"passed": result.passed, "failures": list(result.failures)},
+    }
+
+
+def write_traces(
+    path: Path, cases: tuple[EvaluationCase, ...], results: tuple[CaseResult, ...]
+) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    lines = (
+        json.dumps(trace_record(case, result))
+        for case, result in zip(cases, results, strict=True)
+    )
+    path.write_text("".join(f"{line}\n" for line in lines))
 
 
 def main() -> None:
@@ -271,6 +342,11 @@ def main() -> None:
         action="store_true",
         help="Make a paid OpenRouter request per selected case",
     )
+    parser.add_argument(
+        "--traces",
+        type=Path,
+        help="Write one JSONL trace record per case (synthetic data only)",
+    )
     args = parser.parse_args()
     cases = load_cases(args.dataset)
     if args.mask_version_labels:
@@ -281,11 +357,15 @@ def main() -> None:
             parser.error("case ID was not found")
     provider = _evaluation_provider(cases, live=args.live, provider_name=args.provider)
     results = tuple(evaluate_case(case, provider) for case in cases)
+    if args.traces:
+        write_traces(args.traces, cases, results)
     print(
         json.dumps(
             {
                 "mode": "live" if args.live else "fixture",
                 "provider": args.provider if args.live else "fake",
+                "model": asdict(provider.identity),
+                "traces": str(args.traces) if args.traces else None,
                 "version_labels_masked": args.mask_version_labels,
                 "passed": sum(result.passed for result in results),
                 "total": len(results),

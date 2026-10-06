@@ -8,7 +8,11 @@ from typing import Any
 from urllib.error import HTTPError, URLError
 from urllib.request import Request, urlopen
 
-from media_qc_agent.agent.contracts import InterpretationRequest
+from media_qc_agent.agent.contracts import (
+    InterpretationRequest,
+    ModelIdentity,
+    prompt_version,
+)
 from media_qc_agent.domain.models import (
     ArtifactKind,
     FailureKind,
@@ -126,6 +130,13 @@ class OpenRouterModelProvider:
         self._api_key = api_key
         self._model = model
         self._timeout = timeout
+
+    @property
+    def identity(self) -> ModelIdentity:
+        prompt = {"system": _system_prompt(), "schema": classification_schema()}
+        return ModelIdentity(
+            "openrouter-chat", self._model, prompt_version("chat", prompt)
+        )
 
     @classmethod
     def from_environment(cls) -> "OpenRouterModelProvider":

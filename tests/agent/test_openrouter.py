@@ -7,6 +7,7 @@ from urllib.error import HTTPError, URLError
 from media_qc_agent.agent.contracts import InterpretationRequest, ModelProvider
 from media_qc_agent.agent.openrouter import (
     DEFAULT_MODEL,
+    LUNA_MODEL,
     ModelProviderError,
     OpenRouterModelProvider,
 )
@@ -145,3 +146,18 @@ class OpenRouterTests(unittest.TestCase):
         for timeout in (0, -1, float("nan")):
             with self.assertRaises(ValueError):
                 OpenRouterModelProvider(api_key="test", timeout=timeout)
+
+    def test_identity_versions_prompt_and_schema_independently_of_model(
+        self,
+    ) -> None:
+        luna = OpenRouterModelProvider(api_key="k").identity
+        other = OpenRouterModelProvider(api_key="k", model="google/test").identity
+        self.assertEqual((luna.provider, luna.model), ("openrouter-chat", LUNA_MODEL))
+        self.assertEqual(other.model, "google/test")
+        self.assertEqual(luna.prompt_version, other.prompt_version)
+        self.assertTrue(luna.prompt_version.startswith("chat:"))
+        with patch(
+            "media_qc_agent.agent.openrouter._system_prompt", return_value="changed"
+        ):
+            changed = OpenRouterModelProvider(api_key="k").identity
+        self.assertNotEqual(changed.prompt_version, luna.prompt_version)
