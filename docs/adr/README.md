@@ -34,3 +34,4 @@ If a decision changes, add a new ADR that supersedes the old one.
 - [`0022-render-local-review-and-fault-controls.md`](0022-render-local-review-and-fault-controls.md)
 - [`0023-observe-workflow-without-controlling-it.md`](0023-observe-workflow-without-controlling-it.md)
 - [`0024-trace-model-turns-separately-from-evaluation-records.md`](0024-trace-model-turns-separately-from-evaluation-records.md)
+- [`0025-compare-acceptance-policies-on-recorded-outputs.md`](0025-compare-acceptance-policies-on-recorded-outputs.md)

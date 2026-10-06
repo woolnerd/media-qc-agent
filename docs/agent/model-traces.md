@@ -14,6 +14,10 @@ Editing either produces a new version without a manual label. Model choice is a
 separate field, so a model can change while the prompt version stays fixed.
 Fixture replay reports `fake/fixture/fixture`.
 
+The acceptance policy that decides authority versus abstention is versioned
+separately (`confidence-v1`, `grounded-scope-v2`). It is not part of the
+prompt, so turns, spans, and evaluation records carry `policy_version` too.
+
 The chat prompt embeds the repair policy, so a policy change also changes the
 chat prompt version. Sampling parameters are not part of the version.
 
@@ -21,7 +25,7 @@ chat prompt version. Sampling parameters are not part of the version.
 
 | Span | Kind | Attributes |
 | --- | --- | --- |
-| `agent.interpret` | Internal | `gen_ai.operation.name`, `gen_ai.provider.name`, `gen_ai.request.model`, `agent.prompt.version`, `agent.artifact_refs`, optional `workflow.run_ref`, `agent.outcome` |
+| `agent.interpret` | Internal | `gen_ai.operation.name`, `gen_ai.provider.name`, `gen_ai.request.model`, `agent.prompt.version`, `agent.policy.version`, `agent.artifact_refs`, optional `workflow.run_ref`, `agent.outcome` |
 | `agent.diagnose` | Client | `error.type=provider_error` on failure |
 | `agent.plan` | Internal | `agent.outcome`, `agent.failure_kind`, `agent.repair_actions`, `agent.clarification`, `agent.cited_evidence`; `error.type=validation_rejected` on rejection |
 | `eval.case` | Internal, evaluator only | `eval.case_id`, `eval.category`, `eval.passed`, `eval.failures` |
@@ -49,7 +53,7 @@ not a parent span, because diagnosis finishes before the run exists.
 
 `python -m media_qc_agent.cli.evaluate --traces PATH` writes one JSON line per
 case: model identity, `trace_id`, exact artifact versions, feedback, evidence,
-raw output, outcome, validated interpretation, and score. The records hold
+raw output, outcome, validated interpretation, policy version, and score. The records hold
 full content because the evaluation cases are synthetic. Do not write records
 for real review data. `trace_id` is null unless a tracer SDK is configured.
 
@@ -61,4 +65,5 @@ which share the `provider_or_validation_error` score label.
 
 Traces describe what a model returned and how policy handled it; they are not
 accuracy measurements. Fixture records test wiring only. Comparing prompt or
-policy versions and running evaluations as a CI gate are separate work.
+policy versions on recorded outputs is described in
+[policy comparison](policy-comparison.md).

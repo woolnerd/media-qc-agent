@@ -25,6 +25,15 @@ class CommandEntrypointTests(unittest.TestCase):
             )
         return json.loads(result.stdout)
 
+    def test_policy_comparison_command_matches_saved_snapshot(self) -> None:
+        snapshot = Path(__file__).resolve().parents[2] / "evals" / "results"
+        result = self.run_command(
+            "media_qc_agent.cli.compare",
+            "--expect",
+            str(snapshot / "policy-comparison-v1.json"),
+        )
+        self.assertEqual(result["default_policy"], "confidence-v1")
+
     def test_workflow_demo_command(self) -> None:
         result = self.run_command("media_qc_agent.cli.demo")
         self.assertEqual(result["status"], "succeeded")

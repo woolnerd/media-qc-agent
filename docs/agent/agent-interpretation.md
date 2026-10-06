@@ -45,8 +45,11 @@ null), and `invalidates` (unique artifact kinds). Extra fields, duplicate keys,
 unknown values, malformed JSON and out-of-range references are rejected.
 
 `interpret_feedback` independently validates output after any provider call.
-Confidence below 0.8, no cited facts, or a null diagnosis yields clarification
-with no finding or executable decision. Unsupported diagnoses are rejected.
+Under the default `confidence-v1` acceptance policy, confidence below 0.8, no
+cited facts, or a null diagnosis yields clarification with no finding or
+executable decision. The candidate `grounded-scope-v2` policy also abstains
+unless a cited fact is on an artifact the repair would replace; see
+[policy comparison](policy-comparison.md). Unsupported diagnoses are rejected.
 Every proposal must match the exact action and invalidations from `plan_repair`;
 overrepair and underrepair both fail. An environment mismatch cannot select a
 creative branch; deterministic policy returns its human clarification request.

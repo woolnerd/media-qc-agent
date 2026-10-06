@@ -44,3 +44,5 @@ jobs:
         run: python -m media_qc_agent.cli.demo
       - name: Replay offline evaluation fixtures
         run: python -m media_qc_agent.cli.evaluate --mask-version-labels
+      - name: Compare policy versions on recorded outputs
+        run: python -m media_qc_agent.cli.compare --expect evals/results/policy-comparison-v1.json > /dev/null

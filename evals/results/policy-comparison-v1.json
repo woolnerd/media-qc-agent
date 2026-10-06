@@ -1,0 +1,226 @@
+{
+  "default_policy": "confidence-v1",
+  "policies": {
+    "confidence-v1": {
+      "version": "confidence-v1",
+      "min_confidence": 0.8,
+      "require_grounded_scope": false
+    },
+    "grounded-scope-v2": {
+      "version": "grounded-scope-v2",
+      "min_confidence": 0.8,
+      "require_grounded_scope": true
+    }
+  },
+  "runs": {
+    "fixture": {
+      "model": {
+        "provider": "fake",
+        "model": "fixture",
+        "prompt_version": "fixture"
+      },
+      "by_policy": {
+        "confidence-v1": {
+          "passed": 15,
+          "total": 15,
+          "false_passes": 0,
+          "false_blocks": 0,
+          "other_failures": 0,
+          "errors": {}
+        },
+        "grounded-scope-v2": {
+          "passed": 15,
+          "total": 15,
+          "false_passes": 0,
+          "false_blocks": 0,
+          "other_failures": 0,
+          "errors": {}
+        }
+      }
+    },
+    "gemini-unmasked-2026-09-29": {
+      "model": {
+        "provider": "openrouter-chat",
+        "model": "google/gemini-3.1-flash-lite",
+        "prompt_version": "unrecorded"
+      },
+      "by_policy": {
+        "confidence-v1": {
+          "passed": 14,
+          "total": 15,
+          "false_passes": 1,
+          "false_blocks": 0,
+          "other_failures": 0,
+          "errors": {
+            "tts-input-compatibility-adversarial": {
+              "type": "false_pass",
+              "failures": [
+                "classification",
+                "repair_scope"
+              ]
+            }
+          }
+        },
+        "grounded-scope-v2": {
+          "passed": 14,
+          "total": 15,
+          "false_passes": 0,
+          "false_blocks": 1,
+          "other_failures": 0,
+          "errors": {
+            "tts-input-compatibility-adversarial": {
+              "type": "false_block",
+              "failures": [
+                "classification",
+                "clarification",
+                "repair_scope"
+              ]
+            }
+          }
+        }
+      }
+    },
+    "gemini-masked-2026-09-29": {
+      "model": {
+        "provider": "openrouter-chat",
+        "model": "google/gemini-3.1-flash-lite",
+        "prompt_version": "unrecorded"
+      },
+      "by_policy": {
+        "confidence-v1": {
+          "passed": 14,
+          "total": 15,
+          "false_passes": 1,
+          "false_blocks": 0,
+          "other_failures": 0,
+          "errors": {
+            "tts-input-compatibility-adversarial": {
+              "type": "false_pass",
+              "failures": [
+                "classification",
+                "repair_scope"
+              ]
+            }
+          }
+        },
+        "grounded-scope-v2": {
+          "passed": 14,
+          "total": 15,
+          "false_passes": 0,
+          "false_blocks": 1,
+          "other_failures": 0,
+          "errors": {
+            "tts-input-compatibility-adversarial": {
+              "type": "false_block",
+              "failures": [
+                "classification",
+                "clarification",
+                "repair_scope"
+              ]
+            }
+          }
+        }
+      }
+    },
+    "jev-masked-2026-09-29": {
+      "model": {
+        "provider": "openrouter-jev",
+        "model": "typesafe/jev-1.13-20260917",
+        "prompt_version": "unrecorded"
+      },
+      "by_policy": {
+        "confidence-v1": {
+          "passed": 14,
+          "total": 15,
+          "false_passes": 0,
+          "false_blocks": 1,
+          "other_failures": 0,
+          "errors": {
+            "tts-input-compatibility-adversarial": {
+              "type": "false_block",
+              "failures": [
+                "classification",
+                "evidence",
+                "clarification",
+                "repair_scope"
+              ]
+            }
+          }
+        },
+        "grounded-scope-v2": {
+          "passed": 14,
+          "total": 15,
+          "false_passes": 0,
+          "false_blocks": 1,
+          "other_failures": 0,
+          "errors": {
+            "tts-input-compatibility-adversarial": {
+              "type": "false_block",
+              "failures": [
+                "classification",
+                "evidence",
+                "clarification",
+                "repair_scope"
+              ]
+            }
+          }
+        }
+      }
+    },
+    "luna-masked-2026-09-29": {
+      "model": {
+        "provider": "openrouter-chat",
+        "model": "openai/gpt-6-luna",
+        "prompt_version": "unrecorded"
+      },
+      "by_policy": {
+        "confidence-v1": {
+          "passed": 14,
+          "total": 15,
+          "false_passes": 0,
+          "false_blocks": 0,
+          "other_failures": 1,
+          "errors": {
+            "visual-quality-ambiguous": {
+              "type": "other_failure",
+              "failures": [
+                "evidence"
+              ]
+            }
+          }
+        },
+        "grounded-scope-v2": {
+          "passed": 14,
+          "total": 15,
+          "false_passes": 0,
+          "false_blocks": 0,
+          "other_failures": 1,
+          "errors": {
+            "visual-quality-ambiguous": {
+              "type": "other_failure",
+              "failures": [
+                "evidence"
+              ]
+            }
+          }
+        }
+      }
+    }
+  },
+  "totals": {
+    "confidence-v1": {
+      "passed": 71,
+      "total": 75,
+      "false_passes": 2,
+      "false_blocks": 1,
+      "other_failures": 1
+    },
+    "grounded-scope-v2": {
+      "passed": 71,
+      "total": 75,
+      "false_passes": 0,
+      "false_blocks": 3,
+      "other_failures": 1
+    }
+  }
+}

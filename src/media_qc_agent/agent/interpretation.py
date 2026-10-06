@@ -7,6 +7,7 @@ from typing import Any
 
 from media_qc_agent.agent.contracts import InterpretationRequest, ModelProvider
 from media_qc_agent.domain.evidence import EvidenceInput, EvidenceRole
+from media_qc_agent.domain.ids import artifact_kind
 from media_qc_agent.domain.models import (
     ArtifactKind,
     ClarificationRequest,
@@ -25,6 +26,30 @@ _FIELDS = {
     "evidence_indices",
     "action",
     "invalidates",
+}
+
+
+@dataclass(frozen=True)
+class AcceptancePolicy:
+    """When a valid diagnosis gains repair authority instead of abstaining.
+
+    Versioned so evaluations can compare policies on the same saved outputs.
+    Structural validation and minimum-repair scope never vary by policy.
+    """
+
+    version: str
+    min_confidence: float = MIN_CONFIDENCE
+    require_grounded_scope: bool = False
+
+
+CONFIDENCE_POLICY = AcceptancePolicy("confidence-v1")
+# A cited fact must be on an artifact the repair replaces; unknown IDs never are.
+GROUNDED_SCOPE_POLICY = AcceptancePolicy(
+    "grounded-scope-v2", require_grounded_scope=True
+)
+DEFAULT_POLICY = CONFIDENCE_POLICY
+POLICIES = {
+    policy.version: policy for policy in (CONFIDENCE_POLICY, GROUNDED_SCOPE_POLICY)
 }
 
 
@@ -105,7 +130,36 @@ def _validate_policy(
         raise ValueError("model proposal violates minimum-repair policy")
 
 
-def validate_interpretation(raw: str, request: InterpretationRequest) -> Interpretation:
+def _decision_scopes(
+    decision: RepairPlan | ClarificationRequest | None,
+) -> dict[RepairAction, frozenset[ArtifactKind]]:
+    if isinstance(decision, RepairPlan):
+        return {decision.action: decision.invalidates}
+    if isinstance(decision, ClarificationRequest):
+        return {option.action: option.invalidates for option in decision.options}
+    return {}
+
+
+def _has_authority(
+    policy: AcceptancePolicy,
+    finding: QualityFinding,
+    decision: RepairPlan | ClarificationRequest,
+    evidence: tuple[EvidenceInput, ...],
+) -> bool:
+    facts = [item for item in evidence if item.role is EvidenceRole.FACT]
+    if finding.confidence < policy.min_confidence or not facts:
+        return False
+    if not policy.require_grounded_scope:
+        return True
+    replaced = frozenset().union(*_decision_scopes(decision).values())
+    return any(artifact_kind(item.artifact_version_id) in replaced for item in facts)
+
+
+def validate_interpretation(
+    raw: str,
+    request: InterpretationRequest,
+    policy: AcceptancePolicy = DEFAULT_POLICY,
+) -> Interpretation:
     """Accept only known diagnoses grounded in supplied facts, without side effects.
 
     Evidence citations identify supplied records, never model-invented facts.
@@ -127,9 +181,7 @@ def validate_interpretation(raw: str, request: InterpretationRequest) -> Interpr
     )
     decision = plan_repair(finding)
     _validate_policy(decision, action, invalidates)
-    if finding.confidence < MIN_CONFIDENCE or not any(
-        item.role is EvidenceRole.FACT for item in evidence
-    ):
+    if not _has_authority(policy, finding, decision, evidence):
         return Interpretation(
             None,
             None,
@@ -144,11 +196,7 @@ def repair_scopes(
 ) -> dict[RepairAction, frozenset[ArtifactKind]]:
     """Every repair the decision would allow, including offered creative branches."""
 
-    if isinstance(result.decision, RepairPlan):
-        return {result.decision.action: result.decision.invalidates}
-    if isinstance(result.decision, ClarificationRequest):
-        return {option.action: option.invalidates for option in result.decision.options}
-    return {}
+    return _decision_scopes(result.decision)
 
 
 def clarification_type(result: Interpretation) -> str:

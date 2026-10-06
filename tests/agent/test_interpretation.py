@@ -4,6 +4,10 @@ from typing import Any
 
 from media_qc_agent.agent.contracts import FakeModelProvider, InterpretationRequest
 from media_qc_agent.agent.interpretation import (
+    CONFIDENCE_POLICY,
+    DEFAULT_POLICY,
+    GROUNDED_SCOPE_POLICY,
+    POLICIES,
     interpret_feedback,
     validate_interpretation,
 )
@@ -132,3 +136,79 @@ class InterpretationTests(unittest.TestCase):
                 self.assertRaises(ValueError),
             ):
                 validate_interpretation(json.dumps(output), self.request)
+
+
+class AcceptancePolicyTests(unittest.TestCase):
+    """Policies decide only authority versus abstention for valid output."""
+
+    def request(self, *fact_versions: str) -> InterpretationRequest:
+        versions = ("script-1", "tts-1", "avatar-1", "voice-1", "video:job-1")
+        return InterpretationRequest(
+            "Synthetic feedback",
+            versions + ("caption-1",),
+            tuple(
+                EvidenceInput(EvidenceRole.FACT, version, "Synthetic fact")
+                for version in fact_versions
+            ),
+        )
+
+    def test_versions_are_unique_and_production_default_is_unchanged(self) -> None:
+        self.assertEqual(set(POLICIES), {"confidence-v1", "grounded-scope-v2"})
+        self.assertIs(DEFAULT_POLICY, CONFIDENCE_POLICY)
+        self.assertEqual(
+            CONFIDENCE_POLICY.min_confidence, GROUNDED_SCOPE_POLICY.min_confidence
+        )
+
+    def test_grounded_scope_abstains_when_no_fact_is_on_a_replaced_artifact(
+        self,
+    ) -> None:
+        # A recorded live output cited a TTS-input fact for a caption-only repair.
+        request = self.request("tts-1")
+        raw = json.dumps(output_for(FailureKind.CAPTION_FORMAT))
+        accepted = validate_interpretation(raw, request, CONFIDENCE_POLICY)
+        self.assertIsNotNone(accepted.finding)
+        held = validate_interpretation(raw, request, GROUNDED_SCOPE_POLICY)
+        self.assertIsNone(held.finding)
+        self.assertIsNone(held.decision)
+        self.assertEqual(held.evidence, request.evidence)
+        self.assertIsNotNone(held.clarification)
+
+    def test_grounded_scope_accepts_facts_inside_the_offered_scope(self) -> None:
+        for kind, fact_versions in (
+            (FailureKind.SCRIPT_QUALITY, ("script-1",)),
+            (FailureKind.TTS_INPUT_COMPATIBILITY, ("tts-1",)),
+            (FailureKind.CAPTION_FORMAT, ("voice-1", "caption-1")),
+            (FailureKind.VISUAL_QUALITY, ("video:job-1",)),
+            (FailureKind.ENVIRONMENT_MISMATCH, ("avatar-1",)),
+        ):
+            output = output_for(kind)
+            output["evidence_indices"] = list(range(len(fact_versions)))
+            with self.subTest(kind=kind):
+                result = validate_interpretation(
+                    json.dumps(output),
+                    self.request(*fact_versions),
+                    GROUNDED_SCOPE_POLICY,
+                )
+                assert result.finding is not None
+                self.assertEqual(result.decision, plan_repair(result.finding))
+
+    def test_grounded_scope_ignores_unrecognized_version_ids(self) -> None:
+        request = InterpretationRequest(
+            "Jerky",
+            ("video-1",),
+            (EvidenceInput(EvidenceRole.FACT, "video-1", "Same-shot jump"),),
+        )
+        raw = json.dumps(output_for(FailureKind.VISUAL_QUALITY))
+        self.assertIsNotNone(validate_interpretation(raw, request).finding)
+        self.assertIsNone(
+            validate_interpretation(raw, request, GROUNDED_SCOPE_POLICY).finding
+        )
+
+    def test_policies_do_not_relax_structural_or_scope_validation(self) -> None:
+        output = output_for(FailureKind.CAPTION_FORMAT)
+        output.update(action="regenerate_video", invalidates=["video", "captions"])
+        for policy in POLICIES.values():
+            with self.subTest(policy=policy.version), self.assertRaises(ValueError):
+                validate_interpretation(
+                    json.dumps(output), self.request("caption-1"), policy
+                )

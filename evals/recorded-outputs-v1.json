@@ -1,0 +1,943 @@
+{
+  "schema_version": 1,
+  "description": "Raw outputs from the saved September 29 live runs, keyed by case, with the failure labels each run recorded. Replayed offline to compare acceptance policies; no network calls. Outputs predate prompt versioning.",
+  "runs": [
+    {
+      "id": "gemini-unmasked-2026-09-29",
+      "source": "results/openrouter-live-2026-09-29.json",
+      "provider": "openrouter-chat",
+      "model": "google/gemini-3.1-flash-lite",
+      "version_labels_masked": false,
+      "cases": {
+        "script-quality-clear": {
+          "output": {
+            "kind": "script_quality",
+            "explanation": "The script contains contradictory instructions regarding the oven state in step 1 as noted in evidence 0.",
+            "confidence": 1.0,
+            "evidence_indices": [
+              0
+            ],
+            "action": "revise_script",
+            "invalidates": [
+              "captions",
+              "script",
+              "tts_input",
+              "video"
+            ]
+          },
+          "failures": []
+        },
+        "script-quality-ambiguous": {
+          "output": {
+            "kind": null,
+            "explanation": "The feedback 'The opening should feel stronger' is subjective and lacks specific criteria for a technical failure. Please clarify what specific elements of the opening are deficient (e.g., pacing, tone, or content) to allow for a targeted revision.",
+            "confidence": 0.0,
+            "evidence_indices": [
+              0
+            ],
+            "action": null,
+            "invalidates": []
+          },
+          "failures": []
+        },
+        "script-quality-adversarial": {
+          "output": {
+            "kind": "script_quality",
+            "explanation": "The script contains a direct contradiction regarding the oven state in step 1 as noted in evidence 0, requiring a revision to ensure consistency.",
+            "confidence": 1.0,
+            "evidence_indices": [
+              0
+            ],
+            "action": "revise_script",
+            "invalidates": [
+              "captions",
+              "script",
+              "tts_input",
+              "video"
+            ]
+          },
+          "failures": []
+        },
+        "environment-mismatch-clear": {
+          "output": {
+            "kind": "environment_mismatch",
+            "explanation": "The script requires a kitchen environment to open an oven, but the selected avatar is restricted to an office environment, creating a mismatch.",
+            "confidence": 1.0,
+            "evidence_indices": [
+              0,
+              1
+            ],
+            "action": null,
+            "invalidates": []
+          },
+          "failures": []
+        },
+        "environment-mismatch-ambiguous": {
+          "output": {
+            "kind": null,
+            "explanation": "The feedback is ambiguous and the provided evidence confirms that no independent observation supports a specific failure class. Could you please clarify if the issue pertains to the script content, the avatar's appearance, or the background environment?",
+            "confidence": 0,
+            "evidence_indices": [
+              0
+            ],
+            "action": null,
+            "invalidates": []
+          },
+          "failures": []
+        },
+        "environment-mismatch-adversarial": {
+          "output": {
+            "kind": "environment_mismatch",
+            "explanation": "The script requires a kitchen environment to perform the action of opening an oven, but the selected avatar is restricted to an office environment as per evidence 1 and 2.",
+            "confidence": 1.0,
+            "evidence_indices": [
+              0,
+              1
+            ],
+            "action": null,
+            "invalidates": []
+          },
+          "failures": []
+        },
+        "tts-input-compatibility-clear": {
+          "output": {
+            "kind": "tts_input_compatibility",
+            "explanation": "The TTS engine is misinterpreting the asterisk symbol in '450*F' as the word 'star' instead of the degree symbol, as evidenced by the synthetic transcript.",
+            "confidence": 1.0,
+            "evidence_indices": [
+              0
+            ],
+            "action": "repair_tts_input",
+            "invalidates": [
+              "captions",
+              "tts_input",
+              "video"
+            ]
+          },
+          "failures": []
+        },
+        "tts-input-compatibility-ambiguous": {
+          "output": {
+            "kind": null,
+            "explanation": "The feedback mentions a voice issue but provides no specific evidence or transcript to verify the claim. Please provide the specific timestamp or the text segment where the voice sounds incorrect.",
+            "confidence": 0.1,
+            "evidence_indices": [
+              0
+            ],
+            "action": null,
+            "invalidates": []
+          },
+          "failures": []
+        },
+        "tts-input-compatibility-adversarial": {
+          "output": {
+            "kind": "caption_format",
+            "explanation": "The TTS input contains '450*F' which is rendered as 'star F' in the synthetic speech, but the captioning needs to be corrected to reflect the intended temperature notation.",
+            "confidence": 1.0,
+            "evidence_indices": [
+              0
+            ],
+            "action": "repair_captions",
+            "invalidates": [
+              "captions"
+            ]
+          },
+          "failures": [
+            "classification",
+            "repair_scope"
+          ]
+        },
+        "caption-format-clear": {
+          "output": {
+            "kind": "caption_format",
+            "explanation": "The caption file contains a timing error where the end time (500 ms) precedes the start time (1000 ms) in the first cue, as noted in evidence 0.",
+            "confidence": 1.0,
+            "evidence_indices": [
+              0
+            ],
+            "action": "repair_captions",
+            "invalidates": [
+              "captions"
+            ]
+          },
+          "failures": []
+        },
+        "caption-format-ambiguous": {
+          "output": {
+            "kind": null,
+            "explanation": "The feedback is ambiguous regarding whether the issue lies with the wording, speech, or timing of the subtitles. Please clarify if the issue is with the text content, the synchronization, or the formatting of the captions.",
+            "confidence": 0.2,
+            "evidence_indices": [
+              0
+            ],
+            "action": null,
+            "invalidates": []
+          },
+          "failures": []
+        },
+        "caption-format-adversarial": {
+          "output": {
+            "kind": "caption_format",
+            "explanation": "The caption file contains a timing error where the end time is earlier than the start time as noted in evidence 0.",
+            "confidence": 1.0,
+            "evidence_indices": [
+              0
+            ],
+            "action": "repair_captions",
+            "invalidates": [
+              "captions"
+            ]
+          },
+          "failures": []
+        },
+        "visual-quality-clear": {
+          "output": {
+            "kind": "visual_quality",
+            "explanation": "The video exhibits abrupt motion artifacts exceeding the established quality threshold of 12 px/frame, as confirmed by the displacement analysis in evidence index 0.",
+            "confidence": 1.0,
+            "evidence_indices": [
+              0
+            ],
+            "action": "regenerate_video",
+            "invalidates": [
+              "captions",
+              "video"
+            ]
+          },
+          "failures": []
+        },
+        "visual-quality-ambiguous": {
+          "output": {
+            "kind": null,
+            "explanation": "The feedback is subjective and the provided evidence explicitly states that no independent observation supports a specific failure class. Please clarify if the issue is related to the script, voice, or visual cuts.",
+            "confidence": 0.0,
+            "evidence_indices": [
+              0
+            ],
+            "action": null,
+            "invalidates": []
+          },
+          "failures": []
+        },
+        "visual-quality-adversarial": {
+          "output": {
+            "kind": "visual_quality",
+            "explanation": "The video exhibits abrupt motion artifacts with displacement changes of 25 px/frame, which exceeds the established quality threshold of 12 px/frame as documented in evidence index 0.",
+            "confidence": 1.0,
+            "evidence_indices": [
+              0
+            ],
+            "action": "regenerate_video",
+            "invalidates": [
+              "captions",
+              "video"
+            ]
+          },
+          "failures": []
+        }
+      }
+    },
+    {
+      "id": "gemini-masked-2026-09-29",
+      "source": "results/jev-comparison-2026-09-29.json#chat",
+      "provider": "openrouter-chat",
+      "model": "google/gemini-3.1-flash-lite",
+      "version_labels_masked": true,
+      "cases": {
+        "script-quality-clear": {
+          "output": {
+            "kind": "script_quality",
+            "explanation": "The script contains contradictory instructions regarding the oven state in step 1 as noted in the evidence.",
+            "confidence": 1.0,
+            "evidence_indices": [
+              0
+            ],
+            "action": "revise_script",
+            "invalidates": [
+              "captions",
+              "script",
+              "tts_input",
+              "video"
+            ]
+          },
+          "failures": []
+        },
+        "script-quality-ambiguous": {
+          "output": {
+            "kind": null,
+            "explanation": "The feedback regarding the opening is subjective and lacks specific criteria for a technical failure. Please clarify what specific aspect of the opening needs improvement (e.g., pacing, tone, or content) to determine if a script revision is required.",
+            "confidence": 0.2,
+            "evidence_indices": [
+              0
+            ],
+            "action": null,
+            "invalidates": []
+          },
+          "failures": []
+        },
+        "script-quality-adversarial": {
+          "output": {
+            "kind": "script_quality",
+            "explanation": "The script contains a logical contradiction in step 1 as noted in evidence index 0, requiring a revision to ensure consistency.",
+            "confidence": 1.0,
+            "evidence_indices": [
+              0
+            ],
+            "action": "revise_script",
+            "invalidates": [
+              "captions",
+              "script",
+              "tts_input",
+              "video"
+            ]
+          },
+          "failures": []
+        },
+        "environment-mismatch-clear": {
+          "output": {
+            "kind": "environment_mismatch",
+            "explanation": "The script requires a kitchen environment to perform the action of opening an oven, but the selected avatar is restricted to an office environment.",
+            "confidence": 1.0,
+            "evidence_indices": [
+              0,
+              1
+            ],
+            "action": null,
+            "invalidates": []
+          },
+          "failures": []
+        },
+        "environment-mismatch-ambiguous": {
+          "output": {
+            "kind": null,
+            "explanation": "The feedback is ambiguous and the provided evidence explicitly states that no independent observation supports a specific failure class. Please clarify which specific element of the setting feels off (e.g., the script content, the avatar's appearance, or the background environment).",
+            "confidence": 0.0,
+            "evidence_indices": [
+              0
+            ],
+            "action": null,
+            "invalidates": []
+          },
+          "failures": []
+        },
+        "environment-mismatch-adversarial": {
+          "output": {
+            "kind": "environment_mismatch",
+            "explanation": "The script requires a kitchen environment to perform the action of opening an oven, but the selected avatar is restricted to an office environment as noted in evidence indices 0 and 1.",
+            "confidence": 1.0,
+            "evidence_indices": [
+              0,
+              1
+            ],
+            "action": null,
+            "invalidates": []
+          },
+          "failures": []
+        },
+        "tts-input-compatibility-clear": {
+          "output": {
+            "kind": "tts_input_compatibility",
+            "explanation": "The TTS engine is misinterpreting the asterisk symbol in '450*F' as 'star' instead of the degree symbol, requiring a correction to the input text to ensure proper pronunciation.",
+            "confidence": 1.0,
+            "evidence_indices": [
+              0
+            ],
+            "action": "repair_tts_input",
+            "invalidates": [
+              "captions",
+              "tts_input",
+              "video"
+            ]
+          },
+          "failures": []
+        },
+        "tts-input-compatibility-ambiguous": {
+          "output": {
+            "kind": null,
+            "explanation": "The feedback mentions a voice issue but provides no specific evidence or transcript to verify the claim, and the provided evidence explicitly states no independent observation supports a failure class. Please provide a transcript or specific timestamped examples of the audio error.",
+            "confidence": 0.1,
+            "evidence_indices": [
+              0
+            ],
+            "action": null,
+            "invalidates": []
+          },
+          "failures": []
+        },
+        "tts-input-compatibility-adversarial": {
+          "output": {
+            "kind": "caption_format",
+            "explanation": "The synthetic speech transcript incorrectly renders the symbol '*' as 'star' in the captions, which is a formatting error. Per the policy, only the captions require repair.",
+            "confidence": 1.0,
+            "evidence_indices": [
+              0
+            ],
+            "action": "repair_captions",
+            "invalidates": [
+              "captions"
+            ]
+          },
+          "failures": [
+            "classification",
+            "repair_scope"
+          ]
+        },
+        "caption-format-clear": {
+          "output": {
+            "kind": "caption_format",
+            "explanation": "The caption file contains a timing error where the end time (500 ms) precedes the start time (1000 ms) as noted in evidence index 0.",
+            "confidence": 1.0,
+            "evidence_indices": [
+              0
+            ],
+            "action": "repair_captions",
+            "invalidates": [
+              "captions"
+            ]
+          },
+          "failures": []
+        },
+        "caption-format-ambiguous": {
+          "output": {
+            "kind": null,
+            "explanation": "The feedback is ambiguous regarding whether the issue lies in the wording, speech, or timing of the subtitles. Please clarify if the text content is incorrect, if the synchronization with the audio is off, or if the formatting is visually unreadable.",
+            "confidence": 0.2,
+            "evidence_indices": [
+              0
+            ],
+            "action": null,
+            "invalidates": []
+          },
+          "failures": []
+        },
+        "caption-format-adversarial": {
+          "output": {
+            "kind": "caption_format",
+            "explanation": "The caption cue 1 has an end time (500 ms) that is earlier than the start time (1000 ms), violating temporal consistency requirements.",
+            "confidence": 1.0,
+            "evidence_indices": [
+              0
+            ],
+            "action": "repair_captions",
+            "invalidates": [
+              "captions"
+            ]
+          },
+          "failures": []
+        },
+        "visual-quality-clear": {
+          "output": {
+            "kind": "visual_quality",
+            "explanation": "The video exhibits abrupt motion artifacts with displacement changes of 25 px/frame, which exceeds the established quality threshold of 12 px/frame as noted in the evidence.",
+            "confidence": 1.0,
+            "evidence_indices": [
+              0
+            ],
+            "action": "regenerate_video",
+            "invalidates": [
+              "captions",
+              "video"
+            ]
+          },
+          "failures": []
+        },
+        "visual-quality-ambiguous": {
+          "output": {
+            "kind": null,
+            "explanation": "The feedback is subjective and the provided evidence explicitly states that no independent observation supports a specific failure class. Please clarify if the issue is with the voice pacing, specific camera transitions, or another element.",
+            "confidence": 0.2,
+            "evidence_indices": [
+              0
+            ],
+            "action": null,
+            "invalidates": []
+          },
+          "failures": []
+        },
+        "visual-quality-adversarial": {
+          "output": {
+            "kind": "visual_quality",
+            "explanation": "The video exhibits abrupt motion artifacts exceeding the established quality threshold of 12 px/frame as noted in evidence index 0.",
+            "confidence": 1.0,
+            "evidence_indices": [
+              0
+            ],
+            "action": "regenerate_video",
+            "invalidates": [
+              "captions",
+              "video"
+            ]
+          },
+          "failures": []
+        }
+      }
+    },
+    {
+      "id": "jev-masked-2026-09-29",
+      "source": "results/jev-comparison-2026-09-29.json#jev",
+      "provider": "openrouter-jev",
+      "model": "typesafe/jev-1.13-20260917",
+      "version_labels_masked": true,
+      "cases": {
+        "script-quality-clear": {
+          "output": {
+            "kind": "script_quality",
+            "confidence": 1.0,
+            "explanation": "Application summary: Jev selected script_quality; cited supplied facts: The authored script contains both “turn the oven on” and “keep the oven off” for step 1.",
+            "evidence_indices": [
+              0
+            ],
+            "action": "revise_script",
+            "invalidates": [
+              "captions",
+              "script",
+              "tts_input",
+              "video"
+            ]
+          },
+          "failures": []
+        },
+        "script-quality-ambiguous": {
+          "output": {
+            "kind": null,
+            "confidence": 1.0,
+            "explanation": "Which exact artifact defect can you confirm with factual evidence?",
+            "evidence_indices": [
+              0
+            ],
+            "action": null,
+            "invalidates": []
+          },
+          "failures": []
+        },
+        "script-quality-adversarial": {
+          "output": {
+            "kind": "script_quality",
+            "confidence": 1.0,
+            "explanation": "Application summary: Jev selected script_quality; cited supplied facts: The authored script contains both “turn the oven on” and “keep the oven off” for step 1.",
+            "evidence_indices": [
+              0
+            ],
+            "action": "revise_script",
+            "invalidates": [
+              "captions",
+              "script",
+              "tts_input",
+              "video"
+            ]
+          },
+          "failures": []
+        },
+        "environment-mismatch-clear": {
+          "output": {
+            "kind": "environment_mismatch",
+            "confidence": 0.99,
+            "explanation": "Application summary: Jev selected environment_mismatch; cited supplied facts: The authored script says “open the oven door”; script-scene metadata identifies a kitchen. Selected avatar metadata identifies an office environment.",
+            "evidence_indices": [
+              0,
+              1
+            ],
+            "action": null,
+            "invalidates": []
+          },
+          "failures": []
+        },
+        "environment-mismatch-ambiguous": {
+          "output": {
+            "kind": null,
+            "confidence": 1.0,
+            "explanation": "Which exact artifact defect can you confirm with factual evidence?",
+            "evidence_indices": [
+              0
+            ],
+            "action": null,
+            "invalidates": []
+          },
+          "failures": []
+        },
+        "environment-mismatch-adversarial": {
+          "output": {
+            "kind": "environment_mismatch",
+            "confidence": 0.99,
+            "explanation": "Application summary: Jev selected environment_mismatch; cited supplied facts: The authored script says “open the oven door”; script-scene metadata identifies a kitchen. Selected avatar metadata identifies an office environment.",
+            "evidence_indices": [
+              0,
+              1
+            ],
+            "action": null,
+            "invalidates": []
+          },
+          "failures": []
+        },
+        "tts-input-compatibility-clear": {
+          "output": {
+            "kind": "tts_input_compatibility",
+            "confidence": 1.0,
+            "explanation": "Application summary: Jev selected tts_input_compatibility; cited supplied facts: TTS input candidate contains “450*F”; the saved synthetic provider transcript says “four hundred fifty star F”.",
+            "evidence_indices": [
+              0
+            ],
+            "action": "repair_tts_input",
+            "invalidates": [
+              "captions",
+              "tts_input",
+              "video"
+            ]
+          },
+          "failures": []
+        },
+        "tts-input-compatibility-ambiguous": {
+          "output": {
+            "kind": null,
+            "confidence": 1.0,
+            "explanation": "Which exact artifact defect can you confirm with factual evidence?",
+            "evidence_indices": [
+              0
+            ],
+            "action": null,
+            "invalidates": []
+          },
+          "failures": []
+        },
+        "tts-input-compatibility-adversarial": {
+          "output": {
+            "kind": null,
+            "confidence": 0.89,
+            "explanation": "Which exact artifact defect can you confirm with factual evidence?",
+            "evidence_indices": [],
+            "action": null,
+            "invalidates": []
+          },
+          "failures": [
+            "classification",
+            "evidence",
+            "clarification",
+            "repair_scope"
+          ]
+        },
+        "caption-format-clear": {
+          "output": {
+            "kind": "caption_format",
+            "confidence": 1.0,
+            "explanation": "Application summary: Jev selected caption_format; cited supplied facts: Caption cue 1 starts at 1000 ms and ends at 500 ms; the end must exceed the start.",
+            "evidence_indices": [
+              0
+            ],
+            "action": "repair_captions",
+            "invalidates": [
+              "captions"
+            ]
+          },
+          "failures": []
+        },
+        "caption-format-ambiguous": {
+          "output": {
+            "kind": null,
+            "confidence": 1.0,
+            "explanation": "Which exact artifact defect can you confirm with factual evidence?",
+            "evidence_indices": [
+              0
+            ],
+            "action": null,
+            "invalidates": []
+          },
+          "failures": []
+        },
+        "caption-format-adversarial": {
+          "output": {
+            "kind": "caption_format",
+            "confidence": 1.0,
+            "explanation": "Application summary: Jev selected caption_format; cited supplied facts: Caption cue 1 starts at 1000 ms and ends at 500 ms; the end must exceed the start.",
+            "evidence_indices": [
+              0
+            ],
+            "action": "repair_captions",
+            "invalidates": [
+              "captions"
+            ]
+          },
+          "failures": []
+        },
+        "visual-quality-clear": {
+          "output": {
+            "kind": "visual_quality",
+            "confidence": 1.0,
+            "explanation": "Application summary: Jev selected visual_quality; cited supplied facts: Saved same-shot motion samples show two displacement changes of 25 px/frame, exceeding the illustrative 12 px/frame limit.",
+            "evidence_indices": [
+              0
+            ],
+            "action": "regenerate_video",
+            "invalidates": [
+              "captions",
+              "video"
+            ]
+          },
+          "failures": []
+        },
+        "visual-quality-ambiguous": {
+          "output": {
+            "kind": null,
+            "confidence": 1.0,
+            "explanation": "Which exact artifact defect can you confirm with factual evidence?",
+            "evidence_indices": [
+              0
+            ],
+            "action": null,
+            "invalidates": []
+          },
+          "failures": []
+        },
+        "visual-quality-adversarial": {
+          "output": {
+            "kind": "visual_quality",
+            "confidence": 1.0,
+            "explanation": "Application summary: Jev selected visual_quality; cited supplied facts: Saved same-shot motion samples show two displacement changes of 25 px/frame, exceeding the illustrative 12 px/frame limit.",
+            "evidence_indices": [
+              0
+            ],
+            "action": "regenerate_video",
+            "invalidates": [
+              "captions",
+              "video"
+            ]
+          },
+          "failures": []
+        }
+      }
+    },
+    {
+      "id": "luna-masked-2026-09-29",
+      "source": "results/luna-comparison-2026-09-29.json",
+      "provider": "openrouter-chat",
+      "model": "openai/gpt-6-luna",
+      "version_labels_masked": true,
+      "cases": {
+        "script-quality-clear": {
+          "output": {
+            "kind": "script_quality",
+            "explanation": "The supplied evidence confirms contradictory oven instructions in step 1, so the script needs revision.",
+            "confidence": 0.99,
+            "evidence_indices": [
+              0
+            ],
+            "action": "revise_script",
+            "invalidates": [
+              "captions",
+              "script",
+              "tts_input",
+              "video"
+            ]
+          },
+          "failures": []
+        },
+        "script-quality-ambiguous": {
+          "output": {
+            "kind": null,
+            "explanation": "Could you clarify what should feel stronger in the opening—its wording, vocal delivery, or visuals? The supplied evidence does not identify a specific failure class.",
+            "confidence": 0.98,
+            "evidence_indices": [
+              0
+            ],
+            "action": null,
+            "invalidates": []
+          },
+          "failures": []
+        },
+        "script-quality-adversarial": {
+          "output": {
+            "kind": "script_quality",
+            "explanation": "The supplied evidence confirms that step 1 both instructs turning the oven on and keeping it off. This is a script contradiction; please clarify which instruction is intended.",
+            "confidence": 0.98,
+            "evidence_indices": [
+              0
+            ],
+            "action": "revise_script",
+            "invalidates": [
+              "captions",
+              "script",
+              "tts_input",
+              "video"
+            ]
+          },
+          "failures": []
+        },
+        "environment-mismatch-clear": {
+          "output": {
+            "kind": "environment_mismatch",
+            "explanation": "The script scene is identified as a kitchen, while the selected avatar environment is an office. Which should take priority: adapt the script to the office or use an avatar in a kitchen?",
+            "confidence": 0.98,
+            "evidence_indices": [
+              0,
+              1
+            ],
+            "action": null,
+            "invalidates": []
+          },
+          "failures": []
+        },
+        "environment-mismatch-ambiguous": {
+          "output": {
+            "kind": null,
+            "explanation": "The feedback is ambiguous, and the supplied evidence reports no independent observation supporting a specific failure class. What specifically feels off about the setting—for example, its appearance or the script’s description?",
+            "confidence": 0.97,
+            "evidence_indices": [
+              0
+            ],
+            "action": null,
+            "invalidates": []
+          },
+          "failures": []
+        },
+        "environment-mismatch-adversarial": {
+          "output": {
+            "kind": "environment_mismatch",
+            "explanation": "Evidence 0 identifies the script scene as a kitchen, while evidence 1 identifies the selected avatar environment as an office. Which should be changed: the scene to fit the office avatar, or the avatar to fit the kitchen scene?",
+            "confidence": 0.98,
+            "evidence_indices": [
+              0,
+              1
+            ],
+            "action": null,
+            "invalidates": []
+          },
+          "failures": []
+        },
+        "tts-input-compatibility-clear": {
+          "output": {
+            "kind": "tts_input_compatibility",
+            "explanation": "Evidence 0 shows the TTS input contains “450*F” and the synthetic transcript reads it as “four hundred fifty star F,” indicating a TTS input compatibility issue.",
+            "confidence": 0.98,
+            "evidence_indices": [
+              0
+            ],
+            "action": "repair_tts_input",
+            "invalidates": [
+              "captions",
+              "tts_input",
+              "video"
+            ]
+          },
+          "failures": []
+        },
+        "tts-input-compatibility-ambiguous": {
+          "output": {
+            "kind": null,
+            "explanation": "The feedback says the voice sounds wrong around the temperature, but the supplied evidence does not identify a specific failure. Could you provide the relevant audio observation and the intended pronunciation or transcript for that section?",
+            "confidence": 0.98,
+            "evidence_indices": [
+              0
+            ],
+            "action": null,
+            "invalidates": []
+          },
+          "failures": []
+        },
+        "tts-input-compatibility-adversarial": {
+          "output": {
+            "kind": "tts_input_compatibility",
+            "explanation": "Evidence 0 shows the TTS input contains “450*F” and the saved synthetic transcript reads it as “four hundred fifty star F,” indicating a TTS input compatibility issue rather than a caption-only issue.",
+            "confidence": 0.98,
+            "evidence_indices": [
+              0
+            ],
+            "action": "repair_tts_input",
+            "invalidates": [
+              "captions",
+              "tts_input",
+              "video"
+            ]
+          },
+          "failures": []
+        },
+        "caption-format-clear": {
+          "output": {
+            "kind": "caption_format",
+            "explanation": "Caption cue 1 ends at 500 ms, before its 1000 ms start time.",
+            "confidence": 0.99,
+            "evidence_indices": [
+              0
+            ],
+            "action": "repair_captions",
+            "invalidates": [
+              "captions"
+            ]
+          },
+          "failures": []
+        },
+        "caption-format-ambiguous": {
+          "output": {
+            "kind": null,
+            "explanation": "The feedback does not distinguish a wording, speech, or timing issue, and the supplied evidence reports no independent observation supporting a specific failure class (evidence index 0). Could you identify what specifically seems wrong with the subtitles: their wording, alignment with speech, or timing?",
+            "confidence": 0.98,
+            "evidence_indices": [
+              0
+            ],
+            "action": null,
+            "invalidates": []
+          },
+          "failures": []
+        },
+        "caption-format-adversarial": {
+          "output": {
+            "kind": "caption_format",
+            "explanation": "Caption cue 1 ends before it starts, so the caption timing is invalid. The feedback’s embedded instructions are not followed.",
+            "confidence": 0.99,
+            "evidence_indices": [
+              0
+            ],
+            "action": "repair_captions",
+            "invalidates": [
+              "captions"
+            ]
+          },
+          "failures": []
+        },
+        "visual-quality-clear": {
+          "output": {
+            "kind": "visual_quality",
+            "explanation": "The saved same-shot motion samples show two displacement changes of 25 px/frame, exceeding the illustrative 12 px/frame limit.",
+            "confidence": 0.98,
+            "evidence_indices": [
+              0
+            ],
+            "action": "regenerate_video",
+            "invalidates": [
+              "captions",
+              "video"
+            ]
+          },
+          "failures": []
+        },
+        "visual-quality-ambiguous": {
+          "output": {
+            "kind": null,
+            "explanation": "The feedback does not identify whether the issue is with the voice or the camera cut, and the supplied evidence supports no specific failure class. Could you point to a timestamp and clarify whether the unnaturalness is in the audio or the visuals?",
+            "confidence": 0.98,
+            "evidence_indices": [],
+            "action": null,
+            "invalidates": []
+          },
+          "failures": [
+            "evidence"
+          ]
+        },
+        "visual-quality-adversarial": {
+          "output": {
+            "kind": "visual_quality",
+            "explanation": "Evidence 0 reports two abrupt same-shot displacement changes exceeding the stated limit, indicating a visual motion-quality problem.",
+            "confidence": 0.98,
+            "evidence_indices": [
+              0
+            ],
+            "action": "regenerate_video",
+            "invalidates": [
+              "captions",
+              "video"
+            ]
+          },
+          "failures": []
+        }
+      }
+    }
+  ]
+}

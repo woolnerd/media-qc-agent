@@ -21,6 +21,18 @@ def reference(value: str | None) -> str | None:
     return hashlib.sha256(value.encode()).hexdigest() if value is not None else None
 
 
+def artifact_kind(version_id: str) -> ArtifactKind | None:
+    """Kind named by a well-formed version ID's prefix; None when unrecognized."""
+
+    if version_id.startswith("video:"):
+        return ArtifactKind.VIDEO if version_id.removeprefix("video:").strip() else None
+    for kind, prefix in _ARTIFACT_PREFIX.items():
+        suffix = version_id.removeprefix(prefix)
+        if version_id.startswith(prefix) and _SLUG.fullmatch(suffix):
+            return kind
+    return None
+
+
 def validate_run_id(run_id: str) -> None:
     """Run IDs are caller-chosen lowercase slugs with no delimiters."""
 

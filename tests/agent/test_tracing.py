@@ -11,6 +11,7 @@ from opentelemetry.sdk.trace.export.in_memory_span_exporter import InMemorySpanE
 from opentelemetry.trace import StatusCode
 
 from media_qc_agent.agent.contracts import FakeModelProvider, InterpretationRequest
+from media_qc_agent.agent.interpretation import GROUNDED_SCOPE_POLICY
 from media_qc_agent.agent.openrouter import ModelProviderError
 from media_qc_agent.agent.tracing import TurnOutcome, interpret_traced
 from media_qc_agent.cli.evaluate import EvaluationCase, fixture_provider, load_cases
@@ -61,6 +62,7 @@ class InterpretationTracingTests(unittest.TestCase):
                 "gen_ai.provider.name": "fake",
                 "gen_ai.request.model": "fixture",
                 "agent.prompt.version": "fixture",
+                "agent.policy.version": "confidence-v1",
                 "agent.artifact_refs": tuple(
                     reference(v) for v in case.request.artifact_version_ids
                 ),
@@ -167,3 +169,24 @@ class InterpretationTracingTests(unittest.TestCase):
         turn = interpret_traced(fixture_provider((case,)), case.request)
         self.assertIs(turn.outcome, TurnOutcome.ACCEPTED)
         self.assertIsNone(turn.trace_id)
+
+    def test_policy_version_is_traced_and_ungrounded_output_abstains(self) -> None:
+        case = _case("tts-input-compatibility-adversarial")
+        wrong = json.loads(case.fake_response)
+        wrong.update(
+            kind="caption_format", action="repair_captions", invalidates=["captions"]
+        )
+        turn = interpret_traced(
+            FakeModelProvider({case.request: json.dumps(wrong)}),
+            case.request,
+            tracer=self.tracer,
+            policy=GROUNDED_SCOPE_POLICY,
+        )
+        self.assertIs(turn.outcome, TurnOutcome.ABSTAINED)
+        self.assertEqual(turn.policy_version, "grounded-scope-v2")
+        spans = self.spans()
+        self.assertEqual(
+            _attributes(spans["agent.interpret"])["agent.policy.version"],
+            "grounded-scope-v2",
+        )
+        self.assertEqual(_attributes(spans["agent.plan"])["agent.outcome"], "abstained")

@@ -42,7 +42,8 @@ PYTHONPATH=src python3 -m media_qc_agent.cli.evaluate --live --case-id caption-f
 ```
 
 Add `--traces PATH` to write one JSONL record per case with the model and
-prompt version, synthetic inputs, raw output, outcome, and score. See
+prompt version, acceptance policy version, synthetic inputs, raw output, outcome,
+and score. `--policy grounded-scope-v2` replays under the candidate policy. See
 [model traces](../docs/agent/model-traces.md).
 
 Omit `--case-id` to run all 15 cases live (one request per case, no retries).
@@ -73,9 +74,7 @@ repair approval. No repairs or provider video jobs were executed by this run.
 
 This small synthetic run is a baseline, not a representative accuracy estimate.
 The unit suite verifies all saved cases offline and includes incorrect and
-malicious response regressions. Prompt comparison, broader evaluation metrics,
-and CI evaluation reports remain milestone 5 work. Saved results
-predate prompt versioning and do not record a prompt version.
+malicious response regressions. Saved results predate prompt versioning and do not record a prompt version.
 
 ## Jev comparison
 
@@ -101,3 +100,27 @@ cost was $0.001838600 and median elapsed time was 3.290 seconds. Its request
 had to omit `temperature` for OpenRouter's strict routing; the chat adapter now
 does so for Luna, which is the low-cost pilot default. See the
 [experiment note](../docs/agent/jev-classification.md) for the method and limits.
+
+## Policy comparison in CI
+
+[`recorded-outputs-v1.json`](recorded-outputs-v1.json) collects the raw outputs
+and recorded failure labels from the three September 29 result files above:
+four runs, 60 outputs. A unit test checks every entry against its source file.
+CI replays those outputs and the saved fixtures under each acceptance policy
+version and requires the result to match
+[`results/policy-comparison-v1.json`](results/policy-comparison-v1.json):
+
+```bash
+PYTHONPATH=src python3 -m media_qc_agent.cli.compare --expect evals/results/policy-comparison-v1.json
+```
+
+| Policy | Passed | False passes | False blocks | Other failures |
+| --- | --- | --- | --- | --- |
+| `confidence-v1` (default) | 71/75 | 2 | 1 | 1 |
+| `grounded-scope-v2` | 71/75 | 0 | 3 | 1 |
+
+Both Gemini false passes on the adversarial TTS case become false blocks under
+`grounded-scope-v2`; nothing else changes. No network calls are made. After an
+intentional change, regenerate the snapshot by running the command without
+`--expect` and redirecting stdout, then explain the diff in the PR. See
+[policy comparison](../docs/agent/policy-comparison.md) for definitions and limits.
