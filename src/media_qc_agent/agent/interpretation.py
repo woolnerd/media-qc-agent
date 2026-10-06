@@ -41,6 +41,13 @@ class AcceptancePolicy:
     min_confidence: float = MIN_CONFIDENCE
     require_grounded_scope: bool = False
 
+    def __post_init__(self) -> None:
+        if not self.version.strip():
+            raise ValueError("policy version must not be blank")
+        # Policies may only tighten acceptance, never lower the confidence floor.
+        if not MIN_CONFIDENCE <= self.min_confidence <= 1:
+            raise ValueError("min_confidence must be between the floor and one")
+
 
 CONFIDENCE_POLICY = AcceptancePolicy("confidence-v1")
 # A cited fact must be on an artifact the repair replaces; unknown IDs never are.

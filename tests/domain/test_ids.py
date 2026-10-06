@@ -43,7 +43,15 @@ class IdContractTests(unittest.TestCase):
         ):
             with self.subTest(version_id=version_id):
                 self.assertIs(artifact_kind(version_id), kind)
-        for unknown in ("video-1", "captions-1", "script-", "Script-1", ""):
+        for unknown in (
+            "video-1",
+            "video:",
+            "video: ",
+            "captions-1",
+            "script-",
+            "Script-1",
+            "",
+        ):
             with self.subTest(unknown=unknown):
                 self.assertIsNone(artifact_kind(unknown))
 

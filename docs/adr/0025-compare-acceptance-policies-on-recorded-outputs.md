@@ -16,7 +16,8 @@ default. Add `grounded-scope-v2` as a candidate that requires a cited fact on an
 artifact the repair replaces. Normalize the saved live outputs into one
 recording file, checked against its sources by a test. Replay it and the
 fixtures under every policy and classify each failure as a false pass, false
-block, or other failure. CI compares the full report to a checked-in snapshot.
+block, blocked wrong output, or other failure. Bind each recorded output to a
+digest of the request it answered. CI compares the full report to a checked-in snapshot.
 
 ## Alternatives rejected
 
@@ -24,8 +25,9 @@ block, or other failure. CI compares the full report to a checked-in snapshot.
   cannot make. Policy replay is deterministic and free.
 - Threshold-only gates (for example, "zero false passes"): would either fail on
   known recorded errors or hide new ones. A snapshot shows every change.
-- Make `grounded-scope-v2` the default now: it trades false passes for false
-  blocks on a small synthetic sample; adoption is a separate product decision.
+- Make `grounded-scope-v2` the default now: it removed the recorded false passes
+  without new false blocks, but no saved case yet tests a correct diagnosis that
+  cites only out-of-scope facts; adoption is a separate product decision.
 - Parse the three result formats at replay time: spreads format handling into
   the evaluator; normalization with a provenance test keeps it in one place.
 

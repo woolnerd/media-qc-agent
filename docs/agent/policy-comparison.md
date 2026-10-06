@@ -21,10 +21,16 @@ Each failing case gets exactly one type:
 
 - **False pass**: the decision had repair authority (a finding with a plan or
   creative branches) but failed the saved expectation. This is the unsafe error.
-- **False block**: the case expected a diagnosis, but the turn abstained,
-  was rejected, or hit a provider error. This costs a human follow-up.
-- **Other failure**: correctly held, but with the wrong citations or
-  clarification type.
+- **False block**: the case expected a diagnosis and nothing wrong was proposed,
+  but no repair was authorized: the model abstained, the policy held the correct
+  diagnosis, or the provider failed. This costs a human follow-up.
+- **Blocked wrong output**: the case expected a diagnosis, and validation
+  rejected the output or the policy held a different diagnosis. The safety gate
+  worked, though the case still needs a human.
+- **Other failure**: correctly held on an ambiguous case, but with the wrong
+  citations or clarification type.
+
+Error types come from the turn outcome and raw output, not the score labels.
 
 Ambiguous cases supply no facts, so no current policy can give them authority.
 
@@ -39,8 +45,9 @@ checks that current validation still scores the saved outputs the same way.
 
 `grounded-scope-v2` removes both recorded false passes. Gemini classified the
 adversarial TTS defect as a caption defect and cited the TTS-input fact, while
-the caption repair replaces only captions. The candidate policy holds that
-output instead, so false blocks rise from 1 to 3. No other case changes. The
+the caption repair replaces only captions. The candidate policy holds those
+outputs, so they become blocked wrong outputs; false blocks stay at 1 (Jev's
+own abstention). No other case changes. The
 current default model, Luna, had no false passes or false blocks in any run, so
 the policy choice changes nothing for it on these cases.
 
@@ -62,5 +69,10 @@ outcome therefore needs a snapshot update that is visible in the PR diff.
 - Grounding checks which artifact a fact is on, not whether the fact supports
   the diagnosis. A wrong diagnosis that cites a fact on an in-scope artifact
   still passes.
-- `grounded-scope-v2` is not the default. Adopting it means accepting more
-  clarification requests in exchange for fewer wrong repairs on these cases.
+- Every recorded case stores a SHA-256 digest of the request it answered
+  (feedback, version IDs, evidence, after masking when used). Replay fails if a
+  case's text changed after recording, so outputs are never scored against
+  inputs the model did not see.
+- `grounded-scope-v2` is not the default. On these cases it held only wrong
+  outputs, but a correct diagnosis citing only an out-of-scope fact would become
+  a false block, and no saved case tests that yet.

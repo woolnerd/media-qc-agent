@@ -25,6 +25,7 @@
           "total": 15,
           "false_passes": 0,
           "false_blocks": 0,
+          "blocked_wrong_outputs": 0,
           "other_failures": 0,
           "errors": {}
         },
@@ -33,6 +34,7 @@
           "total": 15,
           "false_passes": 0,
           "false_blocks": 0,
+          "blocked_wrong_outputs": 0,
           "other_failures": 0,
           "errors": {}
         }
@@ -50,6 +52,7 @@
           "total": 15,
           "false_passes": 1,
           "false_blocks": 0,
+          "blocked_wrong_outputs": 0,
           "other_failures": 0,
           "errors": {
             "tts-input-compatibility-adversarial": {
@@ -65,11 +68,12 @@
           "passed": 14,
           "total": 15,
           "false_passes": 0,
-          "false_blocks": 1,
+          "false_blocks": 0,
+          "blocked_wrong_outputs": 1,
           "other_failures": 0,
           "errors": {
             "tts-input-compatibility-adversarial": {
-              "type": "false_block",
+              "type": "blocked_wrong_output",
               "failures": [
                 "classification",
                 "clarification",
@@ -92,6 +96,7 @@
           "total": 15,
           "false_passes": 1,
           "false_blocks": 0,
+          "blocked_wrong_outputs": 0,
           "other_failures": 0,
           "errors": {
             "tts-input-compatibility-adversarial": {
@@ -107,11 +112,12 @@
           "passed": 14,
           "total": 15,
           "false_passes": 0,
-          "false_blocks": 1,
+          "false_blocks": 0,
+          "blocked_wrong_outputs": 1,
           "other_failures": 0,
           "errors": {
             "tts-input-compatibility-adversarial": {
-              "type": "false_block",
+              "type": "blocked_wrong_output",
               "failures": [
                 "classification",
                 "clarification",
@@ -134,6 +140,7 @@
           "total": 15,
           "false_passes": 0,
           "false_blocks": 1,
+          "blocked_wrong_outputs": 0,
           "other_failures": 0,
           "errors": {
             "tts-input-compatibility-adversarial": {
@@ -152,6 +159,7 @@
           "total": 15,
           "false_passes": 0,
           "false_blocks": 1,
+          "blocked_wrong_outputs": 0,
           "other_failures": 0,
           "errors": {
             "tts-input-compatibility-adversarial": {
@@ -179,6 +187,7 @@
           "total": 15,
           "false_passes": 0,
           "false_blocks": 0,
+          "blocked_wrong_outputs": 0,
           "other_failures": 1,
           "errors": {
             "visual-quality-ambiguous": {
@@ -194,6 +203,7 @@
           "total": 15,
           "false_passes": 0,
           "false_blocks": 0,
+          "blocked_wrong_outputs": 0,
           "other_failures": 1,
           "errors": {
             "visual-quality-ambiguous": {
@@ -218,6 +228,7 @@
           "total": 15,
           "false_passes": 0,
           "false_blocks": 0,
+          "blocked_wrong_outputs": 0,
           "other_failures": 0,
           "errors": {}
         },
@@ -226,6 +237,7 @@
           "total": 15,
           "false_passes": 0,
           "false_blocks": 0,
+          "blocked_wrong_outputs": 0,
           "other_failures": 0,
           "errors": {}
         }
@@ -243,6 +255,7 @@
           "total": 15,
           "false_passes": 0,
           "false_blocks": 0,
+          "blocked_wrong_outputs": 0,
           "other_failures": 0,
           "errors": {}
         },
@@ -251,6 +264,7 @@
           "total": 15,
           "false_passes": 0,
           "false_blocks": 0,
+          "blocked_wrong_outputs": 0,
           "other_failures": 0,
           "errors": {}
         }
@@ -268,6 +282,7 @@
           "total": 15,
           "false_passes": 0,
           "false_blocks": 0,
+          "blocked_wrong_outputs": 0,
           "other_failures": 2,
           "errors": {
             "script-quality-ambiguous": {
@@ -289,6 +304,7 @@
           "total": 15,
           "false_passes": 0,
           "false_blocks": 0,
+          "blocked_wrong_outputs": 0,
           "other_failures": 2,
           "errors": {
             "script-quality-ambiguous": {
@@ -314,13 +330,15 @@
       "total": 120,
       "false_passes": 2,
       "false_blocks": 1,
+      "blocked_wrong_outputs": 0,
       "other_failures": 3
     },
     "grounded-scope-v2": {
       "passed": 114,
       "total": 120,
       "false_passes": 0,
-      "false_blocks": 3,
+      "false_blocks": 1,
+      "blocked_wrong_outputs": 2,
       "other_failures": 3
     }
   }

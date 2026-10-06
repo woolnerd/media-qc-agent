@@ -115,15 +115,17 @@ version and requires the result to match
 PYTHONPATH=src python3 -m media_qc_agent.cli.compare --expect evals/results/policy-comparison-v1.json
 ```
 
-| Policy | Passed | False passes | False blocks | Other failures |
-| --- | --- | --- | --- | --- |
-| `confidence-v1` (default) | 114/120 | 2 | 1 | 3 |
-| `grounded-scope-v2` | 114/120 | 0 | 3 | 3 |
+| Policy | Passed | False passes | False blocks | Blocked wrong outputs | Other failures |
+| --- | --- | --- | --- | --- | --- |
+| `confidence-v1` (default) | 114/120 | 2 | 1 | 0 | 3 |
+| `grounded-scope-v2` | 114/120 | 0 | 1 | 2 | 3 |
 
 Totals include the 15 fixture cases, which pass under both policies.
 
-Both Gemini false passes on the adversarial TTS case become false blocks under
-`grounded-scope-v2`; nothing else changes. No network calls are made. After an
+Both Gemini false passes on the adversarial TTS case become blocked wrong
+outputs under `grounded-scope-v2`; nothing else changes. Each recorded case
+carries a digest of the request it answered, and replay fails if the case text
+has changed since recording. No network calls are made. After an
 intentional change, regenerate the snapshot by running the command without
 `--expect` and redirecting stdout, then explain the diff in the PR. See
 [policy comparison](../docs/agent/policy-comparison.md) for definitions and limits.

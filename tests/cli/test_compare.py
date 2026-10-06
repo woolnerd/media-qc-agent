@@ -3,11 +3,12 @@ import json
 import tempfile
 import unittest
 from contextlib import redirect_stderr, redirect_stdout
+from dataclasses import replace
 from pathlib import Path
 from typing import Any
 from unittest.mock import patch
 
-from media_qc_agent.agent.contracts import FakeModelProvider
+from media_qc_agent.agent.contracts import FakeModelProvider, InterpretationRequest
 from media_qc_agent.agent.interpretation import (
     CONFIDENCE_POLICY,
     GROUNDED_SCOPE_POLICY,
@@ -17,6 +18,7 @@ from media_qc_agent.cli.compare import (
     DEFAULT_EXPECTED,
     DEFAULT_RECORDINGS,
     EVALS,
+    ReplayProvider,
     compare,
     differences,
     error_type,
@@ -24,6 +26,7 @@ from media_qc_agent.cli.compare import (
     load_recordings,
     main,
     replay,
+    request_digest,
 )
 from media_qc_agent.cli.evaluate import (
     DEFAULT_DATASET,
@@ -32,6 +35,7 @@ from media_qc_agent.cli.evaluate import (
     evaluate_case,
     load_cases,
 )
+from media_qc_agent.domain.evidence import EvidenceInput, EvidenceRole
 
 TTS_ADVERSARIAL = "tts-input-compatibility-adversarial"
 
@@ -93,6 +97,58 @@ class RecordedOutputTests(unittest.TestCase):
                     assert result.turn is not None
                     self.assertEqual(result.turn.identity, run.identity)
 
+    def test_replay_rejects_cases_edited_after_recording(self) -> None:
+        run = next(r for r in self.runs if r.id == "luna-masked-2026-10-06-r1")
+        for field in ("feedback", "evidence"):
+            data: dict[str, Any] = json.loads(DEFAULT_DATASET.read_text())
+            case = data["cases"][0]
+            if field == "feedback":
+                case["feedback"] += " [edited after recording]"
+            else:
+                case["evidence"][0]["statement"] += " [edited]"
+            with tempfile.TemporaryDirectory() as directory:
+                path = Path(directory) / "cases.json"
+                path.write_text(json.dumps(data))
+                edited = load_cases(path)
+            with (
+                self.subTest(field=field),
+                self.assertRaisesRegex(ValueError, case["id"]),
+            ):
+                replay(run, edited, CONFIDENCE_POLICY)
+
+    def test_replay_rejects_a_run_with_the_wrong_masking_flag(self) -> None:
+        for run in self.runs:
+            flipped = replace(run, version_labels_masked=not run.version_labels_masked)
+            with self.subTest(run=run.id), self.assertRaises(ValueError):
+                replay(flipped, self.cases, CONFIDENCE_POLICY)
+
+    def test_trace_sourced_recordings_match_the_requests_sent(self) -> None:
+        data = json.loads(DEFAULT_RECORDINGS.read_text())
+        for run in data["runs"]:
+            if not run["source"].endswith(".jsonl"):
+                continue
+            lines = (EVALS / run["source"]).read_text().splitlines()
+            for record in map(json.loads, lines):
+                request = InterpretationRequest(
+                    record["input"]["feedback"],
+                    tuple(record["artifact_version_ids"]),
+                    tuple(
+                        EvidenceInput(
+                            EvidenceRole(item["role"]),
+                            item["artifact_version_id"],
+                            item["statement"],
+                            item["observed"],
+                            item["limit"],
+                        )
+                        for item in record["input"]["evidence"]
+                    ),
+                )
+                with self.subTest(run=run["id"], case=record["case_id"]):
+                    self.assertEqual(
+                        run["cases"][record["case_id"]]["request_sha256"],
+                        request_digest(request),
+                    )
+
     def test_recordings_reject_incomplete_or_duplicate_runs(self) -> None:
         data: dict[str, Any] = json.loads(DEFAULT_RECORDINGS.read_text())
         with tempfile.TemporaryDirectory() as directory:
@@ -110,6 +166,19 @@ class RecordedOutputTests(unittest.TestCase):
                 path.write_text(json.dumps(sample))
                 with self.subTest(mutation=mutation), self.assertRaises(ValueError):
                     load_recordings(path, self.cases)
+
+
+class ReplayProviderTests(unittest.TestCase):
+    def test_replay_rejects_cases_sharing_one_request(self) -> None:
+        cases = load_cases()
+        run = fixture_run(cases)
+        duplicate = (cases[0], replace(cases[0], id="copy"))
+        outputs = {**run.outputs, "copy": run.outputs[cases[0].id]}
+        digests = {**run.request_digests, "copy": run.request_digests[cases[0].id]}
+        copied = replace(run, outputs=outputs, request_digests=digests)
+        with self.assertRaisesRegex(ValueError, "unique request"):
+            replay(copied, duplicate, CONFIDENCE_POLICY)
+        self.assertIsInstance(ReplayProvider(run.identity, {}), FakeModelProvider)
 
 
 class ErrorTypeTests(unittest.TestCase):
@@ -151,16 +220,42 @@ class ErrorTypeTests(unittest.TestCase):
         self.assertTrue(result.passed)
         self.assertIsNone(error_type(case, result))
 
-    def test_held_or_rejected_repairable_case_is_a_false_block(self) -> None:
-        held: dict[str, Any] = {"kind": None, "action": None, "invalidates": []}
-        rejected: dict[str, Any] = {
-            "action": "regenerate_video",
-            "invalidates": ["video", "captions"],
+    def test_holding_a_repairable_case_without_a_wrong_proposal_is_a_false_block(
+        self,
+    ) -> None:
+        model_abstained: dict[str, Any] = {
+            "kind": None,
+            "action": None,
+            "invalidates": [],
         }
-        for changes in (held, rejected):
+        # The right diagnosis, held only because the policy requires confidence.
+        policy_held: dict[str, Any] = {"confidence": 0.5}
+        for changes in (model_abstained, policy_held):
             case, result = self.result_for(TTS_ADVERSARIAL, **changes)
             with self.subTest(changes=changes):
                 self.assertEqual(error_type(case, result), "false_block")
+        case = self.cases[TTS_ADVERSARIAL]
+        unavailable = evaluate_case(case, FakeModelProvider({}))
+        self.assertEqual(unavailable.failures, ("provider_or_validation_error",))
+        self.assertEqual(error_type(case, unavailable), "false_block")
+
+    def test_holding_a_wrong_proposal_is_a_blocked_wrong_output(self) -> None:
+        case, rejected = self.result_for(
+            TTS_ADVERSARIAL,
+            action="regenerate_video",
+            invalidates=["video", "captions"],
+        )
+        self.assertEqual(error_type(case, rejected), "blocked_wrong_output")
+        wrong = json.loads(case.fake_response)
+        wrong.update(
+            kind="caption_format", action="repair_captions", invalidates=["captions"]
+        )
+        provider = FakeModelProvider({case.request: json.dumps(wrong)})
+        held = evaluate_case(case, provider, policy=GROUNDED_SCOPE_POLICY)
+        self.assertEqual(
+            held.failures, ("classification", "clarification", "repair_scope")
+        )
+        self.assertEqual(error_type(case, held), "blocked_wrong_output")
 
     def test_correct_hold_with_wrong_citations_is_another_failure(self) -> None:
         case, result = self.result_for("visual-quality-ambiguous", evidence_indices=[])
@@ -179,7 +274,7 @@ class PolicyComparisonTests(unittest.TestCase):
         )
         self.report = compare(self.cases, self.runs, tuple(POLICIES.values()))
 
-    def test_grounded_scope_trades_recorded_false_passes_for_false_blocks(
+    def test_grounded_scope_blocks_recorded_false_passes(
         self,
     ) -> None:
         totals = self.report["totals"]
@@ -190,6 +285,7 @@ class PolicyComparisonTests(unittest.TestCase):
                 "total": 120,
                 "false_passes": 2,
                 "false_blocks": 1,
+                "blocked_wrong_outputs": 0,
                 "other_failures": 3,
             },
         )
@@ -199,7 +295,8 @@ class PolicyComparisonTests(unittest.TestCase):
                 "passed": 114,
                 "total": 120,
                 "false_passes": 0,
-                "false_blocks": 3,
+                "false_blocks": 1,
+                "blocked_wrong_outputs": 2,
                 "other_failures": 3,
             },
         )
@@ -217,7 +314,7 @@ class PolicyComparisonTests(unittest.TestCase):
                     by_policy[GROUNDED_SCOPE_POLICY.version]["errors"][TTS_ADVERSARIAL][
                         "type"
                     ],
-                    "false_block",
+                    "blocked_wrong_output",
                 )
 
     def test_current_prompt_luna_runs_have_no_unsafe_or_blocked_decisions(
@@ -278,6 +375,22 @@ class CompareCliTests(unittest.TestCase):
         self.assertIn(
             "totals.grounded-scope-v2.false_passes: expected 1, got 0", errors
         )
+
+    def test_unusable_or_incomplete_snapshot_fails_the_gate(self) -> None:
+        expected = json.loads(DEFAULT_EXPECTED.read_text())
+        del expected["runs"]["jev-masked-2026-09-29"]
+        for name, content in (
+            ("null", "null"),
+            ("list", "[]"),
+            ("missing-run", json.dumps(expected)),
+        ):
+            with tempfile.TemporaryDirectory() as directory:
+                path = Path(directory) / "expected.json"
+                path.write_text(content)
+                code, _, errors = _run_main("--expect", str(path))
+            with self.subTest(snapshot=name):
+                self.assertEqual(code, 1)
+                self.assertTrue(errors)
 
     def test_failing_fixture_exits_nonzero_without_a_snapshot(self) -> None:
         data = json.loads(DEFAULT_DATASET.read_text())

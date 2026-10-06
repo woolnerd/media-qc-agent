@@ -8,6 +8,7 @@ from media_qc_agent.agent.interpretation import (
     DEFAULT_POLICY,
     GROUNDED_SCOPE_POLICY,
     POLICIES,
+    AcceptancePolicy,
     interpret_feedback,
     validate_interpretation,
 )
@@ -191,6 +192,36 @@ class AcceptancePolicyTests(unittest.TestCase):
                 )
                 assert result.finding is not None
                 self.assertEqual(result.decision, plan_repair(result.finding))
+
+    def test_policies_cannot_lower_the_confidence_floor(self) -> None:
+        for value in (-1.0, 0.0, 0.79, 1.01, float("nan")):
+            with self.subTest(value=value), self.assertRaises(ValueError):
+                AcceptancePolicy("lenient", min_confidence=value)
+        with self.assertRaises(ValueError):
+            AcceptancePolicy(" ")
+        self.assertEqual(
+            AcceptancePolicy("strict", min_confidence=0.9).min_confidence, 0.9
+        )
+
+    def test_grounded_scope_needs_only_one_in_scope_fact(self) -> None:
+        output = output_for(FailureKind.TTS_INPUT_COMPATIBILITY)
+        output["evidence_indices"] = [0, 1]
+        result = validate_interpretation(
+            json.dumps(output),
+            self.request("caption-1", "tts-1"),
+            GROUNDED_SCOPE_POLICY,
+        )
+        self.assertIsNotNone(result.finding)
+
+    def test_grounded_scope_holds_creative_choice_cited_outside_both_branches(
+        self,
+    ) -> None:
+        raw = json.dumps(output_for(FailureKind.ENVIRONMENT_MISMATCH))
+        request = self.request("voice-1")
+        self.assertIsNotNone(validate_interpretation(raw, request).finding)
+        held = validate_interpretation(raw, request, GROUNDED_SCOPE_POLICY)
+        self.assertIsNone(held.finding)
+        self.assertIsNone(held.decision)
 
     def test_grounded_scope_ignores_unrecognized_version_ids(self) -> None:
         request = InterpretationRequest(
