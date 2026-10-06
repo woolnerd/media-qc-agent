@@ -17,14 +17,16 @@ from media_qc_agent.api.review_routes import review_routes
 from media_qc_agent.api.scenarios import DEMO_NOTICE, seed_scenarios
 from media_qc_agent.api.views import read_routes
 from media_qc_agent.workflow.database import Database
+from media_qc_agent.workflow.telemetry import ExecutionObserver
 
 
 def create_app(
     database_path: Path | str = ".local/review.sqlite3",
     *,
     clock: Callable[[], float] = time.time,
+    observer: ExecutionObserver | None = None,
 ) -> FastAPI:
-    database = Database(Path(database_path))
+    database = Database(Path(database_path), observer=observer)
     controls = DemoControls(database, clock)
 
     @asynccontextmanager

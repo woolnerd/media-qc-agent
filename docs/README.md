@@ -9,6 +9,9 @@ check or model adapter as needed.
 | Who owns decisions and side effects? | [Architecture invariants](architecture/architecture-invariants.md) |
 | How does approval survive edits and crashes? | [Plan versions](architecture/plan-versions.md) |
 | Which callbacks can change the accepted video? | [Provider transitions](architecture/provider-transitions.md) |
+| Who requested another render, and how do we account for it? | [Attempt attribution — pending implementation](architecture/attempt-attribution.md) |
+| Which parts of the wait can we measure? | [Workflow timing](architecture/workflow-timing.md) |
+| How do logs, metrics, and traces relate to durable state? | [Observability](architecture/observability.md) |
 | How do I review runs and demonstrate recovery in the browser? | [Review surface](architecture/review-surface.md) |
 | How do I review synthetic runs over HTTP? | [Local review API](architecture/review-api.md) |
 | How do workers recover and bound provider work? | [Durable worker](architecture/durable-worker.md) |

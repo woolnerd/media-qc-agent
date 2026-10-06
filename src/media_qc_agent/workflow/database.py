@@ -6,15 +6,19 @@ from contextlib import contextmanager
 from pathlib import Path
 
 from media_qc_agent.workflow.repository import WorkflowRepository
+from media_qc_agent.workflow.telemetry import ExecutionObserver
 
 
 class Database:
-    def __init__(self, path: Path) -> None:
+    def __init__(
+        self, path: Path, *, observer: ExecutionObserver | None = None
+    ) -> None:
         if str(path) == ":memory:":
             raise ValueError(
                 "workflow operations require a file database for separate connections"
             )
         self.path = path
+        self.observer = observer
 
     @contextmanager
     def connection(self) -> Iterator[sqlite3.Connection]:
@@ -28,4 +32,4 @@ class Database:
     @contextmanager
     def repository(self) -> Iterator[WorkflowRepository]:
         with self.connection() as connection:
-            yield WorkflowRepository(connection)
+            yield WorkflowRepository(connection, observer=self.observer)

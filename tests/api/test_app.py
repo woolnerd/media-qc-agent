@@ -12,6 +12,7 @@ from media_qc_agent.api.app import create_app
 from media_qc_agent.workflow.database import Database
 from media_qc_agent.workflow.executor import WorkflowExecutor
 from media_qc_agent.workflow.provider import FakeVideoProvider
+from media_qc_agent.workflow.telemetry import ExecutionEvent, ExecutionObserver
 
 
 class ApiTests(unittest.TestCase):
@@ -73,6 +74,64 @@ class ApiTests(unittest.TestCase):
                 self.assertEqual(
                     self.client.get(f"/runs/{run_id}/plans").status_code, 200
                 )
+
+    def test_browser_worker_uses_application_observer(self) -> None:
+        events: list[ExecutionEvent] = []
+        app = create_app(
+            self.path.parent / "observed.sqlite3",
+            observer=ExecutionObserver(events.append),
+        )
+        with TestClient(app) as client:
+            run = client.post(
+                "/scenarios/jerky-video/runs", json={"run_id": "observed"}
+            ).json()
+            version = run["plan_version"]["id"]
+            self.assertEqual(
+                client.post(
+                    "/runs/observed/approve", json={"plan_version_id": version}
+                ).status_code,
+                200,
+            )
+            response = client.post(
+                "/review/observed/action",
+                data={"action": "submit", "expected_plan_version_id": version},
+            )
+            self.assertEqual(response.status_code, 200)
+            self.assertEqual(client.get("/runs/observed").json()["status"], "submitted")
+        self.assertIn(
+            "provider.submit.response", [event.kind.value for event in events]
+        )
+        self.assertIn("worker.finished", [event.kind.value for event in events])
+
+    def test_observability_keeps_duplicate_deliveries_out_of_durable_job_counts(
+        self,
+    ) -> None:
+        self.create()
+        self.approve()
+        job = self.submit()
+        self.callback(job, "event-1")
+        self.callback(job, "event-1")
+        response = self.client.get("/runs/run-1/observability")
+        self.assertEqual(response.status_code, 200)
+        data = response.json()
+        self.assertEqual(
+            data["durable_counts"],
+            {
+                "recorded_provider_jobs": 1,
+                "distinct_jobs_with_completion_reports": 1,
+                "callback_audit_rows": 1,
+                "replacement_video_versions": 1,
+            },
+        )
+        self.assertIsNone(
+            data["job_timings"][0]["timing"]["approval_to_first_claim_seconds"]
+        )
+        self.assertGreaterEqual(
+            data["job_timings"][0]["timing"]["recorded_job_to_completion_seconds"], 0
+        )
+        self.assertEqual(
+            self.client.get("/runs/missing/observability").status_code, 404
+        )
 
     def test_request_validation_rejects_unknown_fields_types_and_blank_ids(
         self,

@@ -28,7 +28,12 @@ class InMemoryWorkflowStore:
         return self.run
 
     def record_submission(
-        self, *, run_id: str, external_job_id: str, expected_plan_version_id: str | None
+        self,
+        *,
+        run_id: str,
+        external_job_id: str,
+        expected_plan_version_id: str | None,
+        traceparent: str | None = None,
     ) -> WorkflowRun:
         if run_id != self.run.id:
             raise KeyError(run_id)

@@ -37,10 +37,18 @@ def initialize_worker_schema(connection: sqlite3.Connection) -> None:
             lease_until REAL,
             next_attempt_at REAL NOT NULL DEFAULT 0,
             stopped INTEGER NOT NULL DEFAULT 0,
-            error_type TEXT
+            error_type TEXT,
+            first_claimed_at TEXT
         );
         """
     )
+    columns = {
+        row[1] for row in connection.execute("PRAGMA table_info(worker_attempts)")
+    }
+    if "first_claimed_at" not in columns:
+        connection.execute(
+            "ALTER TABLE worker_attempts ADD COLUMN first_claimed_at TEXT"
+        )
 
 
 def require_lease(
@@ -194,8 +202,9 @@ class SubmissionQueue:
     def _record_claim(self, lease: SubmissionLease) -> None:
         self.connection.execute(
             """INSERT INTO worker_attempts
-                 (plan_version_id, run_id, attempts, lease_owner, lease_until)
-               VALUES (?, ?, ?, ?, ?) ON CONFLICT(plan_version_id) DO UPDATE SET
+                 (plan_version_id, run_id, attempts, lease_owner, lease_until, first_claimed_at)
+               VALUES (?, ?, ?, ?, ?, strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))
+               ON CONFLICT(plan_version_id) DO UPDATE SET
                  attempts = excluded.attempts, lease_owner = excluded.lease_owner,
                  lease_until = excluded.lease_until, error_type = NULL""",
             (

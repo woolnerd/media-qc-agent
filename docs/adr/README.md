@@ -32,3 +32,4 @@ If a decision changes, add a new ADR that supersedes the old one.
 - [`0020-expose-local-review-api.md`](0020-expose-local-review-api.md)
 - [`0021-lease-durable-provider-submissions.md`](0021-lease-durable-provider-submissions.md)
 - [`0022-render-local-review-and-fault-controls.md`](0022-render-local-review-and-fault-controls.md)
+- [`0023-observe-workflow-without-controlling-it.md`](0023-observe-workflow-without-controlling-it.md)

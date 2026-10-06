@@ -4,6 +4,7 @@ import json
 import sqlite3
 import time
 from collections.abc import Callable
+from dataclasses import replace
 
 from media_qc_agent.domain.evidence import (
     EvidenceInput,
@@ -68,6 +69,16 @@ from media_qc_agent.workflow.plan_versions import (
     encode_plan_version,
     validate_plan_revision,
 )
+from media_qc_agent.workflow.telemetry import (
+    EventKind,
+    ExecutionObserver,
+    error_category,
+    event_for_completion,
+    event_for_run,
+    reference,
+)
+from media_qc_agent.workflow.timing import JobTiming, job_timing
+from media_qc_agent.workflow.tracing import completion_span
 from media_qc_agent.workflow.worker_models import SubmissionLease
 from media_qc_agent.workflow.worker_queue import (
     initialize_worker_schema,
@@ -85,10 +96,15 @@ _SOURCE_ORDER = (
 
 class WorkflowRepository:
     def __init__(
-        self, connection: sqlite3.Connection, *, clock: Callable[[], float] = time.time
+        self,
+        connection: sqlite3.Connection,
+        *,
+        clock: Callable[[], float] = time.time,
+        observer: ExecutionObserver | None = None,
     ) -> None:
         self._connection = connection
         self._clock = clock
+        self._observer = observer or ExecutionObserver()
         self._connection.row_factory = sqlite3.Row
 
     def initialize(self) -> None:
@@ -125,6 +141,7 @@ class WorkflowRepository:
                 idempotency_key TEXT NOT NULL UNIQUE,
                 action TEXT NOT NULL,
                 plan_version_id TEXT REFERENCES repair_plan_versions(id),
+                traceparent TEXT,
                 script_version_id TEXT NOT NULL REFERENCES artifact_versions(id),
                 tts_input_version_id TEXT NOT NULL REFERENCES artifact_versions(id),
                 avatar_version_id TEXT NOT NULL REFERENCES artifact_versions(id),
@@ -270,6 +287,10 @@ class WorkflowRepository:
         if "plan_version_id" not in provider_columns:
             self._connection.execute(
                 "ALTER TABLE provider_jobs ADD COLUMN plan_version_id TEXT REFERENCES repair_plan_versions(id)"
+            )
+        if "traceparent" not in provider_columns:
+            self._connection.execute(
+                "ALTER TABLE provider_jobs ADD COLUMN traceparent TEXT"
             )
         self._upgrade_unversioned_plans()
         initialize_worker_schema(self._connection)
@@ -571,6 +592,18 @@ class WorkflowRepository:
             )
             if updated.rowcount != 1:
                 raise RuntimeError("workflow state changed during caption repair")
+        self._observer.emit(
+            replace(
+                event_for_run(
+                    EventKind.ARTIFACT_CREATED,
+                    run,
+                    state_before=WorkflowStatus.READY,
+                    state_after=WorkflowStatus.SUCCEEDED,
+                ),
+                artifact_ref=reference(version_id),
+                artifact_kind=ArtifactKind.CAPTIONS.value,
+            )
+        )
         return self.get_artifact_version(version_id)
 
     def _insert_dependencies(
@@ -1069,7 +1102,16 @@ class WorkflowRepository:
                    updated_at = strftime('%Y-%m-%dT%H:%M:%fZ', 'now') WHERE id = ?""",
                 (WorkflowStatus.READY, run_id),
             )
-        return self.get(run_id)
+            approved = self.get(run_id)
+        self._observer.emit(
+            event_for_run(
+                EventKind.APPROVED,
+                approved,
+                state_before=current.status,
+                state_after=approved.status,
+            )
+        )
+        return approved
 
     def revise_plan(
         self, run_id: str, *, plan: RepairPlan, expected_plan_version_id: str | None
@@ -1188,6 +1230,15 @@ class WorkflowRepository:
         return tuple(
             decode_plan_version(row["snapshot"], row["created_at"]) for row in rows
         )
+
+    def get_plan_version(self, version_id: str) -> RepairPlanVersion:
+        row = self._connection.execute(
+            "SELECT snapshot, created_at FROM repair_plan_versions WHERE id = ?",
+            (version_id,),
+        ).fetchone()
+        if row is None:
+            raise KeyError(version_id)
+        return decode_plan_version(row["snapshot"], row["created_at"])
 
     def get_plan_approval(self, plan_version_id: str) -> PlanApproval | None:
         row = self._connection.execute(
@@ -1351,7 +1402,16 @@ class WorkflowRepository:
                 """,
                 (WorkflowStatus.SUBMITTING, run_id),
             )
-            return self.get(run_id)
+            reserved = self.get(run_id)
+        self._observer.emit(
+            event_for_run(
+                EventKind.RESERVED,
+                reserved,
+                state_before=current.status,
+                state_after=reserved.status,
+            )
+        )
+        return reserved
 
     def record_submission(
         self,
@@ -1360,6 +1420,7 @@ class WorkflowRepository:
         external_job_id: str,
         expected_plan_version_id: str | None,
         lease: SubmissionLease | None = None,
+        traceparent: str | None = None,
     ) -> WorkflowRun:
         """Record an accepted provider job without permitting ID replacement."""
 
@@ -1385,8 +1446,8 @@ class WorkflowRepository:
                 INSERT INTO provider_jobs (
                     external_job_id, run_id, idempotency_key, action, plan_version_id,
                     script_version_id, tts_input_version_id,
-                    avatar_version_id, voice_version_id
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    avatar_version_id, voice_version_id, traceparent
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """,
                 (
                     external_job_id,
@@ -1398,6 +1459,7 @@ class WorkflowRepository:
                     current.sources.tts_input_version_id,
                     current.sources.avatar_version_id,
                     current.sources.voice_version_id,
+                    traceparent,
                 ),
             )
             result = self._connection.execute(
@@ -1440,6 +1502,48 @@ class WorkflowRepository:
     ) -> WorkflowRun:
         """Audit a completion and advance only the currently submitted job."""
 
+        started = self._observer.clock()
+        row = self._connection.execute(
+            "SELECT traceparent FROM provider_jobs WHERE external_job_id = ?",
+            (external_job_id,),
+        ).fetchone()
+        with completion_span(
+            self._observer.tracer,
+            external_job_id,
+            row[0] if row else None,
+            self._observer.trace_failed,
+        ) as span:
+            try:
+                job, disposition = self._commit_completion(
+                    external_job_id=external_job_id, external_event_id=external_event_id
+                )
+            except Exception as error:
+                span.error(error_category(error))
+                raise
+            span.outcome(disposition.value)
+        self._observer.emit(
+            replace(
+                event_for_completion(job, external_event_id, disposition),
+                duration_seconds=self._observer.clock() - started,
+            )
+        )
+        if disposition is ProviderEventDisposition.APPLIED:
+            self._observer.emit(
+                replace(
+                    event_for_completion(job, external_event_id, disposition),
+                    kind=EventKind.ARTIFACT_CREATED,
+                    artifact_ref=reference(video_version_id(job.external_job_id)),
+                    artifact_kind=ArtifactKind.VIDEO.value,
+                    state_before=WorkflowStatus.SUBMITTED,
+                    state_after=WorkflowStatus.SUCCEEDED,
+                )
+            )
+        return self.get(job.run_id)
+
+    def _commit_completion(
+        self, *, external_job_id: str, external_event_id: str
+    ) -> tuple[ProviderJob, ProviderEventDisposition]:
+
         validate_external_id(external_job_id, "provider job")
         validate_external_id(external_event_id, "provider event")
         with self._connection:
@@ -1469,7 +1573,7 @@ class WorkflowRepository:
                 existing = self.get_provider_event(external_event_id)
                 if existing.external_job_id != external_job_id:
                     raise ValueError("event identifier belongs to another provider job")
-                return self.get(job.run_id)
+                return job, ProviderEventDisposition.REDUNDANT
 
             if disposition is ProviderEventDisposition.APPLIED:
                 generated_video_id = video_version_id(external_job_id)
@@ -1499,7 +1603,7 @@ class WorkflowRepository:
                     raise RuntimeError(
                         "workflow state changed during provider completion"
                     )
-        return self.get(job.run_id)
+        return job, disposition
 
     def request_retry(
         self, run_id: str, *, expected_plan_version_id: str | None = None
@@ -1539,7 +1643,17 @@ class WorkflowRepository:
             if updated.rowcount != 1:
                 raise RuntimeError("workflow state changed during retry request")
             self._append_plan_version(run_id)
-        return self.get(run_id)
+            requested = self.get(run_id)
+        self._observer.emit(
+            event_for_run(
+                EventKind.NEW_ATTEMPT,
+                requested,
+                job_id=current.external_job_id,
+                state_before=current.status,
+                state_after=requested.status,
+            )
+        )
+        return requested
 
     def list_run_ids(self) -> tuple[str, ...]:
         rows = self._connection.execute(
@@ -1553,6 +1667,29 @@ class WorkflowRepository:
             (run_id,),
         ).fetchall()
         return tuple(self.get_provider_job(row[0]) for row in rows)
+
+    def execution_counts(self, run_id: str) -> dict[str, int]:
+        """Consistent durable counts; audit rows are not callback delivery totals."""
+        self.get(run_id)
+        row = self._connection.execute(
+            """SELECT
+                (SELECT COUNT(*) FROM provider_jobs WHERE run_id = ?) AS jobs,
+                (SELECT COUNT(DISTINCT e.external_job_id) FROM provider_events e
+                    JOIN provider_jobs j ON j.external_job_id = e.external_job_id
+                    WHERE j.run_id = ?) AS completed_jobs,
+                (SELECT COUNT(*) FROM provider_events e JOIN provider_jobs j
+                    ON j.external_job_id = e.external_job_id WHERE j.run_id = ?) AS events,
+                (SELECT COUNT(*) FROM artifact_versions v JOIN provider_jobs j
+                    ON j.external_job_id = v.external_job_id WHERE j.run_id = ?
+                    AND v.kind = 'video') AS replacements""",
+            (run_id, run_id, run_id, run_id),
+        ).fetchone()
+        return {
+            "recorded_provider_jobs": row["jobs"],
+            "distinct_jobs_with_completion_reports": row["completed_jobs"],
+            "callback_audit_rows": row["events"],
+            "replacement_video_versions": row["replacements"],
+        }
 
     def list_provider_events(self, run_id: str) -> tuple[ProviderEvent, ...]:
         rows = self._connection.execute(
@@ -1609,6 +1746,27 @@ class WorkflowRepository:
             disposition=ProviderEventDisposition(row["disposition"]),
             reason=row["reason"],
             created_at=row["created_at"],
+        )
+
+    def get_job_timing(self, external_job_id: str) -> JobTiming:
+        """Earliest completion report; duplicate deliveries cannot extend it."""
+        job = self.get_provider_job(external_job_id)
+        approval = (
+            self.get_plan_approval(job.plan_version_id) if job.plan_version_id else None
+        )
+        row = self._connection.execute(
+            "SELECT MIN(created_at) FROM provider_events WHERE external_job_id = ?",
+            (external_job_id,),
+        ).fetchone()
+        claim = self._connection.execute(
+            "SELECT first_claimed_at FROM worker_attempts WHERE plan_version_id = ?",
+            (job.plan_version_id,),
+        ).fetchone()
+        return job_timing(
+            approval.created_at if approval else None,
+            job.created_at,
+            row[0],
+            claim[0] if claim else None,
         )
 
     def get(self, run_id: str) -> WorkflowRun:

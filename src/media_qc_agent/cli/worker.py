@@ -13,6 +13,7 @@ from media_qc_agent.workflow.durable_provider import (
     DurableFakeVideoProvider,
     provider_ledger_path,
 )
+from media_qc_agent.workflow.telemetry import ExecutionObserver, stderr_event
 from media_qc_agent.workflow.worker import DurableWorker
 from media_qc_agent.workflow.worker_models import WorkerPolicy
 
@@ -22,6 +23,11 @@ def main() -> None:
     parser.add_argument("--database", type=Path, default=Path(".local/review.sqlite3"))
     parser.add_argument("--owner", default=f"worker-{os.getpid()}")
     parser.add_argument("--once", action="store_true")
+    parser.add_argument(
+        "--events",
+        action="store_true",
+        help="Emit allowlisted execution events as JSON on stderr",
+    )
     parser.add_argument("--max-in-flight", type=int, default=2)
     parser.add_argument("--max-attempts", type=int, default=3)
     args = parser.parse_args()
@@ -43,6 +49,7 @@ def main() -> None:
         provider,
         owner=args.owner,
         policy=policy,
+        observer=ExecutionObserver(stderr_event if args.events else None),
     )
     try:
         _poll(worker, once=args.once)

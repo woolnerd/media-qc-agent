@@ -2,12 +2,19 @@
 
 import time
 from collections.abc import Callable
+from dataclasses import replace
 
 from media_qc_agent.workflow.database import Database
-from media_qc_agent.workflow.executor import WorkflowExecutor
+from media_qc_agent.workflow.executor import SimulatedProcessCrash, WorkflowExecutor
 from media_qc_agent.workflow.models import WorkflowRun
 from media_qc_agent.workflow.provider import VideoProvider
 from media_qc_agent.workflow.repository import WorkflowRepository
+from media_qc_agent.workflow.telemetry import (
+    EventKind,
+    ExecutionObserver,
+    WorkerOutcome,
+    event_for_claim,
+)
 from media_qc_agent.workflow.worker_models import (
     LeaseLost,
     SubmissionLease,
@@ -36,13 +43,19 @@ class LeasedWorkflowStore:
         )
 
     def record_submission(
-        self, *, run_id: str, external_job_id: str, expected_plan_version_id: str | None
+        self,
+        *,
+        run_id: str,
+        external_job_id: str,
+        expected_plan_version_id: str | None,
+        traceparent: str | None = None,
     ) -> WorkflowRun:
         return self.queue.repository.record_submission(
             run_id=run_id,
             external_job_id=external_job_id,
             expected_plan_version_id=expected_plan_version_id,
             lease=self.lease,
+            traceparent=traceparent,
         )
 
 
@@ -55,12 +68,14 @@ class DurableWorker:
         owner: str,
         policy: WorkerPolicy | None = None,
         clock: Callable[[], float] = time.time,
+        observer: ExecutionObserver | None = None,
     ) -> None:
         self.database = database
         self.provider = provider
         self.owner = owner
         self.policy = policy or WorkerPolicy()
         self.clock = clock
+        self.observer = observer or ExecutionObserver()
 
     def run_once(
         self,
@@ -70,7 +85,9 @@ class DurableWorker:
         expected_plan_version_id: str | None = None,
     ) -> WorkerResult:
         with self.database.connection() as connection:
-            repository = WorkflowRepository(connection, clock=self.clock)
+            repository = WorkflowRepository(
+                connection, clock=self.clock, observer=self.observer
+            )
             queue = SubmissionQueue(connection, repository, self.policy, self.clock)
             lease = queue.claim(
                 self.owner,
@@ -79,13 +96,48 @@ class DurableWorker:
             )
             if lease is None:
                 return WorkerResult("idle")
-            return self._execute(queue, lease, crash_after_provider_accepts)
+            self.observer.emit(
+                event_for_claim(
+                    repository.get_plan_version(lease.plan_version_id), lease.attempt
+                )
+            )
+            return self._observe_execution(queue, lease, crash_after_provider_accepts)
+
+    def _observe_execution(
+        self, queue: SubmissionQueue, lease: SubmissionLease, crash: bool
+    ) -> WorkerResult:
+        event = event_for_claim(
+            queue.repository.get_plan_version(lease.plan_version_id), lease.attempt
+        )
+        started = self.observer.clock()
+        outcome = WorkerOutcome.FAILED
+        try:
+            result = self._execute(queue, lease, crash)
+            outcome = WorkerOutcome(result.outcome)
+            return result
+        except SimulatedProcessCrash:
+            outcome = WorkerOutcome.INTERRUPTED
+            raise
+        finally:
+            self.observer.emit(
+                replace(
+                    event,
+                    kind=EventKind.WORKER_RESULT,
+                    outcome=outcome,
+                    duration_seconds=self.observer.clock() - started,
+                    retry_delay_seconds=self.policy.retry_delay(lease.attempt)
+                    if outcome is WorkerOutcome.RETRY_WAIT
+                    else None,
+                )
+            )
 
     def _execute(
         self, queue: SubmissionQueue, lease: SubmissionLease, crash: bool
     ) -> WorkerResult:
         executor = WorkflowExecutor(
-            repository=LeasedWorkflowStore(queue, lease), provider=self.provider
+            repository=LeasedWorkflowStore(queue, lease),
+            provider=self.provider,
+            observer=self.observer,
         )
         try:
             run = executor.submit(lease.run_id, crash_after_provider_accepts=crash)

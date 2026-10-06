@@ -10,8 +10,8 @@ reserved version and records the accepted job before moving to `submitted`.
 
 A crash or ambiguous provider error keeps the run `submitting`. Resume the
 same attempt with the same idempotency key, which the provider must honor for
-deduplication. The reservation is durable plan protection; distributed worker
-leases remain planned work. See [exact plan approval](plan-versions.md) and
+deduplication. The reservation is durable plan protection; [durable worker](durable-worker.md)
+leases fence submission ownership. See [exact plan approval](plan-versions.md) and
 [ADR 0018](../adr/0018-reserve-approved-plans-before-provider-submission.md).
 
 ## Completion handling
@@ -36,6 +36,10 @@ idempotency key. A stale callback can arrive before or after the replacement
 job completes; neither order can promote its video. A replacement video becomes
 active only when its own job completes. Earlier video and caption versions
 remain readable, with each caption pointing to its exact source video.
+
+New attempts also need durable initiator and reason attribution to distinguish
+intentional overrides from unnecessary agent work. See [attempt attribution](attempt-attribution.md)
+for the agreed design and its pending implementation status.
 
 The decisions behind these rules are recorded in
 [ADR 0007](../adr/0007-deduplicate-provider-completions-transactionally.md),

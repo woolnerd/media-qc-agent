@@ -59,6 +59,7 @@ worker using the persistent fake provider; it makes no live provider calls. Capt
 | `POST /runs/{run_id}/plan` | Plan fields and `expected_plan_version_id` |
 | `POST /runs/{run_id}/approve` | Exact reviewed `plan_version_id` |
 | `POST /runs/{run_id}/retry` | New attempt after submission; fresh approval required |
+| `GET /runs/{run_id}/observability` | Durable counts and per-job timing boundaries; see [observability](observability.md) |
 | `POST /runs/{run_id}/captions` | New `caption-*` `version_id` and `cues` |
 | `POST /callbacks/provider` | `external_job_id`, `external_event_id` |
 
