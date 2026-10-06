@@ -3,7 +3,9 @@
 import json
 import sqlite3
 
-from media_qc_agent.agent.interpretation import interpret_feedback
+from opentelemetry.trace import Tracer
+
+from media_qc_agent.agent.tracing import interpret_traced
 from media_qc_agent.cli.review import synthetic_provider, synthetic_request
 from media_qc_agent.domain.models import ArtifactKind
 from media_qc_agent.quality.environment import Environment, ScriptScene
@@ -12,9 +14,12 @@ from media_qc_agent.workflow.executor import WorkflowExecutor
 from media_qc_agent.workflow.models import VideoSources
 from media_qc_agent.workflow.provider import FakeVideoProvider
 from media_qc_agent.workflow.repository import WorkflowRepository
+from media_qc_agent.workflow.telemetry import ExecutionObserver
 
 
-def run_demo() -> dict[str, object]:
+def run_demo(tracer: Tracer | None = None) -> dict[str, object]:
+    """Pass a tracer to join the diagnosis span to the run's submission spans."""
+
     connection = sqlite3.connect(":memory:")
     try:
         repository = WorkflowRepository(connection)
@@ -47,8 +52,10 @@ def run_demo() -> dict[str, object]:
             fixture_job_id="observed-fixture", sources=sources
         ).id
         request = synthetic_request(observed_video_id)
-        interpreted = interpret_feedback(synthetic_provider(request), request)
-        assert interpreted.finding is not None
+        interpreted = interpret_traced(
+            synthetic_provider(request), request, tracer=tracer, run_id="demo-run"
+        ).interpretation
+        assert interpreted is not None and interpreted.finding is not None
         repository.create(
             run_id="demo-run",
             finding=interpreted.finding,
@@ -57,7 +64,11 @@ def run_demo() -> dict[str, object]:
             evidence=interpreted.evidence,
         )
         provider = FakeVideoProvider()
-        executor = WorkflowExecutor(repository=repository, provider=provider)
+        executor = WorkflowExecutor(
+            repository=repository,
+            provider=provider,
+            observer=ExecutionObserver(tracer=tracer) if tracer else None,
+        )
 
         repository.approve(
             "demo-run", plan_version_id=repository.get("demo-run").plan_version_id
@@ -91,6 +102,7 @@ def run_demo() -> dict[str, object]:
             "new_event": repository.get_provider_event(
                 "new-completion"
             ).disposition.value,
+            "observed_video": observed_video_id,
             "active_video": video.id,
             "video_sources": {
                 kind.value: version_id for kind, version_id in video.source_versions

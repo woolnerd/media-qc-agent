@@ -227,3 +227,19 @@ class JevProviderTests(unittest.TestCase):
             )
         with patch.dict("os.environ", {}, clear=True), self.assertRaises(ValueError):
             JevModelProvider.from_environment()
+
+    def test_identity_versions_question_templates_independently_of_model(
+        self,
+    ) -> None:
+        pinned = JevModelProvider(api_key="k").identity
+        other = JevModelProvider(api_key="k", model="typesafe/other").identity
+        self.assertEqual(
+            (pinned.provider, pinned.model), ("openrouter-jev", DEFAULT_JEV_MODEL)
+        )
+        self.assertEqual(pinned.prompt_version, other.prompt_version)
+        self.assertTrue(pinned.prompt_version.startswith("jev:"))
+        with patch.dict(
+            "media_qc_agent.agent.jev._CRITERIA", {"uncertain": "Changed criterion"}
+        ):
+            changed = JevModelProvider(api_key="k").identity
+        self.assertNotEqual(changed.prompt_version, pinned.prompt_version)

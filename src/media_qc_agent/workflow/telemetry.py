@@ -1,6 +1,5 @@
 """Best-effort, allowlisted execution observations; never workflow authority."""
 
-import hashlib
 import json
 import sys
 import time
@@ -13,6 +12,7 @@ from threading import Lock
 from opentelemetry import trace
 from opentelemetry.trace import Tracer
 
+from media_qc_agent.domain.ids import reference
 from media_qc_agent.workflow.models import (
     ProviderEventDisposition,
     ProviderJob,
@@ -60,10 +60,6 @@ def error_category(error: Exception) -> ErrorCategory:
     if isinstance(error, ValueError):
         return ErrorCategory.REJECTED
     return ErrorCategory.UNEXPECTED
-
-
-def reference(value: str | None) -> str | None:
-    return hashlib.sha256(value.encode()).hexdigest() if value is not None else None
 
 
 @dataclass(frozen=True)

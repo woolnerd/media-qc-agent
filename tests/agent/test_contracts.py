@@ -3,7 +3,9 @@ import unittest
 from media_qc_agent.agent.contracts import (
     FakeModelProvider,
     InterpretationRequest,
+    ModelIdentity,
     ModelProvider,
+    prompt_version,
 )
 from media_qc_agent.domain.evidence import EvidenceInput, EvidenceRole
 
@@ -44,3 +46,28 @@ class ModelProviderTests(unittest.TestCase):
                 ("video-1",),
                 (EvidenceInput(EvidenceRole.FACT, "video-2", "Jump"),),
             )
+
+    def test_fake_identity_marks_fixture_replay(self) -> None:
+        provider: ModelProvider = FakeModelProvider({})
+        self.assertEqual(provider.identity, ModelIdentity("fake", "fixture", "fixture"))
+
+
+class PromptVersionTests(unittest.TestCase):
+    def test_version_is_a_stable_content_hash_with_a_readable_family(self) -> None:
+        version = prompt_version("chat", {"system": "a", "schema": [1, 2]})
+        self.assertEqual(
+            version, prompt_version("chat", {"schema": [1, 2], "system": "a"})
+        )
+        family, digest = version.split(":")
+        self.assertEqual(family, "chat")
+        self.assertEqual(len(digest), 12)
+
+    def test_any_content_or_family_change_produces_a_new_version(self) -> None:
+        base = prompt_version("chat", {"system": "a"})
+        self.assertNotEqual(base, prompt_version("chat", {"system": "a "}))
+        self.assertNotEqual(base, prompt_version("jev", {"system": "a"}))
+
+    def test_identity_rejects_blank_parts(self) -> None:
+        for parts in (("", "m", "p"), ("p", " ", "p"), ("p", "m", "")):
+            with self.subTest(parts=parts), self.assertRaises(ValueError):
+                ModelIdentity(*parts)

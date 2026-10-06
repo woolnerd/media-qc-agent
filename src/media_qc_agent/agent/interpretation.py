@@ -139,6 +139,24 @@ def validate_interpretation(raw: str, request: InterpretationRequest) -> Interpr
     return Interpretation(finding, decision, evidence, None)
 
 
+def repair_scopes(
+    result: Interpretation,
+) -> dict[RepairAction, frozenset[ArtifactKind]]:
+    """Every repair the decision would allow, including offered creative branches."""
+
+    if isinstance(result.decision, RepairPlan):
+        return {result.decision.action: result.decision.invalidates}
+    if isinstance(result.decision, ClarificationRequest):
+        return {option.action: option.invalidates for option in result.decision.options}
+    return {}
+
+
+def clarification_type(result: Interpretation) -> str:
+    if result.clarification is not None:
+        return "diagnostic"
+    return "creative" if isinstance(result.decision, ClarificationRequest) else "none"
+
+
 def interpret_feedback(
     provider: ModelProvider, request: InterpretationRequest
 ) -> Interpretation:

@@ -2,7 +2,8 @@
 
 Workflow state and audit records remain authoritative. Execution observations
 are best effort and cannot initiate provider calls or undo database commits.
-Model traces and evaluation scores are separate work.
+Model-turn spans and evaluation records follow the same attribute rules; see
+[model traces](../agent/model-traces.md).
 
 ## Events and commit boundaries
 
