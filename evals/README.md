@@ -104,8 +104,9 @@ does so for Luna, which is the low-cost pilot default. See the
 ## Policy comparison in CI
 
 [`recorded-outputs-v1.json`](recorded-outputs-v1.json) collects the raw outputs
-and recorded failure labels from the three September 29 result files above:
-four runs, 60 outputs. A unit test checks every entry against its source file.
+and recorded failure labels from the three September 29 result files above
+(four runs) and three October 6 Luna runs (below): 105 outputs. A unit test
+checks every entry against its source file.
 CI replays those outputs and the saved fixtures under each acceptance policy
 version and requires the result to match
 [`results/policy-comparison-v1.json`](results/policy-comparison-v1.json):
@@ -116,11 +117,27 @@ PYTHONPATH=src python3 -m media_qc_agent.cli.compare --expect evals/results/poli
 
 | Policy | Passed | False passes | False blocks | Other failures |
 | --- | --- | --- | --- | --- |
-| `confidence-v1` (default) | 71/75 | 2 | 1 | 1 |
-| `grounded-scope-v2` | 71/75 | 0 | 3 | 1 |
+| `confidence-v1` (default) | 114/120 | 2 | 1 | 3 |
+| `grounded-scope-v2` | 114/120 | 0 | 3 | 3 |
+
+Totals include the 15 fixture cases, which pass under both policies.
 
 Both Gemini false passes on the adversarial TTS case become false blocks under
 `grounded-scope-v2`; nothing else changes. No network calls are made. After an
 intentional change, regenerate the snapshot by running the command without
 `--expect` and redirecting stdout, then explain the diff in the PR. See
 [policy comparison](../docs/agent/policy-comparison.md) for definitions and limits.
+
+## October 6 Luna repeats
+
+Three live runs of `openai/gpt-6-luna` with the current chat prompt
+(`chat:50c6b77a9c4a`), masked version labels, one call per case and no retries.
+The [trace records](results/) are `luna-live-2026-10-06-r1.jsonl` through `-r3`.
+
+Runs 1 and 2 passed 15/15. Run 3 passed 13/15: on the ambiguous script and
+visual cases it asked for clarification and proposed no repair, but cited no
+uncertainty record. That matches its single September miss. Across 45 calls there
+were no false passes or false blocks under either policy, and the adversarial
+TTS case was diagnosed correctly every time. Three repeats over 15 synthetic
+cases show run-to-run variation; they do not estimate accuracy. Trace records do
+not capture cost.

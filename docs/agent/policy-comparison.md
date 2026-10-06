@@ -30,15 +30,19 @@ Ambiguous cases supply no facts, so no current policy can give them authority.
 
 ## Recorded result
 
-`python -m media_qc_agent.cli.compare` replays the saved fixtures and four
-recorded live runs (Gemini unmasked and masked, Jev, Luna) under both policies.
+`python -m media_qc_agent.cli.compare` replays the saved fixtures and seven
+recorded live runs under both policies: the September 29 Gemini (unmasked and
+masked), Jev, and Luna runs, and three October 6 Luna runs with the current
+chat prompt.
 Under `confidence-v1`, replay reproduces every recorded failure label, which
 checks that current validation still scores the saved outputs the same way.
 
 `grounded-scope-v2` removes both recorded false passes. Gemini classified the
 adversarial TTS defect as a caption defect and cited the TTS-input fact, while
 the caption repair replaces only captions. The candidate policy holds that
-output instead, so false blocks rise from 1 to 3. No other case changes.
+output instead, so false blocks rise from 1 to 3. No other case changes. The
+current default model, Luna, had no false passes or false blocks in any run, so
+the policy choice changes nothing for it on these cases.
 
 ## CI gate
 
@@ -50,10 +54,10 @@ outcome therefore needs a snapshot update that is visible in the PR diff.
 
 ## Limits
 
-- Four runs over 15 synthetic cases. The counts show what a policy does to
+- Seven runs over 15 synthetic cases. The counts show what a policy does to
   these saved outputs. They are not accuracy or calibration estimates.
 - Replay holds model outputs fixed. A prompt change needs a new paid live run
-  before it can be compared, and those saved runs predate prompt versioning
+  before it can be compared. The September runs predate prompt versioning
   (`prompt_version` is `unrecorded`).
 - Grounding checks which artifact a fact is on, not whether the fact supports
   the diagnosis. A wrong diagnosis that cites a fact on an in-scope artifact

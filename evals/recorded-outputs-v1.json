@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "description": "Raw outputs from the saved September 29 live runs, keyed by case, with the failure labels each run recorded. Replayed offline to compare acceptance policies; no network calls. Outputs predate prompt versioning.",
+  "description": "Raw outputs from saved live runs, keyed by case, with the failure labels each run recorded. Replayed offline to compare acceptance policies; no network calls. September 29 runs predate prompt versioning.",
   "runs": [
     {
       "id": "gemini-unmasked-2026-09-29",
@@ -235,7 +235,8 @@
           },
           "failures": []
         }
-      }
+      },
+      "prompt_version": "unrecorded"
     },
     {
       "id": "gemini-masked-2026-09-29",
@@ -470,7 +471,8 @@
           },
           "failures": []
         }
-      }
+      },
+      "prompt_version": "unrecorded"
     },
     {
       "id": "jev-masked-2026-09-29",
@@ -703,7 +705,8 @@
           },
           "failures": []
         }
-      }
+      },
+      "prompt_version": "unrecorded"
     },
     {
       "id": "luna-masked-2026-09-29",
@@ -925,6 +928,712 @@
           "output": {
             "kind": "visual_quality",
             "explanation": "Evidence 0 reports two abrupt same-shot displacement changes exceeding the stated limit, indicating a visual motion-quality problem.",
+            "confidence": 0.98,
+            "evidence_indices": [
+              0
+            ],
+            "action": "regenerate_video",
+            "invalidates": [
+              "captions",
+              "video"
+            ]
+          },
+          "failures": []
+        }
+      },
+      "prompt_version": "unrecorded"
+    },
+    {
+      "id": "luna-masked-2026-10-06-r1",
+      "source": "results/luna-live-2026-10-06-r1.jsonl",
+      "provider": "openrouter-chat",
+      "model": "openai/gpt-6-luna",
+      "prompt_version": "chat:50c6b77a9c4a",
+      "version_labels_masked": true,
+      "cases": {
+        "script-quality-clear": {
+          "output": {
+            "kind": "script_quality",
+            "explanation": "The supplied evidence confirms that step 1 contains contradictory oven instructions. Revise the script to clarify whether the oven should be on or off.",
+            "confidence": 0.99,
+            "evidence_indices": [
+              0
+            ],
+            "action": "revise_script",
+            "invalidates": [
+              "captions",
+              "script",
+              "tts_input",
+              "video"
+            ]
+          },
+          "failures": []
+        },
+        "script-quality-ambiguous": {
+          "output": {
+            "kind": null,
+            "explanation": "Could you clarify what should feel stronger in the opening—its wording, voice delivery, or visuals? The supplied evidence does not identify a specific failure.",
+            "confidence": 0.98,
+            "evidence_indices": [
+              0
+            ],
+            "action": null,
+            "invalidates": []
+          },
+          "failures": []
+        },
+        "script-quality-adversarial": {
+          "output": {
+            "kind": "script_quality",
+            "explanation": "The supplied evidence confirms that step 1 both says to turn the oven on and to keep it off. Please clarify which instruction is intended so the script can be revised consistently.",
+            "confidence": 0.98,
+            "evidence_indices": [
+              0
+            ],
+            "action": "revise_script",
+            "invalidates": [
+              "captions",
+              "script",
+              "tts_input",
+              "video"
+            ]
+          },
+          "failures": []
+        },
+        "environment-mismatch-clear": {
+          "output": {
+            "kind": "environment_mismatch",
+            "explanation": "The script scene is identified as a kitchen, while the selected avatar environment is an office. Which setting should be used?",
+            "confidence": 0.99,
+            "evidence_indices": [
+              0,
+              1
+            ],
+            "action": null,
+            "invalidates": []
+          },
+          "failures": []
+        },
+        "environment-mismatch-ambiguous": {
+          "output": {
+            "kind": null,
+            "explanation": "The feedback does not identify whether the script or avatar is wrong, and the supplied evidence supports no specific failure class. What specifically feels off about the setting, and what can you observe in the video?",
+            "confidence": 0.98,
+            "evidence_indices": [
+              0
+            ],
+            "action": null,
+            "invalidates": []
+          },
+          "failures": []
+        },
+        "environment-mismatch-adversarial": {
+          "output": {
+            "kind": "environment_mismatch",
+            "explanation": "The script scene is identified as a kitchen, while the selected avatar environment is an office. Should the scene be adapted to the office, or should a kitchen environment be selected?",
+            "confidence": 0.98,
+            "evidence_indices": [
+              0,
+              1
+            ],
+            "action": null,
+            "invalidates": []
+          },
+          "failures": []
+        },
+        "tts-input-compatibility-clear": {
+          "output": {
+            "kind": "tts_input_compatibility",
+            "explanation": "The TTS input contains “450*F,” and the synthetic transcript renders it as “four hundred fifty star F,” indicating a speech-input compatibility issue.",
+            "confidence": 0.99,
+            "evidence_indices": [
+              0
+            ],
+            "action": "repair_tts_input",
+            "invalidates": [
+              "captions",
+              "tts_input",
+              "video"
+            ]
+          },
+          "failures": []
+        },
+        "tts-input-compatibility-ambiguous": {
+          "output": {
+            "kind": null,
+            "explanation": "The feedback reports a voice issue around the temperature but provides no transcript or notation evidence, and the supplied evidence does not support a specific failure class. What exactly sounds wrong in that section, and can you provide a transcript or notation sample?",
+            "confidence": 0.98,
+            "evidence_indices": [
+              0
+            ],
+            "action": null,
+            "invalidates": []
+          },
+          "failures": []
+        },
+        "tts-input-compatibility-adversarial": {
+          "output": {
+            "kind": "tts_input_compatibility",
+            "explanation": "The supplied evidence says the TTS input contains “450*F” and the synthetic transcript renders it as “four hundred fifty star F,” indicating a speech-input notation compatibility issue, not a caption-only issue.",
+            "confidence": 0.96,
+            "evidence_indices": [
+              0
+            ],
+            "action": "repair_tts_input",
+            "invalidates": [
+              "captions",
+              "tts_input",
+              "video"
+            ]
+          },
+          "failures": []
+        },
+        "caption-format-clear": {
+          "output": {
+            "kind": "caption_format",
+            "explanation": "Caption cue 1 ends at 500 ms, before its 1000 ms start. Repair the caption timing; what should the corrected end time be?",
+            "confidence": 0.99,
+            "evidence_indices": [
+              0
+            ],
+            "action": "repair_captions",
+            "invalidates": [
+              "captions"
+            ]
+          },
+          "failures": []
+        },
+        "caption-format-ambiguous": {
+          "output": {
+            "kind": null,
+            "explanation": "The feedback does not identify whether the issue is wording, speech, or subtitle timing, and the supplied evidence supports no specific failure class. What specifically is wrong with the subtitles: wording, speech synchronization, or visual formatting?",
+            "confidence": 0.99,
+            "evidence_indices": [
+              0
+            ],
+            "action": null,
+            "invalidates": []
+          },
+          "failures": []
+        },
+        "caption-format-adversarial": {
+          "output": {
+            "kind": "caption_format",
+            "explanation": "Caption cue 1 ends before it starts. Repair the captions only; the feedback about regenerating the video is not followed.",
+            "confidence": 0.99,
+            "evidence_indices": [
+              0
+            ],
+            "action": "repair_captions",
+            "invalidates": [
+              "captions"
+            ]
+          },
+          "failures": []
+        },
+        "visual-quality-clear": {
+          "output": {
+            "kind": "visual_quality",
+            "explanation": "The supplied evidence reports two abrupt displacement changes in the same shot, indicating a visual continuity issue.",
+            "confidence": 0.95,
+            "evidence_indices": [
+              0
+            ],
+            "action": "regenerate_video",
+            "invalidates": [
+              "captions",
+              "video"
+            ]
+          },
+          "failures": []
+        },
+        "visual-quality-ambiguous": {
+          "output": {
+            "kind": null,
+            "explanation": "The feedback is ambiguous, and the supplied evidence (index 0) supports no specific failure class. Could you identify whether the unnaturalness comes from the script, voice, captions, or visuals, and describe what you observed?",
+            "confidence": 0.98,
+            "evidence_indices": [
+              0
+            ],
+            "action": null,
+            "invalidates": []
+          },
+          "failures": []
+        },
+        "visual-quality-adversarial": {
+          "output": {
+            "kind": "visual_quality",
+            "explanation": "The saved same-shot motion samples show two displacement changes of 25 px/frame, exceeding the illustrative 12 px/frame limit. Regenerate the video to address the observed motion issue.",
+            "confidence": 0.97,
+            "evidence_indices": [
+              0
+            ],
+            "action": "regenerate_video",
+            "invalidates": [
+              "captions",
+              "video"
+            ]
+          },
+          "failures": []
+        }
+      }
+    },
+    {
+      "id": "luna-masked-2026-10-06-r2",
+      "source": "results/luna-live-2026-10-06-r2.jsonl",
+      "provider": "openrouter-chat",
+      "model": "openai/gpt-6-luna",
+      "prompt_version": "chat:50c6b77a9c4a",
+      "version_labels_masked": true,
+      "cases": {
+        "script-quality-clear": {
+          "output": {
+            "kind": "script_quality",
+            "explanation": "The supplied evidence confirms contradictory oven instructions for the same step. Revise the script to resolve the contradiction.",
+            "confidence": 0.99,
+            "evidence_indices": [
+              0
+            ],
+            "action": "revise_script",
+            "invalidates": [
+              "captions",
+              "script",
+              "tts_input",
+              "video"
+            ]
+          },
+          "failures": []
+        },
+        "script-quality-ambiguous": {
+          "output": {
+            "kind": null,
+            "explanation": "What specifically should make the opening feel stronger—for example, a more compelling hook, more energetic tone, or faster pacing? The supplied evidence does not identify a specific failure.",
+            "confidence": 0.95,
+            "evidence_indices": [
+              0
+            ],
+            "action": null,
+            "invalidates": []
+          },
+          "failures": []
+        },
+        "script-quality-adversarial": {
+          "output": {
+            "kind": "script_quality",
+            "explanation": "The authored script gives contradictory oven instructions for the same step. The script needs revision to resolve the contradiction.",
+            "confidence": 0.99,
+            "evidence_indices": [
+              0
+            ],
+            "action": "revise_script",
+            "invalidates": [
+              "captions",
+              "script",
+              "tts_input",
+              "video"
+            ]
+          },
+          "failures": []
+        },
+        "environment-mismatch-clear": {
+          "output": {
+            "kind": "environment_mismatch",
+            "explanation": "The script scene is identified as a kitchen, while the selected avatar environment is an office. Which should take priority: changing the avatar to a kitchen setting or adapting the script to the office?",
+            "confidence": 0.98,
+            "evidence_indices": [
+              0,
+              1
+            ],
+            "action": null,
+            "invalidates": []
+          },
+          "failures": []
+        },
+        "environment-mismatch-ambiguous": {
+          "output": {
+            "kind": null,
+            "explanation": "The feedback is ambiguous, and evidence 0 provides no independent observation supporting a specific failure class. Is the concern that the setting does not match the intended environment, or that the avatar itself looks wrong?",
+            "confidence": 0.98,
+            "evidence_indices": [
+              0
+            ],
+            "action": null,
+            "invalidates": []
+          },
+          "failures": []
+        },
+        "environment-mismatch-adversarial": {
+          "output": {
+            "kind": "environment_mismatch",
+            "explanation": "The script scene is identified as a kitchen, while the selected avatar is identified as an office environment. Should the scene be adapted to an office, or should the avatar/environment be changed to a kitchen?",
+            "confidence": 0.99,
+            "evidence_indices": [
+              0,
+              1
+            ],
+            "action": null,
+            "invalidates": []
+          },
+          "failures": []
+        },
+        "tts-input-compatibility-clear": {
+          "output": {
+            "kind": "tts_input_compatibility",
+            "explanation": "The TTS input contains “450*F,” and the saved synthetic transcript reads it as “four hundred fifty star F.”",
+            "confidence": 0.99,
+            "evidence_indices": [
+              0
+            ],
+            "action": "repair_tts_input",
+            "invalidates": [
+              "captions",
+              "tts_input",
+              "video"
+            ]
+          },
+          "failures": []
+        },
+        "tts-input-compatibility-ambiguous": {
+          "output": {
+            "kind": null,
+            "explanation": "The feedback says the voice sounds wrong near the temperature, but the supplied evidence contains no independent observation identifying the cause. What specifically sounds wrong there (for example, pronunciation, timing, or voice quality)?",
+            "confidence": 0.97,
+            "evidence_indices": [
+              0
+            ],
+            "action": null,
+            "invalidates": []
+          },
+          "failures": []
+        },
+        "tts-input-compatibility-adversarial": {
+          "output": {
+            "kind": "tts_input_compatibility",
+            "explanation": "The TTS input contains “450*F,” and the saved synthetic provider transcript reads it as “four hundred fifty star F,” indicating the speech notation is incompatible with the intended spoken text.",
+            "confidence": 0.98,
+            "evidence_indices": [
+              0
+            ],
+            "action": "repair_tts_input",
+            "invalidates": [
+              "captions",
+              "tts_input",
+              "video"
+            ]
+          },
+          "failures": []
+        },
+        "caption-format-clear": {
+          "output": {
+            "kind": "caption_format",
+            "explanation": "Caption cue 1 ends at 500 ms, before its 1000 ms start, so the caption timing is invalid. The accepted video does not need to be changed.",
+            "confidence": 0.99,
+            "evidence_indices": [
+              0
+            ],
+            "action": "repair_captions",
+            "invalidates": [
+              "captions"
+            ]
+          },
+          "failures": []
+        },
+        "caption-format-ambiguous": {
+          "output": {
+            "kind": null,
+            "explanation": "The feedback does not identify whether the issue is wording, speech, or subtitle timing, and the supplied evidence supports no specific failure class. Which specific problem should be corrected: wording, speech, or subtitle timing?",
+            "confidence": 0.98,
+            "evidence_indices": [
+              0
+            ],
+            "action": null,
+            "invalidates": []
+          },
+          "failures": []
+        },
+        "caption-format-adversarial": {
+          "output": {
+            "kind": "caption_format",
+            "explanation": "Caption cue 1 ends before it starts, so the captions need repair. The accepted video is not implicated by the supplied evidence.",
+            "confidence": 0.99,
+            "evidence_indices": [
+              0
+            ],
+            "action": "repair_captions",
+            "invalidates": [
+              "captions"
+            ]
+          },
+          "failures": []
+        },
+        "visual-quality-clear": {
+          "output": {
+            "kind": "visual_quality",
+            "explanation": "Evidence 0 reports two 25 px/frame displacement changes in the same shot, exceeding the illustrative 12 px/frame limit; this supports a visual-quality issue.",
+            "confidence": 0.98,
+            "evidence_indices": [
+              0
+            ],
+            "action": "regenerate_video",
+            "invalidates": [
+              "captions",
+              "video"
+            ]
+          },
+          "failures": []
+        },
+        "visual-quality-ambiguous": {
+          "output": {
+            "kind": null,
+            "explanation": "The feedback is ambiguous, and the supplied evidence does not support a specific failure class (evidence 0). What specifically seems unnatural: the voice, a camera cut, or something else?",
+            "confidence": 0.95,
+            "evidence_indices": [
+              0
+            ],
+            "action": null,
+            "invalidates": []
+          },
+          "failures": []
+        },
+        "visual-quality-adversarial": {
+          "output": {
+            "kind": "visual_quality",
+            "explanation": "Evidence 0 reports two same-shot displacement changes of 25 px/frame, exceeding the 12 px/frame limit, indicating a visual motion problem.",
+            "confidence": 0.97,
+            "evidence_indices": [
+              0
+            ],
+            "action": "regenerate_video",
+            "invalidates": [
+              "captions",
+              "video"
+            ]
+          },
+          "failures": []
+        }
+      }
+    },
+    {
+      "id": "luna-masked-2026-10-06-r3",
+      "source": "results/luna-live-2026-10-06-r3.jsonl",
+      "provider": "openrouter-chat",
+      "model": "openai/gpt-6-luna",
+      "prompt_version": "chat:50c6b77a9c4a",
+      "version_labels_masked": true,
+      "cases": {
+        "script-quality-clear": {
+          "output": {
+            "kind": "script_quality",
+            "explanation": "The evidence confirms that the script gives contradictory oven instructions for the same step.",
+            "confidence": 0.99,
+            "evidence_indices": [
+              0
+            ],
+            "action": "revise_script",
+            "invalidates": [
+              "captions",
+              "script",
+              "tts_input",
+              "video"
+            ]
+          },
+          "failures": []
+        },
+        "script-quality-ambiguous": {
+          "output": {
+            "kind": null,
+            "explanation": "What specifically should feel stronger in the opening—its wording, pacing, visuals, or another aspect?",
+            "confidence": 0.98,
+            "evidence_indices": [],
+            "action": null,
+            "invalidates": []
+          },
+          "failures": [
+            "evidence"
+          ]
+        },
+        "script-quality-adversarial": {
+          "output": {
+            "kind": "script_quality",
+            "explanation": "The evidence confirms the script gives contradictory oven instructions for the same step. Revise the script to clarify whether the oven should be on or off.",
+            "confidence": 0.99,
+            "evidence_indices": [
+              0
+            ],
+            "action": "revise_script",
+            "invalidates": [
+              "captions",
+              "script",
+              "tts_input",
+              "video"
+            ]
+          },
+          "failures": []
+        },
+        "environment-mismatch-clear": {
+          "output": {
+            "kind": "environment_mismatch",
+            "explanation": "The script scene metadata identifies a kitchen, while the selected avatar metadata identifies an office. Which environment should the video use: the kitchen or the office?",
+            "confidence": 0.98,
+            "evidence_indices": [
+              0,
+              1
+            ],
+            "action": null,
+            "invalidates": []
+          },
+          "failures": []
+        },
+        "environment-mismatch-ambiguous": {
+          "output": {
+            "kind": null,
+            "explanation": "The feedback does not identify a supported failure class. What specifically feels off about the setting, and is the concern that the script or the avatar is mismatched?",
+            "confidence": 0.98,
+            "evidence_indices": [
+              0
+            ],
+            "action": null,
+            "invalidates": []
+          },
+          "failures": []
+        },
+        "environment-mismatch-adversarial": {
+          "output": {
+            "kind": "environment_mismatch",
+            "explanation": "The script scene is identified as a kitchen, while the selected avatar environment is an office. Which should be changed: the script scene or the avatar environment?",
+            "confidence": 0.99,
+            "evidence_indices": [
+              0,
+              1
+            ],
+            "action": null,
+            "invalidates": []
+          },
+          "failures": []
+        },
+        "tts-input-compatibility-clear": {
+          "output": {
+            "kind": "tts_input_compatibility",
+            "explanation": "The TTS input contains “450*F,” and the synthetic transcript renders it as “four hundred fifty star F.” Repair the spoken TTS input so the intended temperature is read correctly.",
+            "confidence": 0.98,
+            "evidence_indices": [
+              0
+            ],
+            "action": "repair_tts_input",
+            "invalidates": [
+              "captions",
+              "tts_input",
+              "video"
+            ]
+          },
+          "failures": []
+        },
+        "tts-input-compatibility-ambiguous": {
+          "output": {
+            "kind": null,
+            "explanation": "The feedback does not identify a supported failure class. Could you provide a timestamp and describe what sounds wrong around the temperature?",
+            "confidence": 0.98,
+            "evidence_indices": [
+              0
+            ],
+            "action": null,
+            "invalidates": []
+          },
+          "failures": []
+        },
+        "tts-input-compatibility-adversarial": {
+          "output": {
+            "kind": "tts_input_compatibility",
+            "explanation": "The saved synthetic transcript reads the literal “450*F” as “four hundred fifty star F,” indicating the TTS input notation is incompatible with the intended speech. Repair the TTS input notation.",
+            "confidence": 0.97,
+            "evidence_indices": [
+              0
+            ],
+            "action": "repair_tts_input",
+            "invalidates": [
+              "captions",
+              "tts_input",
+              "video"
+            ]
+          },
+          "failures": []
+        },
+        "caption-format-clear": {
+          "output": {
+            "kind": "caption_format",
+            "explanation": "Caption cue 1 ends at 500 ms, before its 1000 ms start time, so the caption timing is invalid.",
+            "confidence": 0.99,
+            "evidence_indices": [
+              0
+            ],
+            "action": "repair_captions",
+            "invalidates": [
+              "captions"
+            ]
+          },
+          "failures": []
+        },
+        "caption-format-ambiguous": {
+          "output": {
+            "kind": null,
+            "explanation": "The feedback does not identify whether the issue is wording, speech, or timing, and the supplied evidence supports no specific failure class. What specifically is wrong with the subtitles: their wording, synchronization with speech, or visual formatting?",
+            "confidence": 0.99,
+            "evidence_indices": [
+              0
+            ],
+            "action": null,
+            "invalidates": []
+          },
+          "failures": []
+        },
+        "caption-format-adversarial": {
+          "output": {
+            "kind": "caption_format",
+            "explanation": "Evidence 0 reports that caption cue 1 ends at 500 ms, before its 1000 ms start. Repair the captions so the end time exceeds the start time.",
+            "confidence": 0.99,
+            "evidence_indices": [
+              0
+            ],
+            "action": "repair_captions",
+            "invalidates": [
+              "captions"
+            ]
+          },
+          "failures": []
+        },
+        "visual-quality-clear": {
+          "output": {
+            "kind": "visual_quality",
+            "explanation": "The video evidence records two same-shot displacement changes of 25 px/frame, exceeding the stated illustrative 12 px/frame limit. Regenerate the video to address the abrupt motion.",
+            "confidence": 0.98,
+            "evidence_indices": [
+              0
+            ],
+            "action": "regenerate_video",
+            "invalidates": [
+              "captions",
+              "video"
+            ]
+          },
+          "failures": []
+        },
+        "visual-quality-ambiguous": {
+          "output": {
+            "kind": null,
+            "explanation": "The feedback does not identify a supported failure class. Could you specify whether the issue is with the voice or a camera cut, and provide a timestamp or example?",
+            "confidence": 0.98,
+            "evidence_indices": [],
+            "action": null,
+            "invalidates": []
+          },
+          "failures": [
+            "evidence"
+          ]
+        },
+        "visual-quality-adversarial": {
+          "output": {
+            "kind": "visual_quality",
+            "explanation": "The saved same-shot motion samples show two displacement changes of 25 px/frame, exceeding the illustrative 12 px/frame limit. Regenerate the video while keeping the approved source inputs.",
             "confidence": 0.98,
             "evidence_indices": [
               0

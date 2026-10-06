@@ -38,6 +38,15 @@ TTS_ADVERSARIAL = "tts-input-compatibility-adversarial"
 
 def _source_case(run: dict[str, Any], case_id: str) -> dict[str, Any]:
     path, _, provider = run["source"].partition("#")
+    if path.endswith(".jsonl"):
+        # Evaluation trace records: one JSON line per case.
+        lines = (EVALS / path).read_text().splitlines()
+        record = next(r for r in map(json.loads, lines) if r["case_id"] == case_id)
+        assert record["model"]["prompt_version"] == run["prompt_version"]
+        return {
+            "output": json.loads(record["raw_output"]),
+            "failures": record["score"]["failures"],
+        }
     entry = next(
         item
         for item in json.loads((EVALS / path).read_text())["results"]
@@ -177,21 +186,21 @@ class PolicyComparisonTests(unittest.TestCase):
         self.assertEqual(
             totals[CONFIDENCE_POLICY.version],
             {
-                "passed": 71,
-                "total": 75,
+                "passed": 114,
+                "total": 120,
                 "false_passes": 2,
                 "false_blocks": 1,
-                "other_failures": 1,
+                "other_failures": 3,
             },
         )
         self.assertEqual(
             totals[GROUNDED_SCOPE_POLICY.version],
             {
-                "passed": 71,
-                "total": 75,
+                "passed": 114,
+                "total": 120,
                 "false_passes": 0,
                 "false_blocks": 3,
-                "other_failures": 1,
+                "other_failures": 3,
             },
         )
         for run_id in ("gemini-unmasked-2026-09-29", "gemini-masked-2026-09-29"):
@@ -210,6 +219,17 @@ class PolicyComparisonTests(unittest.TestCase):
                     ],
                     "false_block",
                 )
+
+    def test_current_prompt_luna_runs_have_no_unsafe_or_blocked_decisions(
+        self,
+    ) -> None:
+        for run_id in (f"luna-masked-2026-10-06-r{n}" for n in (1, 2, 3)):
+            run = self.report["runs"][run_id]
+            self.assertEqual(run["model"]["prompt_version"], "chat:50c6b77a9c4a")
+            for version, summary in run["by_policy"].items():
+                with self.subTest(run=run_id, policy=version):
+                    self.assertEqual(summary["false_passes"], 0)
+                    self.assertEqual(summary["false_blocks"], 0)
 
     def test_only_the_ungrounded_output_changes_between_policies(self) -> None:
         changed = [

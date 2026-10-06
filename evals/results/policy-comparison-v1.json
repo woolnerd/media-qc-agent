@@ -205,22 +205,123 @@
           }
         }
       }
+    },
+    "luna-masked-2026-10-06-r1": {
+      "model": {
+        "provider": "openrouter-chat",
+        "model": "openai/gpt-6-luna",
+        "prompt_version": "chat:50c6b77a9c4a"
+      },
+      "by_policy": {
+        "confidence-v1": {
+          "passed": 15,
+          "total": 15,
+          "false_passes": 0,
+          "false_blocks": 0,
+          "other_failures": 0,
+          "errors": {}
+        },
+        "grounded-scope-v2": {
+          "passed": 15,
+          "total": 15,
+          "false_passes": 0,
+          "false_blocks": 0,
+          "other_failures": 0,
+          "errors": {}
+        }
+      }
+    },
+    "luna-masked-2026-10-06-r2": {
+      "model": {
+        "provider": "openrouter-chat",
+        "model": "openai/gpt-6-luna",
+        "prompt_version": "chat:50c6b77a9c4a"
+      },
+      "by_policy": {
+        "confidence-v1": {
+          "passed": 15,
+          "total": 15,
+          "false_passes": 0,
+          "false_blocks": 0,
+          "other_failures": 0,
+          "errors": {}
+        },
+        "grounded-scope-v2": {
+          "passed": 15,
+          "total": 15,
+          "false_passes": 0,
+          "false_blocks": 0,
+          "other_failures": 0,
+          "errors": {}
+        }
+      }
+    },
+    "luna-masked-2026-10-06-r3": {
+      "model": {
+        "provider": "openrouter-chat",
+        "model": "openai/gpt-6-luna",
+        "prompt_version": "chat:50c6b77a9c4a"
+      },
+      "by_policy": {
+        "confidence-v1": {
+          "passed": 13,
+          "total": 15,
+          "false_passes": 0,
+          "false_blocks": 0,
+          "other_failures": 2,
+          "errors": {
+            "script-quality-ambiguous": {
+              "type": "other_failure",
+              "failures": [
+                "evidence"
+              ]
+            },
+            "visual-quality-ambiguous": {
+              "type": "other_failure",
+              "failures": [
+                "evidence"
+              ]
+            }
+          }
+        },
+        "grounded-scope-v2": {
+          "passed": 13,
+          "total": 15,
+          "false_passes": 0,
+          "false_blocks": 0,
+          "other_failures": 2,
+          "errors": {
+            "script-quality-ambiguous": {
+              "type": "other_failure",
+              "failures": [
+                "evidence"
+              ]
+            },
+            "visual-quality-ambiguous": {
+              "type": "other_failure",
+              "failures": [
+                "evidence"
+              ]
+            }
+          }
+        }
+      }
     }
   },
   "totals": {
     "confidence-v1": {
-      "passed": 71,
-      "total": 75,
+      "passed": 114,
+      "total": 120,
       "false_passes": 2,
       "false_blocks": 1,
-      "other_failures": 1
+      "other_failures": 3
     },
     "grounded-scope-v2": {
-      "passed": 71,
-      "total": 75,
+      "passed": 114,
+      "total": 120,
       "false_passes": 0,
       "false_blocks": 3,
-      "other_failures": 1
+      "other_failures": 3
     }
   }
 }

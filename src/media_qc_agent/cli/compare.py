@@ -37,7 +37,15 @@ EVALS = DEFAULT_DATASET.parent
 DEFAULT_RECORDINGS = EVALS / "recorded-outputs-v1.json"
 DEFAULT_EXPECTED = EVALS / "results" / "policy-comparison-v1.json"
 FIXTURE_RUN = "fixture"
-_RUN_FIELDS = {"id", "source", "provider", "model", "version_labels_masked", "cases"}
+_RUN_FIELDS = {
+    "id",
+    "source",
+    "provider",
+    "model",
+    "prompt_version",
+    "version_labels_masked",
+    "cases",
+}
 _MISSING = "<missing>"
 
 
@@ -69,8 +77,8 @@ def _run(data: Any, case_ids: set[str]) -> RecordedRun:
         raise ValueError(f"run {data['id']} must record every dataset case")
     return RecordedRun(
         data["id"],
-        # Saved runs predate content-hashed prompt versions.
-        ModelIdentity(data["provider"], data["model"], "unrecorded"),
+        # September runs predate content-hashed prompt versions: "unrecorded".
+        ModelIdentity(data["provider"], data["model"], data["prompt_version"]),
         data["version_labels_masked"] is True,
         {key: json.dumps(case["output"]) for key, case in data["cases"].items()},
         {key: tuple(case["failures"]) for key, case in data["cases"].items()},
