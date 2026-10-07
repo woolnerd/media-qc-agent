@@ -143,3 +143,20 @@ were no false passes or false blocks under either policy, and the adversarial
 TTS case was diagnosed correctly every time. Three repeats over 15 synthetic
 cases show run-to-run variation; they do not estimate accuracy. Trace records do
 not capture cost.
+
+## Rules-only baseline (held out)
+
+[`baseline-cases-v1.json`](baseline-cases-v1.json) holds 19 separate held-out
+cases with structured artifacts that the deterministic gates actually run on,
+plus ground truth recorded before any model saw them. CI replays three
+recorded Luna runs ([raw outputs](results/baseline-runs-v1.json)) through a
+rules-only arm, a single-shot model arm, and the layered design, and compares
+the result with [the snapshot](results/baseline-comparison-v1.json):
+
+```bash
+PYTHONPATH=src python3 -m media_qc_agent.cli.baseline --expect evals/results/baseline-comparison-v1.json
+```
+
+Both model arms had no safety failures and cut modeled human time by 34%,
+all from routing defects that no gate detects. See the
+[protocol and results](../docs/agent/baseline-comparison.md).

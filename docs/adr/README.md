@@ -36,3 +36,4 @@ If a decision changes, add a new ADR that supersedes the old one.
 - [`0024-trace-model-turns-separately-from-evaluation-records.md`](0024-trace-model-turns-separately-from-evaluation-records.md)
 - [`0025-compare-acceptance-policies-on-recorded-outputs.md`](0025-compare-acceptance-policies-on-recorded-outputs.md)
 - [`0026-default-to-grounded-scope-acceptance.md`](0026-default-to-grounded-scope-acceptance.md)
+- [`0027-keep-gate-precedence-and-scope-the-agent-to-gate-gaps.md`](0027-keep-gate-precedence-and-scope-the-agent-to-gate-gaps.md)

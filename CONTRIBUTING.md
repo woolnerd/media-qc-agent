@@ -36,6 +36,7 @@ PYTHONPATH=src python3 -m unittest discover -s tests -t . -v
 PYTHONPATH=src python3 -m media_qc_agent.cli.demo
 PYTHONPATH=src python3 -m media_qc_agent.cli.evaluate --mask-version-labels
 PYTHONPATH=src python3 -m media_qc_agent.cli.compare --expect evals/results/policy-comparison-v1.json
+PYTHONPATH=src python3 -m media_qc_agent.cli.baseline --expect evals/results/baseline-comparison-v1.json
 ```
 
 The GitHub Actions `verify` job runs on pull requests and pushes to `main`.

@@ -13,6 +13,8 @@ from media_qc_agent.agent.contracts import InterpretationRequest, ModelIdentity
 from media_qc_agent.agent.interpretation import DEFAULT_POLICY
 from media_qc_agent.agent.openrouter import ModelProviderError
 from media_qc_agent.cli.baseline import (
+    DEFAULT_EXPECTED,
+    DEFAULT_RUNS,
     BaselineRun,
     compare_arms,
     load_runs,
@@ -318,6 +320,14 @@ class RecordingTests(unittest.TestCase):
             code, _, errors = _run_main("--runs", str(runs), "--expect", str(expected))
             self.assertEqual(code, 1)
             self.assertIn("verdicts.layered", errors)
+
+
+class SavedResultTests(unittest.TestCase):
+    def test_saved_runs_reproduce_the_saved_comparison(self) -> None:
+        runs = load_runs(DEFAULT_RUNS, CASES)
+        self.assertEqual(len(runs), 3)
+        expected = json.loads(DEFAULT_EXPECTED.read_text())
+        self.assertEqual(compare_arms(CASES, runs), expected)
 
 
 class _MeteredOracle:

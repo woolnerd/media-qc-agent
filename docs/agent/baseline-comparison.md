@@ -144,6 +144,12 @@ Record one paid run, one request per case and no retries, with
 PYTHONPATH=src python3 -m media_qc_agent.cli.baseline --live luna-2026-10-07-r1
 ```
 
+Each recorded call stores a digest of the request it answered, including the
+gate evidence text. Changing a case, or a gate's evidence wording, makes replay
+fail until new live runs are recorded; outputs are never scored against input
+the model did not see. A scoring or arm change updates the snapshot instead:
+rerun without `--expect`, redirect stdout to the snapshot, and explain the diff.
+
 ## Limits
 
 - Nineteen synthetic cases demonstrate the architecture and catch regressions.
@@ -160,4 +166,66 @@ PYTHONPATH=src python3 -m media_qc_agent.cli.baseline --live luna-2026-10-07-r1
 
 ## Results
 
-Pending: recorded after this protocol was committed.
+Recorded on 2026-10-07 after the protocol commit: three live runs of
+`openai/gpt-6-luna` with the current chat prompt (`chat:50c6b77a9c4a`), one
+request per case, no retries, no provider errors. The
+[raw outputs](../../evals/results/baseline-runs-v1.json) and the
+[full report](../../evals/results/baseline-comparison-v1.json) are saved.
+
+| Over 3 runs × 19 cases | `rules_only` | `single_shot` | `layered` |
+| --- | --- | --- | --- |
+| False passes / wrong repairs / unauthorized / extra jobs | 0 / 0 / 0 / 0 | 0 / 0 / 0 / 0 | 0 / 0 / 0 / 0 |
+| False blocks | 18 | 0 | 0 |
+| Human diagnosis rounds | 33 | 15 | 15 |
+| Modeled human minutes (per run) | 177 | 117 | 117 |
+| Model calls / seconds / USD | 0 / 0 / $0 | 57 / 167 s / $0.0070 | 33 / 98 s / $0.0039 |
+| Ambiguous holds missing an uncertainty citation | n/a | 2 | 2 |
+| Pre-render defects without pre-render gate authority | 12 | 24 | 12 |
+
+**Verdicts:** `single_shot` and `layered` both meet the adoption rule: no safety
+metric above `rules_only`, and 34% fewer modeled human minutes in each run
+(threshold 15%). No case was worse than `rules_only` for either arm.
+
+### Where the difference comes from
+
+- **Model routing on gate gaps accounts for all of it.** The 18 better
+  pairs are the six gate-gap cases (two script, and one each for environment,
+  TTS, captions, and visual) in each of three runs. Luna diagnosed each
+  correctly from the reviewer's fact, so a human approved a plan instead of
+  diagnosing from scratch. All 18 model-authorized decisions in `layered` were
+  correct.
+- **Gate precedence changed no safety outcome here.** Luna also handled every
+  gate-detected case correctly, including the adversarial ones that told it to
+  rewrite the script, re-render, pick a branch, or skip approval. So
+  `single_shot` matched `layered` on safety and human time. Precedence still
+  cut model calls from 57 to 33, and it keeps authority for pre-render defects
+  with the pre-render gate. Single-shot authority comes from a turn that reads
+  post-render review feedback; the last table row counts those cases. That
+  row is informational: it measures where authority came from, which is
+  narrower than the protocol's wording, "found only by post-render review".
+- **Clarification and reassessment did not differ.** Every arm asked the same
+  branch questions for the environment cases. The model arms asked them
+  directly; `rules_only` asked after human diagnosis. All arms needed 18 human
+  re-reviews for gate-gap repairs.
+- **Evidence selection is not implemented**, so it contributes nothing.
+- **Ambiguous cases still need a human in every arm.** The model correctly
+  held all 15 ambiguous decisions. In run 1 it twice held without citing the
+  supplied uncertainty, matching the October 6 pattern.
+
+### Sensitivity
+
+The verdict depends on the diagnosis weight. Per run, rules-only costs
+`67 + 11w` minutes and the model arms `67 + 5w`, where `w` is the minutes per
+diagnosis. The 15% threshold holds for any `w` of about 2.3 minutes or more.
+A reviewer fact that already names the defect may make diagnosis that fast.
+
+### What this does and does not show
+
+On these cases the model's value is limited to routing feedback on defects
+the deterministic gates miss. Gates already handle the cases they cover, and
+the model adds no safety there. It also cannot resolve ambiguity that the
+evidence does not resolve. An evidence-selecting agent loop would need cases
+where useful evidence exists but is not precomputed; this dataset has none,
+and it would be the next experiment to justify one. These are three runs of
+one model on 19 synthetic cases, so a single wrong gate-gap diagnosis in a
+future run would reject both model arms under the pre-registered rule.

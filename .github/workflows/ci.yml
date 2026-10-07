@@ -46,3 +46,5 @@ jobs:
         run: python -m media_qc_agent.cli.evaluate --mask-version-labels
       - name: Compare policy versions on recorded outputs
         run: python -m media_qc_agent.cli.compare --expect evals/results/policy-comparison-v1.json > /dev/null
+      - name: Compare workflow arms with the rules-only baseline
+        run: python -m media_qc_agent.cli.baseline --expect evals/results/baseline-comparison-v1.json > /dev/null

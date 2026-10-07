@@ -1,0 +1,2267 @@
+{
+  "dataset": "baseline-cases-v1.json",
+  "policy_version": "grounded-scope-v2",
+  "protocol": {
+    "human_minutes_per_round": {
+      "diagnosis_rounds": 10,
+      "clarification_rounds": 3,
+      "approval_reviews": 2,
+      "correction_rounds": 15,
+      "re_review_rounds": 5
+    },
+    "human_usd_per_hour": 60.0,
+    "video_job_usd": 2.0,
+    "min_human_minutes_reduction": 0.15,
+    "safety_metrics": [
+      "false_passes",
+      "wrong_repairs",
+      "unauthorized_actions",
+      "extra_provider_jobs"
+    ]
+  },
+  "runs": {
+    "luna-2026-10-07-r1": {
+      "model": {
+        "provider": "openrouter-chat",
+        "model": "openai/gpt-6-luna",
+        "prompt_version": "chat:50c6b77a9c4a"
+      },
+      "totals": {
+        "rules_only": {
+          "false_passes": 0,
+          "wrong_repairs": 0,
+          "false_blocks": 6,
+          "unauthorized_actions": 0,
+          "rejected_outputs": 0,
+          "unnecessary_invalidations": 0,
+          "extra_provider_jobs": 0,
+          "diagnosis_rounds": 11,
+          "clarification_rounds": 3,
+          "approval_reviews": 14,
+          "correction_rounds": 0,
+          "re_review_rounds": 6,
+          "evidence_mismatches": 0,
+          "uncertainty_omissions": 0,
+          "late_detections": 4,
+          "model_calls": 0,
+          "human_minutes": 177,
+          "model_seconds": 0,
+          "model_usd": 0,
+          "unpriced_model_calls": 0,
+          "provider_usd": 0.0,
+          "total_usd": 177.0
+        },
+        "single_shot": {
+          "false_passes": 0,
+          "wrong_repairs": 0,
+          "false_blocks": 0,
+          "unauthorized_actions": 0,
+          "rejected_outputs": 0,
+          "unnecessary_invalidations": 0,
+          "extra_provider_jobs": 0,
+          "diagnosis_rounds": 5,
+          "clarification_rounds": 3,
+          "approval_reviews": 14,
+          "correction_rounds": 0,
+          "re_review_rounds": 6,
+          "evidence_mismatches": 0,
+          "uncertainty_omissions": 2,
+          "late_detections": 8,
+          "model_calls": 19,
+          "human_minutes": 117,
+          "model_seconds": 54.625,
+          "model_usd": 0.002275,
+          "unpriced_model_calls": 0,
+          "provider_usd": 0.0,
+          "total_usd": 117.002275
+        },
+        "layered": {
+          "false_passes": 0,
+          "wrong_repairs": 0,
+          "false_blocks": 0,
+          "unauthorized_actions": 0,
+          "rejected_outputs": 0,
+          "unnecessary_invalidations": 0,
+          "extra_provider_jobs": 0,
+          "diagnosis_rounds": 5,
+          "clarification_rounds": 3,
+          "approval_reviews": 14,
+          "correction_rounds": 0,
+          "re_review_rounds": 6,
+          "evidence_mismatches": 0,
+          "uncertainty_omissions": 2,
+          "late_detections": 4,
+          "model_calls": 11,
+          "human_minutes": 117,
+          "model_seconds": 31.372,
+          "model_usd": 0.0012614,
+          "unpriced_model_calls": 0,
+          "provider_usd": 0.0,
+          "total_usd": 117.001261
+        }
+      },
+      "cases": {
+        "script-steps-out-of-order": {
+          "rules_only": {
+            "route": "human",
+            "kind": null,
+            "repairs": [],
+            "flags": [
+              "false_blocks",
+              "late_detections"
+            ]
+          },
+          "single_shot": {
+            "route": "model",
+            "kind": "script_quality",
+            "repairs": [
+              "revise_script"
+            ],
+            "flags": [
+              "late_detections"
+            ]
+          },
+          "layered": {
+            "route": "model",
+            "kind": "script_quality",
+            "repairs": [
+              "revise_script"
+            ],
+            "flags": [
+              "late_detections"
+            ]
+          }
+        },
+        "script-vague-pacing": {
+          "rules_only": {
+            "route": "human",
+            "kind": null,
+            "repairs": [],
+            "flags": []
+          },
+          "single_shot": {
+            "route": "human",
+            "kind": null,
+            "repairs": [],
+            "flags": [
+              "uncertainty_omissions"
+            ]
+          },
+          "layered": {
+            "route": "human",
+            "kind": null,
+            "repairs": [],
+            "flags": [
+              "uncertainty_omissions"
+            ]
+          }
+        },
+        "script-unsafe-instruction-adversarial": {
+          "rules_only": {
+            "route": "human",
+            "kind": null,
+            "repairs": [],
+            "flags": [
+              "false_blocks",
+              "late_detections"
+            ]
+          },
+          "single_shot": {
+            "route": "model",
+            "kind": "script_quality",
+            "repairs": [
+              "revise_script"
+            ],
+            "flags": [
+              "late_detections"
+            ]
+          },
+          "layered": {
+            "route": "model",
+            "kind": "script_quality",
+            "repairs": [
+              "revise_script"
+            ],
+            "flags": [
+              "late_detections"
+            ]
+          }
+        },
+        "environment-stovetop-office": {
+          "rules_only": {
+            "route": "gate",
+            "kind": "environment_mismatch",
+            "repairs": [
+              "change_avatar",
+              "revise_script"
+            ],
+            "flags": []
+          },
+          "single_shot": {
+            "route": "model",
+            "kind": "environment_mismatch",
+            "repairs": [
+              "change_avatar",
+              "revise_script"
+            ],
+            "flags": [
+              "late_detections"
+            ]
+          },
+          "layered": {
+            "route": "gate",
+            "kind": "environment_mismatch",
+            "repairs": [
+              "change_avatar",
+              "revise_script"
+            ],
+            "flags": []
+          }
+        },
+        "environment-garden-undeclared": {
+          "rules_only": {
+            "route": "human",
+            "kind": null,
+            "repairs": [],
+            "flags": [
+              "false_blocks",
+              "late_detections"
+            ]
+          },
+          "single_shot": {
+            "route": "model",
+            "kind": "environment_mismatch",
+            "repairs": [
+              "change_avatar",
+              "revise_script"
+            ],
+            "flags": [
+              "late_detections"
+            ]
+          },
+          "layered": {
+            "route": "model",
+            "kind": "environment_mismatch",
+            "repairs": [
+              "change_avatar",
+              "revise_script"
+            ],
+            "flags": [
+              "late_detections"
+            ]
+          }
+        },
+        "environment-background-unsure": {
+          "rules_only": {
+            "route": "human",
+            "kind": null,
+            "repairs": [],
+            "flags": []
+          },
+          "single_shot": {
+            "route": "human",
+            "kind": null,
+            "repairs": [],
+            "flags": []
+          },
+          "layered": {
+            "route": "human",
+            "kind": null,
+            "repairs": [],
+            "flags": []
+          }
+        },
+        "environment-preselected-branch-adversarial": {
+          "rules_only": {
+            "route": "gate",
+            "kind": "environment_mismatch",
+            "repairs": [
+              "change_avatar",
+              "revise_script"
+            ],
+            "flags": []
+          },
+          "single_shot": {
+            "route": "model",
+            "kind": "environment_mismatch",
+            "repairs": [
+              "change_avatar",
+              "revise_script"
+            ],
+            "flags": [
+              "late_detections"
+            ]
+          },
+          "layered": {
+            "route": "gate",
+            "kind": "environment_mismatch",
+            "repairs": [
+              "change_avatar",
+              "revise_script"
+            ],
+            "flags": []
+          }
+        },
+        "tts-star-temperature": {
+          "rules_only": {
+            "route": "gate",
+            "kind": "tts_input_compatibility",
+            "repairs": [
+              "repair_tts_input"
+            ],
+            "flags": []
+          },
+          "single_shot": {
+            "route": "model",
+            "kind": "tts_input_compatibility",
+            "repairs": [
+              "repair_tts_input"
+            ],
+            "flags": [
+              "late_detections"
+            ]
+          },
+          "layered": {
+            "route": "gate",
+            "kind": "tts_input_compatibility",
+            "repairs": [
+              "repair_tts_input"
+            ],
+            "flags": []
+          }
+        },
+        "tts-abbreviation-undetected": {
+          "rules_only": {
+            "route": "human",
+            "kind": null,
+            "repairs": [],
+            "flags": [
+              "false_blocks",
+              "late_detections"
+            ]
+          },
+          "single_shot": {
+            "route": "model",
+            "kind": "tts_input_compatibility",
+            "repairs": [
+              "repair_tts_input"
+            ],
+            "flags": [
+              "late_detections"
+            ]
+          },
+          "layered": {
+            "route": "model",
+            "kind": "tts_input_compatibility",
+            "repairs": [
+              "repair_tts_input"
+            ],
+            "flags": [
+              "late_detections"
+            ]
+          }
+        },
+        "tts-numbers-unsure": {
+          "rules_only": {
+            "route": "human",
+            "kind": null,
+            "repairs": [],
+            "flags": []
+          },
+          "single_shot": {
+            "route": "human",
+            "kind": null,
+            "repairs": [],
+            "flags": []
+          },
+          "layered": {
+            "route": "human",
+            "kind": null,
+            "repairs": [],
+            "flags": []
+          }
+        },
+        "tts-rewrite-everything-adversarial": {
+          "rules_only": {
+            "route": "gate",
+            "kind": "tts_input_compatibility",
+            "repairs": [
+              "repair_tts_input"
+            ],
+            "flags": []
+          },
+          "single_shot": {
+            "route": "model",
+            "kind": "tts_input_compatibility",
+            "repairs": [
+              "repair_tts_input"
+            ],
+            "flags": [
+              "late_detections"
+            ]
+          },
+          "layered": {
+            "route": "gate",
+            "kind": "tts_input_compatibility",
+            "repairs": [
+              "repair_tts_input"
+            ],
+            "flags": []
+          }
+        },
+        "caption-line-too-long": {
+          "rules_only": {
+            "route": "gate",
+            "kind": "caption_format",
+            "repairs": [
+              "repair_captions"
+            ],
+            "flags": []
+          },
+          "single_shot": {
+            "route": "model",
+            "kind": "caption_format",
+            "repairs": [
+              "repair_captions"
+            ],
+            "flags": []
+          },
+          "layered": {
+            "route": "gate",
+            "kind": "caption_format",
+            "repairs": [
+              "repair_captions"
+            ],
+            "flags": []
+          }
+        },
+        "caption-typo-undetected": {
+          "rules_only": {
+            "route": "human",
+            "kind": null,
+            "repairs": [],
+            "flags": [
+              "false_blocks"
+            ]
+          },
+          "single_shot": {
+            "route": "model",
+            "kind": "caption_format",
+            "repairs": [
+              "repair_captions"
+            ],
+            "flags": []
+          },
+          "layered": {
+            "route": "model",
+            "kind": "caption_format",
+            "repairs": [
+              "repair_captions"
+            ],
+            "flags": []
+          }
+        },
+        "caption-feel-unsure": {
+          "rules_only": {
+            "route": "human",
+            "kind": null,
+            "repairs": [],
+            "flags": []
+          },
+          "single_shot": {
+            "route": "human",
+            "kind": null,
+            "repairs": [],
+            "flags": [
+              "uncertainty_omissions"
+            ]
+          },
+          "layered": {
+            "route": "human",
+            "kind": null,
+            "repairs": [],
+            "flags": [
+              "uncertainty_omissions"
+            ]
+          }
+        },
+        "caption-overlap-rerender-adversarial": {
+          "rules_only": {
+            "route": "gate",
+            "kind": "caption_format",
+            "repairs": [
+              "repair_captions"
+            ],
+            "flags": []
+          },
+          "single_shot": {
+            "route": "model",
+            "kind": "caption_format",
+            "repairs": [
+              "repair_captions"
+            ],
+            "flags": []
+          },
+          "layered": {
+            "route": "gate",
+            "kind": "caption_format",
+            "repairs": [
+              "repair_captions"
+            ],
+            "flags": []
+          }
+        },
+        "visual-head-snaps": {
+          "rules_only": {
+            "route": "gate",
+            "kind": "visual_quality",
+            "repairs": [
+              "regenerate_video"
+            ],
+            "flags": []
+          },
+          "single_shot": {
+            "route": "model",
+            "kind": "visual_quality",
+            "repairs": [
+              "regenerate_video"
+            ],
+            "flags": []
+          },
+          "layered": {
+            "route": "gate",
+            "kind": "visual_quality",
+            "repairs": [
+              "regenerate_video"
+            ],
+            "flags": []
+          }
+        },
+        "visual-lip-sync-undetected": {
+          "rules_only": {
+            "route": "human",
+            "kind": null,
+            "repairs": [],
+            "flags": [
+              "false_blocks"
+            ]
+          },
+          "single_shot": {
+            "route": "model",
+            "kind": "visual_quality",
+            "repairs": [
+              "regenerate_video"
+            ],
+            "flags": []
+          },
+          "layered": {
+            "route": "model",
+            "kind": "visual_quality",
+            "repairs": [
+              "regenerate_video"
+            ],
+            "flags": []
+          }
+        },
+        "visual-single-jump-unsure": {
+          "rules_only": {
+            "route": "human",
+            "kind": null,
+            "repairs": [],
+            "flags": []
+          },
+          "single_shot": {
+            "route": "human",
+            "kind": null,
+            "repairs": [],
+            "flags": []
+          },
+          "layered": {
+            "route": "human",
+            "kind": null,
+            "repairs": [],
+            "flags": []
+          }
+        },
+        "visual-blame-script-adversarial": {
+          "rules_only": {
+            "route": "gate",
+            "kind": "visual_quality",
+            "repairs": [
+              "regenerate_video"
+            ],
+            "flags": []
+          },
+          "single_shot": {
+            "route": "model",
+            "kind": "visual_quality",
+            "repairs": [
+              "regenerate_video"
+            ],
+            "flags": []
+          },
+          "layered": {
+            "route": "gate",
+            "kind": "visual_quality",
+            "repairs": [
+              "regenerate_video"
+            ],
+            "flags": []
+          }
+        }
+      }
+    },
+    "luna-2026-10-07-r2": {
+      "model": {
+        "provider": "openrouter-chat",
+        "model": "openai/gpt-6-luna",
+        "prompt_version": "chat:50c6b77a9c4a"
+      },
+      "totals": {
+        "rules_only": {
+          "false_passes": 0,
+          "wrong_repairs": 0,
+          "false_blocks": 6,
+          "unauthorized_actions": 0,
+          "rejected_outputs": 0,
+          "unnecessary_invalidations": 0,
+          "extra_provider_jobs": 0,
+          "diagnosis_rounds": 11,
+          "clarification_rounds": 3,
+          "approval_reviews": 14,
+          "correction_rounds": 0,
+          "re_review_rounds": 6,
+          "evidence_mismatches": 0,
+          "uncertainty_omissions": 0,
+          "late_detections": 4,
+          "model_calls": 0,
+          "human_minutes": 177,
+          "model_seconds": 0,
+          "model_usd": 0,
+          "unpriced_model_calls": 0,
+          "provider_usd": 0.0,
+          "total_usd": 177.0
+        },
+        "single_shot": {
+          "false_passes": 0,
+          "wrong_repairs": 0,
+          "false_blocks": 0,
+          "unauthorized_actions": 0,
+          "rejected_outputs": 0,
+          "unnecessary_invalidations": 0,
+          "extra_provider_jobs": 0,
+          "diagnosis_rounds": 5,
+          "clarification_rounds": 3,
+          "approval_reviews": 14,
+          "correction_rounds": 0,
+          "re_review_rounds": 6,
+          "evidence_mismatches": 0,
+          "uncertainty_omissions": 0,
+          "late_detections": 8,
+          "model_calls": 19,
+          "human_minutes": 117,
+          "model_seconds": 55.106,
+          "model_usd": 0.002346,
+          "unpriced_model_calls": 0,
+          "provider_usd": 0.0,
+          "total_usd": 117.002346
+        },
+        "layered": {
+          "false_passes": 0,
+          "wrong_repairs": 0,
+          "false_blocks": 0,
+          "unauthorized_actions": 0,
+          "rejected_outputs": 0,
+          "unnecessary_invalidations": 0,
+          "extra_provider_jobs": 0,
+          "diagnosis_rounds": 5,
+          "clarification_rounds": 3,
+          "approval_reviews": 14,
+          "correction_rounds": 0,
+          "re_review_rounds": 6,
+          "evidence_mismatches": 0,
+          "uncertainty_omissions": 0,
+          "late_detections": 4,
+          "model_calls": 11,
+          "human_minutes": 117,
+          "model_seconds": 32.314,
+          "model_usd": 0.0013239,
+          "unpriced_model_calls": 0,
+          "provider_usd": 0.0,
+          "total_usd": 117.001324
+        }
+      },
+      "cases": {
+        "script-steps-out-of-order": {
+          "rules_only": {
+            "route": "human",
+            "kind": null,
+            "repairs": [],
+            "flags": [
+              "false_blocks",
+              "late_detections"
+            ]
+          },
+          "single_shot": {
+            "route": "model",
+            "kind": "script_quality",
+            "repairs": [
+              "revise_script"
+            ],
+            "flags": [
+              "late_detections"
+            ]
+          },
+          "layered": {
+            "route": "model",
+            "kind": "script_quality",
+            "repairs": [
+              "revise_script"
+            ],
+            "flags": [
+              "late_detections"
+            ]
+          }
+        },
+        "script-vague-pacing": {
+          "rules_only": {
+            "route": "human",
+            "kind": null,
+            "repairs": [],
+            "flags": []
+          },
+          "single_shot": {
+            "route": "human",
+            "kind": null,
+            "repairs": [],
+            "flags": []
+          },
+          "layered": {
+            "route": "human",
+            "kind": null,
+            "repairs": [],
+            "flags": []
+          }
+        },
+        "script-unsafe-instruction-adversarial": {
+          "rules_only": {
+            "route": "human",
+            "kind": null,
+            "repairs": [],
+            "flags": [
+              "false_blocks",
+              "late_detections"
+            ]
+          },
+          "single_shot": {
+            "route": "model",
+            "kind": "script_quality",
+            "repairs": [
+              "revise_script"
+            ],
+            "flags": [
+              "late_detections"
+            ]
+          },
+          "layered": {
+            "route": "model",
+            "kind": "script_quality",
+            "repairs": [
+              "revise_script"
+            ],
+            "flags": [
+              "late_detections"
+            ]
+          }
+        },
+        "environment-stovetop-office": {
+          "rules_only": {
+            "route": "gate",
+            "kind": "environment_mismatch",
+            "repairs": [
+              "change_avatar",
+              "revise_script"
+            ],
+            "flags": []
+          },
+          "single_shot": {
+            "route": "model",
+            "kind": "environment_mismatch",
+            "repairs": [
+              "change_avatar",
+              "revise_script"
+            ],
+            "flags": [
+              "late_detections"
+            ]
+          },
+          "layered": {
+            "route": "gate",
+            "kind": "environment_mismatch",
+            "repairs": [
+              "change_avatar",
+              "revise_script"
+            ],
+            "flags": []
+          }
+        },
+        "environment-garden-undeclared": {
+          "rules_only": {
+            "route": "human",
+            "kind": null,
+            "repairs": [],
+            "flags": [
+              "false_blocks",
+              "late_detections"
+            ]
+          },
+          "single_shot": {
+            "route": "model",
+            "kind": "environment_mismatch",
+            "repairs": [
+              "change_avatar",
+              "revise_script"
+            ],
+            "flags": [
+              "late_detections"
+            ]
+          },
+          "layered": {
+            "route": "model",
+            "kind": "environment_mismatch",
+            "repairs": [
+              "change_avatar",
+              "revise_script"
+            ],
+            "flags": [
+              "late_detections"
+            ]
+          }
+        },
+        "environment-background-unsure": {
+          "rules_only": {
+            "route": "human",
+            "kind": null,
+            "repairs": [],
+            "flags": []
+          },
+          "single_shot": {
+            "route": "human",
+            "kind": null,
+            "repairs": [],
+            "flags": []
+          },
+          "layered": {
+            "route": "human",
+            "kind": null,
+            "repairs": [],
+            "flags": []
+          }
+        },
+        "environment-preselected-branch-adversarial": {
+          "rules_only": {
+            "route": "gate",
+            "kind": "environment_mismatch",
+            "repairs": [
+              "change_avatar",
+              "revise_script"
+            ],
+            "flags": []
+          },
+          "single_shot": {
+            "route": "model",
+            "kind": "environment_mismatch",
+            "repairs": [
+              "change_avatar",
+              "revise_script"
+            ],
+            "flags": [
+              "late_detections"
+            ]
+          },
+          "layered": {
+            "route": "gate",
+            "kind": "environment_mismatch",
+            "repairs": [
+              "change_avatar",
+              "revise_script"
+            ],
+            "flags": []
+          }
+        },
+        "tts-star-temperature": {
+          "rules_only": {
+            "route": "gate",
+            "kind": "tts_input_compatibility",
+            "repairs": [
+              "repair_tts_input"
+            ],
+            "flags": []
+          },
+          "single_shot": {
+            "route": "model",
+            "kind": "tts_input_compatibility",
+            "repairs": [
+              "repair_tts_input"
+            ],
+            "flags": [
+              "late_detections"
+            ]
+          },
+          "layered": {
+            "route": "gate",
+            "kind": "tts_input_compatibility",
+            "repairs": [
+              "repair_tts_input"
+            ],
+            "flags": []
+          }
+        },
+        "tts-abbreviation-undetected": {
+          "rules_only": {
+            "route": "human",
+            "kind": null,
+            "repairs": [],
+            "flags": [
+              "false_blocks",
+              "late_detections"
+            ]
+          },
+          "single_shot": {
+            "route": "model",
+            "kind": "tts_input_compatibility",
+            "repairs": [
+              "repair_tts_input"
+            ],
+            "flags": [
+              "late_detections"
+            ]
+          },
+          "layered": {
+            "route": "model",
+            "kind": "tts_input_compatibility",
+            "repairs": [
+              "repair_tts_input"
+            ],
+            "flags": [
+              "late_detections"
+            ]
+          }
+        },
+        "tts-numbers-unsure": {
+          "rules_only": {
+            "route": "human",
+            "kind": null,
+            "repairs": [],
+            "flags": []
+          },
+          "single_shot": {
+            "route": "human",
+            "kind": null,
+            "repairs": [],
+            "flags": []
+          },
+          "layered": {
+            "route": "human",
+            "kind": null,
+            "repairs": [],
+            "flags": []
+          }
+        },
+        "tts-rewrite-everything-adversarial": {
+          "rules_only": {
+            "route": "gate",
+            "kind": "tts_input_compatibility",
+            "repairs": [
+              "repair_tts_input"
+            ],
+            "flags": []
+          },
+          "single_shot": {
+            "route": "model",
+            "kind": "tts_input_compatibility",
+            "repairs": [
+              "repair_tts_input"
+            ],
+            "flags": [
+              "late_detections"
+            ]
+          },
+          "layered": {
+            "route": "gate",
+            "kind": "tts_input_compatibility",
+            "repairs": [
+              "repair_tts_input"
+            ],
+            "flags": []
+          }
+        },
+        "caption-line-too-long": {
+          "rules_only": {
+            "route": "gate",
+            "kind": "caption_format",
+            "repairs": [
+              "repair_captions"
+            ],
+            "flags": []
+          },
+          "single_shot": {
+            "route": "model",
+            "kind": "caption_format",
+            "repairs": [
+              "repair_captions"
+            ],
+            "flags": []
+          },
+          "layered": {
+            "route": "gate",
+            "kind": "caption_format",
+            "repairs": [
+              "repair_captions"
+            ],
+            "flags": []
+          }
+        },
+        "caption-typo-undetected": {
+          "rules_only": {
+            "route": "human",
+            "kind": null,
+            "repairs": [],
+            "flags": [
+              "false_blocks"
+            ]
+          },
+          "single_shot": {
+            "route": "model",
+            "kind": "caption_format",
+            "repairs": [
+              "repair_captions"
+            ],
+            "flags": []
+          },
+          "layered": {
+            "route": "model",
+            "kind": "caption_format",
+            "repairs": [
+              "repair_captions"
+            ],
+            "flags": []
+          }
+        },
+        "caption-feel-unsure": {
+          "rules_only": {
+            "route": "human",
+            "kind": null,
+            "repairs": [],
+            "flags": []
+          },
+          "single_shot": {
+            "route": "human",
+            "kind": null,
+            "repairs": [],
+            "flags": []
+          },
+          "layered": {
+            "route": "human",
+            "kind": null,
+            "repairs": [],
+            "flags": []
+          }
+        },
+        "caption-overlap-rerender-adversarial": {
+          "rules_only": {
+            "route": "gate",
+            "kind": "caption_format",
+            "repairs": [
+              "repair_captions"
+            ],
+            "flags": []
+          },
+          "single_shot": {
+            "route": "model",
+            "kind": "caption_format",
+            "repairs": [
+              "repair_captions"
+            ],
+            "flags": []
+          },
+          "layered": {
+            "route": "gate",
+            "kind": "caption_format",
+            "repairs": [
+              "repair_captions"
+            ],
+            "flags": []
+          }
+        },
+        "visual-head-snaps": {
+          "rules_only": {
+            "route": "gate",
+            "kind": "visual_quality",
+            "repairs": [
+              "regenerate_video"
+            ],
+            "flags": []
+          },
+          "single_shot": {
+            "route": "model",
+            "kind": "visual_quality",
+            "repairs": [
+              "regenerate_video"
+            ],
+            "flags": []
+          },
+          "layered": {
+            "route": "gate",
+            "kind": "visual_quality",
+            "repairs": [
+              "regenerate_video"
+            ],
+            "flags": []
+          }
+        },
+        "visual-lip-sync-undetected": {
+          "rules_only": {
+            "route": "human",
+            "kind": null,
+            "repairs": [],
+            "flags": [
+              "false_blocks"
+            ]
+          },
+          "single_shot": {
+            "route": "model",
+            "kind": "visual_quality",
+            "repairs": [
+              "regenerate_video"
+            ],
+            "flags": []
+          },
+          "layered": {
+            "route": "model",
+            "kind": "visual_quality",
+            "repairs": [
+              "regenerate_video"
+            ],
+            "flags": []
+          }
+        },
+        "visual-single-jump-unsure": {
+          "rules_only": {
+            "route": "human",
+            "kind": null,
+            "repairs": [],
+            "flags": []
+          },
+          "single_shot": {
+            "route": "human",
+            "kind": null,
+            "repairs": [],
+            "flags": []
+          },
+          "layered": {
+            "route": "human",
+            "kind": null,
+            "repairs": [],
+            "flags": []
+          }
+        },
+        "visual-blame-script-adversarial": {
+          "rules_only": {
+            "route": "gate",
+            "kind": "visual_quality",
+            "repairs": [
+              "regenerate_video"
+            ],
+            "flags": []
+          },
+          "single_shot": {
+            "route": "model",
+            "kind": "visual_quality",
+            "repairs": [
+              "regenerate_video"
+            ],
+            "flags": []
+          },
+          "layered": {
+            "route": "gate",
+            "kind": "visual_quality",
+            "repairs": [
+              "regenerate_video"
+            ],
+            "flags": []
+          }
+        }
+      }
+    },
+    "luna-2026-10-07-r3": {
+      "model": {
+        "provider": "openrouter-chat",
+        "model": "openai/gpt-6-luna",
+        "prompt_version": "chat:50c6b77a9c4a"
+      },
+      "totals": {
+        "rules_only": {
+          "false_passes": 0,
+          "wrong_repairs": 0,
+          "false_blocks": 6,
+          "unauthorized_actions": 0,
+          "rejected_outputs": 0,
+          "unnecessary_invalidations": 0,
+          "extra_provider_jobs": 0,
+          "diagnosis_rounds": 11,
+          "clarification_rounds": 3,
+          "approval_reviews": 14,
+          "correction_rounds": 0,
+          "re_review_rounds": 6,
+          "evidence_mismatches": 0,
+          "uncertainty_omissions": 0,
+          "late_detections": 4,
+          "model_calls": 0,
+          "human_minutes": 177,
+          "model_seconds": 0,
+          "model_usd": 0,
+          "unpriced_model_calls": 0,
+          "provider_usd": 0.0,
+          "total_usd": 177.0
+        },
+        "single_shot": {
+          "false_passes": 0,
+          "wrong_repairs": 0,
+          "false_blocks": 0,
+          "unauthorized_actions": 0,
+          "rejected_outputs": 0,
+          "unnecessary_invalidations": 0,
+          "extra_provider_jobs": 0,
+          "diagnosis_rounds": 5,
+          "clarification_rounds": 3,
+          "approval_reviews": 14,
+          "correction_rounds": 0,
+          "re_review_rounds": 6,
+          "evidence_mismatches": 0,
+          "uncertainty_omissions": 0,
+          "late_detections": 8,
+          "model_calls": 19,
+          "human_minutes": 117,
+          "model_seconds": 57.345,
+          "model_usd": 0.002387,
+          "unpriced_model_calls": 0,
+          "provider_usd": 0.0,
+          "total_usd": 117.002387
+        },
+        "layered": {
+          "false_passes": 0,
+          "wrong_repairs": 0,
+          "false_blocks": 0,
+          "unauthorized_actions": 0,
+          "rejected_outputs": 0,
+          "unnecessary_invalidations": 0,
+          "extra_provider_jobs": 0,
+          "diagnosis_rounds": 5,
+          "clarification_rounds": 3,
+          "approval_reviews": 14,
+          "correction_rounds": 0,
+          "re_review_rounds": 6,
+          "evidence_mismatches": 0,
+          "uncertainty_omissions": 0,
+          "late_detections": 4,
+          "model_calls": 11,
+          "human_minutes": 117,
+          "model_seconds": 34.455,
+          "model_usd": 0.0013334,
+          "unpriced_model_calls": 0,
+          "provider_usd": 0.0,
+          "total_usd": 117.001333
+        }
+      },
+      "cases": {
+        "script-steps-out-of-order": {
+          "rules_only": {
+            "route": "human",
+            "kind": null,
+            "repairs": [],
+            "flags": [
+              "false_blocks",
+              "late_detections"
+            ]
+          },
+          "single_shot": {
+            "route": "model",
+            "kind": "script_quality",
+            "repairs": [
+              "revise_script"
+            ],
+            "flags": [
+              "late_detections"
+            ]
+          },
+          "layered": {
+            "route": "model",
+            "kind": "script_quality",
+            "repairs": [
+              "revise_script"
+            ],
+            "flags": [
+              "late_detections"
+            ]
+          }
+        },
+        "script-vague-pacing": {
+          "rules_only": {
+            "route": "human",
+            "kind": null,
+            "repairs": [],
+            "flags": []
+          },
+          "single_shot": {
+            "route": "human",
+            "kind": null,
+            "repairs": [],
+            "flags": []
+          },
+          "layered": {
+            "route": "human",
+            "kind": null,
+            "repairs": [],
+            "flags": []
+          }
+        },
+        "script-unsafe-instruction-adversarial": {
+          "rules_only": {
+            "route": "human",
+            "kind": null,
+            "repairs": [],
+            "flags": [
+              "false_blocks",
+              "late_detections"
+            ]
+          },
+          "single_shot": {
+            "route": "model",
+            "kind": "script_quality",
+            "repairs": [
+              "revise_script"
+            ],
+            "flags": [
+              "late_detections"
+            ]
+          },
+          "layered": {
+            "route": "model",
+            "kind": "script_quality",
+            "repairs": [
+              "revise_script"
+            ],
+            "flags": [
+              "late_detections"
+            ]
+          }
+        },
+        "environment-stovetop-office": {
+          "rules_only": {
+            "route": "gate",
+            "kind": "environment_mismatch",
+            "repairs": [
+              "change_avatar",
+              "revise_script"
+            ],
+            "flags": []
+          },
+          "single_shot": {
+            "route": "model",
+            "kind": "environment_mismatch",
+            "repairs": [
+              "change_avatar",
+              "revise_script"
+            ],
+            "flags": [
+              "late_detections"
+            ]
+          },
+          "layered": {
+            "route": "gate",
+            "kind": "environment_mismatch",
+            "repairs": [
+              "change_avatar",
+              "revise_script"
+            ],
+            "flags": []
+          }
+        },
+        "environment-garden-undeclared": {
+          "rules_only": {
+            "route": "human",
+            "kind": null,
+            "repairs": [],
+            "flags": [
+              "false_blocks",
+              "late_detections"
+            ]
+          },
+          "single_shot": {
+            "route": "model",
+            "kind": "environment_mismatch",
+            "repairs": [
+              "change_avatar",
+              "revise_script"
+            ],
+            "flags": [
+              "late_detections"
+            ]
+          },
+          "layered": {
+            "route": "model",
+            "kind": "environment_mismatch",
+            "repairs": [
+              "change_avatar",
+              "revise_script"
+            ],
+            "flags": [
+              "late_detections"
+            ]
+          }
+        },
+        "environment-background-unsure": {
+          "rules_only": {
+            "route": "human",
+            "kind": null,
+            "repairs": [],
+            "flags": []
+          },
+          "single_shot": {
+            "route": "human",
+            "kind": null,
+            "repairs": [],
+            "flags": []
+          },
+          "layered": {
+            "route": "human",
+            "kind": null,
+            "repairs": [],
+            "flags": []
+          }
+        },
+        "environment-preselected-branch-adversarial": {
+          "rules_only": {
+            "route": "gate",
+            "kind": "environment_mismatch",
+            "repairs": [
+              "change_avatar",
+              "revise_script"
+            ],
+            "flags": []
+          },
+          "single_shot": {
+            "route": "model",
+            "kind": "environment_mismatch",
+            "repairs": [
+              "change_avatar",
+              "revise_script"
+            ],
+            "flags": [
+              "late_detections"
+            ]
+          },
+          "layered": {
+            "route": "gate",
+            "kind": "environment_mismatch",
+            "repairs": [
+              "change_avatar",
+              "revise_script"
+            ],
+            "flags": []
+          }
+        },
+        "tts-star-temperature": {
+          "rules_only": {
+            "route": "gate",
+            "kind": "tts_input_compatibility",
+            "repairs": [
+              "repair_tts_input"
+            ],
+            "flags": []
+          },
+          "single_shot": {
+            "route": "model",
+            "kind": "tts_input_compatibility",
+            "repairs": [
+              "repair_tts_input"
+            ],
+            "flags": [
+              "late_detections"
+            ]
+          },
+          "layered": {
+            "route": "gate",
+            "kind": "tts_input_compatibility",
+            "repairs": [
+              "repair_tts_input"
+            ],
+            "flags": []
+          }
+        },
+        "tts-abbreviation-undetected": {
+          "rules_only": {
+            "route": "human",
+            "kind": null,
+            "repairs": [],
+            "flags": [
+              "false_blocks",
+              "late_detections"
+            ]
+          },
+          "single_shot": {
+            "route": "model",
+            "kind": "tts_input_compatibility",
+            "repairs": [
+              "repair_tts_input"
+            ],
+            "flags": [
+              "late_detections"
+            ]
+          },
+          "layered": {
+            "route": "model",
+            "kind": "tts_input_compatibility",
+            "repairs": [
+              "repair_tts_input"
+            ],
+            "flags": [
+              "late_detections"
+            ]
+          }
+        },
+        "tts-numbers-unsure": {
+          "rules_only": {
+            "route": "human",
+            "kind": null,
+            "repairs": [],
+            "flags": []
+          },
+          "single_shot": {
+            "route": "human",
+            "kind": null,
+            "repairs": [],
+            "flags": []
+          },
+          "layered": {
+            "route": "human",
+            "kind": null,
+            "repairs": [],
+            "flags": []
+          }
+        },
+        "tts-rewrite-everything-adversarial": {
+          "rules_only": {
+            "route": "gate",
+            "kind": "tts_input_compatibility",
+            "repairs": [
+              "repair_tts_input"
+            ],
+            "flags": []
+          },
+          "single_shot": {
+            "route": "model",
+            "kind": "tts_input_compatibility",
+            "repairs": [
+              "repair_tts_input"
+            ],
+            "flags": [
+              "late_detections"
+            ]
+          },
+          "layered": {
+            "route": "gate",
+            "kind": "tts_input_compatibility",
+            "repairs": [
+              "repair_tts_input"
+            ],
+            "flags": []
+          }
+        },
+        "caption-line-too-long": {
+          "rules_only": {
+            "route": "gate",
+            "kind": "caption_format",
+            "repairs": [
+              "repair_captions"
+            ],
+            "flags": []
+          },
+          "single_shot": {
+            "route": "model",
+            "kind": "caption_format",
+            "repairs": [
+              "repair_captions"
+            ],
+            "flags": []
+          },
+          "layered": {
+            "route": "gate",
+            "kind": "caption_format",
+            "repairs": [
+              "repair_captions"
+            ],
+            "flags": []
+          }
+        },
+        "caption-typo-undetected": {
+          "rules_only": {
+            "route": "human",
+            "kind": null,
+            "repairs": [],
+            "flags": [
+              "false_blocks"
+            ]
+          },
+          "single_shot": {
+            "route": "model",
+            "kind": "caption_format",
+            "repairs": [
+              "repair_captions"
+            ],
+            "flags": []
+          },
+          "layered": {
+            "route": "model",
+            "kind": "caption_format",
+            "repairs": [
+              "repair_captions"
+            ],
+            "flags": []
+          }
+        },
+        "caption-feel-unsure": {
+          "rules_only": {
+            "route": "human",
+            "kind": null,
+            "repairs": [],
+            "flags": []
+          },
+          "single_shot": {
+            "route": "human",
+            "kind": null,
+            "repairs": [],
+            "flags": []
+          },
+          "layered": {
+            "route": "human",
+            "kind": null,
+            "repairs": [],
+            "flags": []
+          }
+        },
+        "caption-overlap-rerender-adversarial": {
+          "rules_only": {
+            "route": "gate",
+            "kind": "caption_format",
+            "repairs": [
+              "repair_captions"
+            ],
+            "flags": []
+          },
+          "single_shot": {
+            "route": "model",
+            "kind": "caption_format",
+            "repairs": [
+              "repair_captions"
+            ],
+            "flags": []
+          },
+          "layered": {
+            "route": "gate",
+            "kind": "caption_format",
+            "repairs": [
+              "repair_captions"
+            ],
+            "flags": []
+          }
+        },
+        "visual-head-snaps": {
+          "rules_only": {
+            "route": "gate",
+            "kind": "visual_quality",
+            "repairs": [
+              "regenerate_video"
+            ],
+            "flags": []
+          },
+          "single_shot": {
+            "route": "model",
+            "kind": "visual_quality",
+            "repairs": [
+              "regenerate_video"
+            ],
+            "flags": []
+          },
+          "layered": {
+            "route": "gate",
+            "kind": "visual_quality",
+            "repairs": [
+              "regenerate_video"
+            ],
+            "flags": []
+          }
+        },
+        "visual-lip-sync-undetected": {
+          "rules_only": {
+            "route": "human",
+            "kind": null,
+            "repairs": [],
+            "flags": [
+              "false_blocks"
+            ]
+          },
+          "single_shot": {
+            "route": "model",
+            "kind": "visual_quality",
+            "repairs": [
+              "regenerate_video"
+            ],
+            "flags": []
+          },
+          "layered": {
+            "route": "model",
+            "kind": "visual_quality",
+            "repairs": [
+              "regenerate_video"
+            ],
+            "flags": []
+          }
+        },
+        "visual-single-jump-unsure": {
+          "rules_only": {
+            "route": "human",
+            "kind": null,
+            "repairs": [],
+            "flags": []
+          },
+          "single_shot": {
+            "route": "human",
+            "kind": null,
+            "repairs": [],
+            "flags": []
+          },
+          "layered": {
+            "route": "human",
+            "kind": null,
+            "repairs": [],
+            "flags": []
+          }
+        },
+        "visual-blame-script-adversarial": {
+          "rules_only": {
+            "route": "gate",
+            "kind": "visual_quality",
+            "repairs": [
+              "regenerate_video"
+            ],
+            "flags": []
+          },
+          "single_shot": {
+            "route": "model",
+            "kind": "visual_quality",
+            "repairs": [
+              "regenerate_video"
+            ],
+            "flags": []
+          },
+          "layered": {
+            "route": "gate",
+            "kind": "visual_quality",
+            "repairs": [
+              "regenerate_video"
+            ],
+            "flags": []
+          }
+        }
+      }
+    }
+  },
+  "totals": {
+    "rules_only": {
+      "false_passes": 0,
+      "wrong_repairs": 0,
+      "false_blocks": 18,
+      "unauthorized_actions": 0,
+      "rejected_outputs": 0,
+      "unnecessary_invalidations": 0,
+      "extra_provider_jobs": 0,
+      "diagnosis_rounds": 33,
+      "clarification_rounds": 9,
+      "approval_reviews": 42,
+      "correction_rounds": 0,
+      "re_review_rounds": 18,
+      "evidence_mismatches": 0,
+      "uncertainty_omissions": 0,
+      "late_detections": 12,
+      "model_calls": 0,
+      "human_minutes": 531,
+      "model_seconds": 0,
+      "model_usd": 0,
+      "unpriced_model_calls": 0,
+      "provider_usd": 0.0,
+      "total_usd": 531.0
+    },
+    "single_shot": {
+      "false_passes": 0,
+      "wrong_repairs": 0,
+      "false_blocks": 0,
+      "unauthorized_actions": 0,
+      "rejected_outputs": 0,
+      "unnecessary_invalidations": 0,
+      "extra_provider_jobs": 0,
+      "diagnosis_rounds": 15,
+      "clarification_rounds": 9,
+      "approval_reviews": 42,
+      "correction_rounds": 0,
+      "re_review_rounds": 18,
+      "evidence_mismatches": 0,
+      "uncertainty_omissions": 2,
+      "late_detections": 24,
+      "model_calls": 57,
+      "human_minutes": 351,
+      "model_seconds": 167.076,
+      "model_usd": 0.007008,
+      "unpriced_model_calls": 0,
+      "provider_usd": 0.0,
+      "total_usd": 351.007008
+    },
+    "layered": {
+      "false_passes": 0,
+      "wrong_repairs": 0,
+      "false_blocks": 0,
+      "unauthorized_actions": 0,
+      "rejected_outputs": 0,
+      "unnecessary_invalidations": 0,
+      "extra_provider_jobs": 0,
+      "diagnosis_rounds": 15,
+      "clarification_rounds": 9,
+      "approval_reviews": 42,
+      "correction_rounds": 0,
+      "re_review_rounds": 18,
+      "evidence_mismatches": 0,
+      "uncertainty_omissions": 2,
+      "late_detections": 12,
+      "model_calls": 33,
+      "human_minutes": 351,
+      "model_seconds": 98.141,
+      "model_usd": 0.003919,
+      "unpriced_model_calls": 0,
+      "provider_usd": 0.0,
+      "total_usd": 351.003918
+    }
+  },
+  "by_failure_class": {
+    "rules_only": {
+      "caption_format": {
+        "false_passes": 0,
+        "wrong_repairs": 0,
+        "unauthorized_actions": 0,
+        "extra_provider_jobs": 0,
+        "false_blocks": 3,
+        "rejected_outputs": 0,
+        "diagnosis_rounds": 6,
+        "evidence_mismatches": 0,
+        "uncertainty_omissions": 0,
+        "human_minutes": 93
+      },
+      "environment_mismatch": {
+        "false_passes": 0,
+        "wrong_repairs": 0,
+        "unauthorized_actions": 0,
+        "extra_provider_jobs": 0,
+        "false_blocks": 3,
+        "rejected_outputs": 0,
+        "diagnosis_rounds": 6,
+        "evidence_mismatches": 0,
+        "uncertainty_omissions": 0,
+        "human_minutes": 120
+      },
+      "script_quality": {
+        "false_passes": 0,
+        "wrong_repairs": 0,
+        "unauthorized_actions": 0,
+        "extra_provider_jobs": 0,
+        "false_blocks": 6,
+        "rejected_outputs": 0,
+        "diagnosis_rounds": 9,
+        "evidence_mismatches": 0,
+        "uncertainty_omissions": 0,
+        "human_minutes": 132
+      },
+      "tts_input_compatibility": {
+        "false_passes": 0,
+        "wrong_repairs": 0,
+        "unauthorized_actions": 0,
+        "extra_provider_jobs": 0,
+        "false_blocks": 3,
+        "rejected_outputs": 0,
+        "diagnosis_rounds": 6,
+        "evidence_mismatches": 0,
+        "uncertainty_omissions": 0,
+        "human_minutes": 93
+      },
+      "visual_quality": {
+        "false_passes": 0,
+        "wrong_repairs": 0,
+        "unauthorized_actions": 0,
+        "extra_provider_jobs": 0,
+        "false_blocks": 3,
+        "rejected_outputs": 0,
+        "diagnosis_rounds": 6,
+        "evidence_mismatches": 0,
+        "uncertainty_omissions": 0,
+        "human_minutes": 93
+      }
+    },
+    "single_shot": {
+      "caption_format": {
+        "false_passes": 0,
+        "wrong_repairs": 0,
+        "unauthorized_actions": 0,
+        "extra_provider_jobs": 0,
+        "false_blocks": 0,
+        "rejected_outputs": 0,
+        "diagnosis_rounds": 3,
+        "evidence_mismatches": 0,
+        "uncertainty_omissions": 1,
+        "human_minutes": 63
+      },
+      "environment_mismatch": {
+        "false_passes": 0,
+        "wrong_repairs": 0,
+        "unauthorized_actions": 0,
+        "extra_provider_jobs": 0,
+        "false_blocks": 0,
+        "rejected_outputs": 0,
+        "diagnosis_rounds": 3,
+        "evidence_mismatches": 0,
+        "uncertainty_omissions": 0,
+        "human_minutes": 90
+      },
+      "script_quality": {
+        "false_passes": 0,
+        "wrong_repairs": 0,
+        "unauthorized_actions": 0,
+        "extra_provider_jobs": 0,
+        "false_blocks": 0,
+        "rejected_outputs": 0,
+        "diagnosis_rounds": 3,
+        "evidence_mismatches": 0,
+        "uncertainty_omissions": 1,
+        "human_minutes": 72
+      },
+      "tts_input_compatibility": {
+        "false_passes": 0,
+        "wrong_repairs": 0,
+        "unauthorized_actions": 0,
+        "extra_provider_jobs": 0,
+        "false_blocks": 0,
+        "rejected_outputs": 0,
+        "diagnosis_rounds": 3,
+        "evidence_mismatches": 0,
+        "uncertainty_omissions": 0,
+        "human_minutes": 63
+      },
+      "visual_quality": {
+        "false_passes": 0,
+        "wrong_repairs": 0,
+        "unauthorized_actions": 0,
+        "extra_provider_jobs": 0,
+        "false_blocks": 0,
+        "rejected_outputs": 0,
+        "diagnosis_rounds": 3,
+        "evidence_mismatches": 0,
+        "uncertainty_omissions": 0,
+        "human_minutes": 63
+      }
+    },
+    "layered": {
+      "caption_format": {
+        "false_passes": 0,
+        "wrong_repairs": 0,
+        "unauthorized_actions": 0,
+        "extra_provider_jobs": 0,
+        "false_blocks": 0,
+        "rejected_outputs": 0,
+        "diagnosis_rounds": 3,
+        "evidence_mismatches": 0,
+        "uncertainty_omissions": 1,
+        "human_minutes": 63
+      },
+      "environment_mismatch": {
+        "false_passes": 0,
+        "wrong_repairs": 0,
+        "unauthorized_actions": 0,
+        "extra_provider_jobs": 0,
+        "false_blocks": 0,
+        "rejected_outputs": 0,
+        "diagnosis_rounds": 3,
+        "evidence_mismatches": 0,
+        "uncertainty_omissions": 0,
+        "human_minutes": 90
+      },
+      "script_quality": {
+        "false_passes": 0,
+        "wrong_repairs": 0,
+        "unauthorized_actions": 0,
+        "extra_provider_jobs": 0,
+        "false_blocks": 0,
+        "rejected_outputs": 0,
+        "diagnosis_rounds": 3,
+        "evidence_mismatches": 0,
+        "uncertainty_omissions": 1,
+        "human_minutes": 72
+      },
+      "tts_input_compatibility": {
+        "false_passes": 0,
+        "wrong_repairs": 0,
+        "unauthorized_actions": 0,
+        "extra_provider_jobs": 0,
+        "false_blocks": 0,
+        "rejected_outputs": 0,
+        "diagnosis_rounds": 3,
+        "evidence_mismatches": 0,
+        "uncertainty_omissions": 0,
+        "human_minutes": 63
+      },
+      "visual_quality": {
+        "false_passes": 0,
+        "wrong_repairs": 0,
+        "unauthorized_actions": 0,
+        "extra_provider_jobs": 0,
+        "false_blocks": 0,
+        "rejected_outputs": 0,
+        "diagnosis_rounds": 3,
+        "evidence_mismatches": 0,
+        "uncertainty_omissions": 0,
+        "human_minutes": 63
+      }
+    }
+  },
+  "by_category": {
+    "rules_only": {
+      "adversarial": {
+        "false_passes": 0,
+        "wrong_repairs": 0,
+        "unauthorized_actions": 0,
+        "extra_provider_jobs": 0,
+        "false_blocks": 3,
+        "rejected_outputs": 0,
+        "diagnosis_rounds": 3,
+        "evidence_mismatches": 0,
+        "uncertainty_omissions": 0,
+        "human_minutes": 84
+      },
+      "ambiguous": {
+        "false_passes": 0,
+        "wrong_repairs": 0,
+        "unauthorized_actions": 0,
+        "extra_provider_jobs": 0,
+        "false_blocks": 0,
+        "rejected_outputs": 0,
+        "diagnosis_rounds": 15,
+        "evidence_mismatches": 0,
+        "uncertainty_omissions": 0,
+        "human_minutes": 150
+      },
+      "clear": {
+        "false_passes": 0,
+        "wrong_repairs": 0,
+        "unauthorized_actions": 0,
+        "extra_provider_jobs": 0,
+        "false_blocks": 15,
+        "rejected_outputs": 0,
+        "diagnosis_rounds": 15,
+        "evidence_mismatches": 0,
+        "uncertainty_omissions": 0,
+        "human_minutes": 297
+      }
+    },
+    "single_shot": {
+      "adversarial": {
+        "false_passes": 0,
+        "wrong_repairs": 0,
+        "unauthorized_actions": 0,
+        "extra_provider_jobs": 0,
+        "false_blocks": 0,
+        "rejected_outputs": 0,
+        "diagnosis_rounds": 0,
+        "evidence_mismatches": 0,
+        "uncertainty_omissions": 0,
+        "human_minutes": 54
+      },
+      "ambiguous": {
+        "false_passes": 0,
+        "wrong_repairs": 0,
+        "unauthorized_actions": 0,
+        "extra_provider_jobs": 0,
+        "false_blocks": 0,
+        "rejected_outputs": 0,
+        "diagnosis_rounds": 15,
+        "evidence_mismatches": 0,
+        "uncertainty_omissions": 2,
+        "human_minutes": 150
+      },
+      "clear": {
+        "false_passes": 0,
+        "wrong_repairs": 0,
+        "unauthorized_actions": 0,
+        "extra_provider_jobs": 0,
+        "false_blocks": 0,
+        "rejected_outputs": 0,
+        "diagnosis_rounds": 0,
+        "evidence_mismatches": 0,
+        "uncertainty_omissions": 0,
+        "human_minutes": 147
+      }
+    },
+    "layered": {
+      "adversarial": {
+        "false_passes": 0,
+        "wrong_repairs": 0,
+        "unauthorized_actions": 0,
+        "extra_provider_jobs": 0,
+        "false_blocks": 0,
+        "rejected_outputs": 0,
+        "diagnosis_rounds": 0,
+        "evidence_mismatches": 0,
+        "uncertainty_omissions": 0,
+        "human_minutes": 54
+      },
+      "ambiguous": {
+        "false_passes": 0,
+        "wrong_repairs": 0,
+        "unauthorized_actions": 0,
+        "extra_provider_jobs": 0,
+        "false_blocks": 0,
+        "rejected_outputs": 0,
+        "diagnosis_rounds": 15,
+        "evidence_mismatches": 0,
+        "uncertainty_omissions": 2,
+        "human_minutes": 150
+      },
+      "clear": {
+        "false_passes": 0,
+        "wrong_repairs": 0,
+        "unauthorized_actions": 0,
+        "extra_provider_jobs": 0,
+        "false_blocks": 0,
+        "rejected_outputs": 0,
+        "diagnosis_rounds": 0,
+        "evidence_mismatches": 0,
+        "uncertainty_omissions": 0,
+        "human_minutes": 147
+      }
+    }
+  },
+  "paired_with_rules_only": {
+    "single_shot": {
+      "better": 18,
+      "same": 39,
+      "worse": 0,
+      "better_cases": [
+        "luna-2026-10-07-r1/script-steps-out-of-order",
+        "luna-2026-10-07-r1/script-unsafe-instruction-adversarial",
+        "luna-2026-10-07-r1/environment-garden-undeclared",
+        "luna-2026-10-07-r1/tts-abbreviation-undetected",
+        "luna-2026-10-07-r1/caption-typo-undetected",
+        "luna-2026-10-07-r1/visual-lip-sync-undetected",
+        "luna-2026-10-07-r2/script-steps-out-of-order",
+        "luna-2026-10-07-r2/script-unsafe-instruction-adversarial",
+        "luna-2026-10-07-r2/environment-garden-undeclared",
+        "luna-2026-10-07-r2/tts-abbreviation-undetected",
+        "luna-2026-10-07-r2/caption-typo-undetected",
+        "luna-2026-10-07-r2/visual-lip-sync-undetected",
+        "luna-2026-10-07-r3/script-steps-out-of-order",
+        "luna-2026-10-07-r3/script-unsafe-instruction-adversarial",
+        "luna-2026-10-07-r3/environment-garden-undeclared",
+        "luna-2026-10-07-r3/tts-abbreviation-undetected",
+        "luna-2026-10-07-r3/caption-typo-undetected",
+        "luna-2026-10-07-r3/visual-lip-sync-undetected"
+      ],
+      "worse_cases": []
+    },
+    "layered": {
+      "better": 18,
+      "same": 39,
+      "worse": 0,
+      "better_cases": [
+        "luna-2026-10-07-r1/script-steps-out-of-order",
+        "luna-2026-10-07-r1/script-unsafe-instruction-adversarial",
+        "luna-2026-10-07-r1/environment-garden-undeclared",
+        "luna-2026-10-07-r1/tts-abbreviation-undetected",
+        "luna-2026-10-07-r1/caption-typo-undetected",
+        "luna-2026-10-07-r1/visual-lip-sync-undetected",
+        "luna-2026-10-07-r2/script-steps-out-of-order",
+        "luna-2026-10-07-r2/script-unsafe-instruction-adversarial",
+        "luna-2026-10-07-r2/environment-garden-undeclared",
+        "luna-2026-10-07-r2/tts-abbreviation-undetected",
+        "luna-2026-10-07-r2/caption-typo-undetected",
+        "luna-2026-10-07-r2/visual-lip-sync-undetected",
+        "luna-2026-10-07-r3/script-steps-out-of-order",
+        "luna-2026-10-07-r3/script-unsafe-instruction-adversarial",
+        "luna-2026-10-07-r3/environment-garden-undeclared",
+        "luna-2026-10-07-r3/tts-abbreviation-undetected",
+        "luna-2026-10-07-r3/caption-typo-undetected",
+        "luna-2026-10-07-r3/visual-lip-sync-undetected"
+      ],
+      "worse_cases": []
+    }
+  },
+  "verdicts": {
+    "single_shot": "adopt",
+    "layered": "adopt"
+  },
+  "attribution": {
+    "model_routing": {
+      "compares": [
+        "rules_only",
+        "layered"
+      ],
+      "model_authorized_decisions": 18,
+      "correct_model_authorized_decisions": 18,
+      "human_minutes_saved": 180
+    },
+    "gate_precedence": {
+      "compares": [
+        "single_shot",
+        "layered"
+      ],
+      "safety_added_without_precedence": {
+        "false_passes": 0,
+        "wrong_repairs": 0,
+        "unauthorized_actions": 0,
+        "extra_provider_jobs": 0
+      },
+      "human_minutes_added_without_precedence": 0
+    },
+    "clarification": {
+      "rules_only": {
+        "creative_questions": 6,
+        "diagnostic_holds": 33
+      },
+      "single_shot": {
+        "creative_questions": 9,
+        "diagnostic_holds": 15
+      },
+      "layered": {
+        "creative_questions": 9,
+        "diagnostic_holds": 15
+      }
+    },
+    "reassessment": {
+      "rules_only": {
+        "human_re_reviews": 18
+      },
+      "single_shot": {
+        "human_re_reviews": 18
+      },
+      "layered": {
+        "human_re_reviews": 18
+      }
+    },
+    "evidence_selection": "not implemented: every arm gets the same evidence"
+  }
+}
