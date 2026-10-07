@@ -267,6 +267,7 @@ class EvaluationTraceTests(unittest.TestCase):
                 },
             },
         )
+        self.assertEqual(record["policy_version"], "grounded-scope-v2")
         self.assertEqual(record["score"], {"passed": True, "failures": []})
         self.assertRegex(record["trace_id"], r"\A[0-9a-f]{32}\Z")
 
@@ -300,6 +301,20 @@ class EvaluationTraceTests(unittest.TestCase):
             lines = [json.loads(line) for line in path.read_text().splitlines()]
         report = json.loads(output.getvalue())
         self.assertEqual(report["model"]["prompt_version"], "fixture")
+        self.assertEqual(report["policy_version"], "grounded-scope-v2")
         self.assertEqual(report["traces"], str(path))
         self.assertEqual([line["case_id"] for line in lines], list(self.cases))
         self.assertTrue(all(line["score"]["passed"] for line in lines))
+
+    def test_cli_applies_the_selected_policy_version(self) -> None:
+        output = io.StringIO()
+        with (
+            patch("sys.argv", ["evaluation", "--policy", "confidence-v1"]),
+            redirect_stdout(output),
+            self.assertRaises(SystemExit) as exit_context,
+        ):
+            main()
+        self.assertEqual(exit_context.exception.code, 0)
+        report = json.loads(output.getvalue())
+        self.assertEqual(report["policy_version"], "confidence-v1")
+        self.assertEqual(report["passed"], 15)

@@ -19,6 +19,8 @@ from media_qc_agent.agent.contracts import (
     ModelProvider,
 )
 from media_qc_agent.agent.interpretation import (
+    DEFAULT_POLICY,
+    AcceptancePolicy,
     Interpretation,
     clarification_type,
     repair_scopes,
@@ -43,6 +45,7 @@ class InterpretationTurn:
     """One diagnosis and planning turn; `trace_id` is None when not exported."""
 
     identity: ModelIdentity
+    policy_version: str
     request: InterpretationRequest
     outcome: TurnOutcome
     raw_output: str | None
@@ -70,13 +73,17 @@ def plan_attributes(interpretation: Interpretation) -> dict[str, AttributeValue]
 
 
 def turn_attributes(
-    identity: ModelIdentity, request: InterpretationRequest, run_id: str | None
+    identity: ModelIdentity,
+    policy: AcceptancePolicy,
+    request: InterpretationRequest,
+    run_id: str | None,
 ) -> dict[str, AttributeValue]:
     attributes: dict[str, AttributeValue] = {
         "gen_ai.operation.name": "interpret",
         "gen_ai.provider.name": identity.provider,
         "gen_ai.request.model": identity.model,
         "agent.prompt.version": identity.prompt_version,
+        "agent.policy.version": policy.version,
         "agent.artifact_refs": tuple(
             reference(version) or "" for version in request.artifact_version_ids
         ),
@@ -144,11 +151,14 @@ def _diagnose(
 
 
 def _plan(
-    tracer: Tracer, raw: str, request: InterpretationRequest
+    tracer: Tracer,
+    raw: str,
+    request: InterpretationRequest,
+    policy: AcceptancePolicy,
 ) -> Interpretation | None:
     with safe_span(tracer, "agent.plan") as span:
         try:
-            interpretation = validate_interpretation(raw, request)
+            interpretation = validate_interpretation(raw, request, policy)
         except ValueError:
             annotate(span, {"agent.outcome": TurnOutcome.REJECTED.value})
             _fail(span, "validation_rejected")
@@ -163,6 +173,7 @@ def interpret_traced(
     *,
     tracer: Tracer | None = None,
     run_id: str | None = None,
+    policy: AcceptancePolicy = DEFAULT_POLICY,
 ) -> InterpretationTurn:
     """Interpret once, tracing the model call and validation/policy separately.
 
@@ -173,9 +184,9 @@ def interpret_traced(
     tracer = tracer or trace.get_tracer("media_qc_agent.agent")
     identity = provider.identity
     with safe_span(tracer, "agent.interpret") as span:
-        annotate(span, turn_attributes(identity, request, run_id))
+        annotate(span, turn_attributes(identity, policy, request, run_id))
         raw = _diagnose(tracer, provider, request)
-        interpretation = None if raw is None else _plan(tracer, raw, request)
+        interpretation = None if raw is None else _plan(tracer, raw, request, policy)
         if raw is None:
             outcome = TurnOutcome.PROVIDER_ERROR
         elif interpretation is None:
@@ -184,5 +195,11 @@ def interpret_traced(
             outcome = turn_outcome(interpretation)
         annotate(span, {"agent.outcome": outcome.value})
         return InterpretationTurn(
-            identity, request, outcome, raw, interpretation, _trace_id(span)
+            identity,
+            policy.version,
+            request,
+            outcome,
+            raw,
+            interpretation,
+            _trace_id(span),
         )

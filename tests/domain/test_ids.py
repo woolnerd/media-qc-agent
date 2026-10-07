@@ -3,6 +3,7 @@ import unittest
 
 from media_qc_agent import ArtifactKind, FailureKind, QualityFinding, WorkflowRepository
 from media_qc_agent.domain.ids import (
+    artifact_kind,
     validate_artifact_version_id,
     validate_external_id,
     validate_run_id,
@@ -30,6 +31,29 @@ class IdContractTests(unittest.TestCase):
             validate_artifact_version_id("video:job-1", ArtifactKind.CAPTIONS)
         with self.assertRaisesRegex(ValueError, "generated"):
             validate_artifact_version_id("video:job-1", ArtifactKind.VIDEO)
+
+    def test_artifact_kind_is_read_from_the_version_prefix(self) -> None:
+        for version_id, kind in (
+            ("script-1", ArtifactKind.SCRIPT),
+            ("tts-benchmark", ArtifactKind.TTS_INPUT),
+            ("avatar-1", ArtifactKind.AVATAR),
+            ("voice-1", ArtifactKind.VOICE),
+            ("caption-1", ArtifactKind.CAPTIONS),
+            ("video:provider/job:42", ArtifactKind.VIDEO),
+        ):
+            with self.subTest(version_id=version_id):
+                self.assertIs(artifact_kind(version_id), kind)
+        for unknown in (
+            "video-1",
+            "video:",
+            "video: ",
+            "captions-1",
+            "script-",
+            "Script-1",
+            "",
+        ):
+            with self.subTest(unknown=unknown):
+                self.assertIsNone(artifact_kind(unknown))
 
     def test_run_ids_are_slugs_and_provider_ids_are_opaque(self) -> None:
         validate_run_id("demo-run")

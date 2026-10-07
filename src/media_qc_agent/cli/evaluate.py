@@ -15,6 +15,9 @@ from media_qc_agent.agent.contracts import (
     ModelProvider,
 )
 from media_qc_agent.agent.interpretation import (
+    DEFAULT_POLICY,
+    POLICIES,
+    AcceptancePolicy,
     Interpretation,
     clarification_type,
     repair_scopes,
@@ -244,15 +247,18 @@ def score_turn(case: EvaluationCase, turn: InterpretationTurn) -> CaseResult:
 
 
 def evaluate_case(
-    case: EvaluationCase, provider: ModelProvider, *, tracer: Tracer | None = None
+    case: EvaluationCase,
+    provider: ModelProvider,
+    *,
+    tracer: Tracer | None = None,
+    policy: AcceptancePolicy = DEFAULT_POLICY,
 ) -> CaseResult:
     """Score one traced turn; the score is recorded on the enclosing case span."""
 
     tracer = tracer or trace.get_tracer("media_qc_agent.evaluation")
     with safe_span(tracer, "eval.case") as span:
-        result = score_turn(
-            case, interpret_traced(provider, case.request, tracer=tracer)
-        )
+        turn = interpret_traced(provider, case.request, tracer=tracer, policy=policy)
+        result = score_turn(case, turn)
         annotate(
             span,
             {
@@ -298,6 +304,7 @@ def trace_record(case: EvaluationCase, result: CaseResult) -> dict[str, Any]:
         "category": case.category,
         "failure_class": case.failure_class.value,
         "model": asdict(turn.identity),
+        "policy_version": turn.policy_version,
         "trace_id": turn.trace_id,
         "artifact_version_ids": list(turn.request.artifact_version_ids),
         "input": {
@@ -338,6 +345,12 @@ def main() -> None:
         help="Provider used for --live requests",
     )
     parser.add_argument(
+        "--policy",
+        choices=tuple(POLICIES),
+        default=DEFAULT_POLICY.version,
+        help="Acceptance policy version applied to model output",
+    )
+    parser.add_argument(
         "--live",
         action="store_true",
         help="Make a paid OpenRouter request per selected case",
@@ -356,7 +369,8 @@ def main() -> None:
         if not cases:
             parser.error("case ID was not found")
     provider = _evaluation_provider(cases, live=args.live, provider_name=args.provider)
-    results = tuple(evaluate_case(case, provider) for case in cases)
+    policy = POLICIES[args.policy]
+    results = tuple(evaluate_case(case, provider, policy=policy) for case in cases)
     if args.traces:
         write_traces(args.traces, cases, results)
     print(
@@ -365,6 +379,7 @@ def main() -> None:
                 "mode": "live" if args.live else "fixture",
                 "provider": args.provider if args.live else "fake",
                 "model": asdict(provider.identity),
+                "policy_version": policy.version,
                 "traces": str(args.traces) if args.traces else None,
                 "version_labels_masked": args.mask_version_labels,
                 "passed": sum(result.passed for result in results),
