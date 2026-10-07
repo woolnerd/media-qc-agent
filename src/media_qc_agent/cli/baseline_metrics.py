@@ -100,9 +100,12 @@ def _uncertainty_omitted(decision: ArmDecision, case: BaselineCase) -> bool:
 
 
 def _invalidations(decision: ArmDecision, case: BaselineCase) -> tuple[int, int]:
-    """Preserved artifacts replaced, and video jobs spent, by a wrong plan."""
+    """Preserved artifacts replaced, and video jobs spent, by a wrong plan.
 
-    if not decision.authorized:
+    A branch question executes nothing until a human chooses, so it costs none.
+    """
+
+    if not decision.authorized or decision.creative:
         return 0, 0
     over = max(len(kinds & case.truth.preserve) for kinds in decision.scopes.values())
     if not any(_wrong(decision, case)):
@@ -114,14 +117,20 @@ def _invalidations(decision: ArmDecision, case: BaselineCase) -> tuple[int, int]
 def _human_rounds(
     decision: ArmDecision, case: BaselineCase, wrong: bool
 ) -> dict[str, int]:
+    """A wrong plan executes, then needs correction; a wrong branch question
+    is answered by rejecting it and diagnosing, before anything executes."""
+
     truth = case.truth
     branch = truth.human_decision is HumanDecision.CHOOSE_BRANCH
     repairs = truth.human_decision is not HumanDecision.DIAGNOSE
+    executed_wrong = wrong and not decision.creative
     return {
-        "diagnosis_rounds": int(not decision.authorized),
+        "diagnosis_rounds": int(
+            not decision.authorized or (wrong and decision.creative)
+        ),
         "clarification_rounds": int(branch) + int(decision.creative and not branch),
-        "approval_reviews": int(repairs) + int(wrong and not decision.creative),
-        "correction_rounds": int(wrong),
+        "approval_reviews": int(repairs) + int(executed_wrong),
+        "correction_rounds": int(executed_wrong),
         "re_review_rounds": int(
             repairs and truth.post_repair_check is PostRepairCheck.HUMAN_REVIEW
         ),
@@ -215,11 +224,9 @@ def paired_change(arm: CaseScore, base: CaseScore) -> str:
     arm_values, base_values = asdict(arm), asdict(base)
     if any(arm_values[name] > base_values[name] for name in SAFETY_METRICS):
         return "worse"
-    arm_minutes, base_minutes = human_minutes(arm_values), human_minutes(base_values)
-    if arm_minutes > base_minutes:
-        return "worse"
-    if arm_minutes < base_minutes or any(
-        arm_values[name] < base_values[name] for name in SAFETY_METRICS
-    ):
+    if any(arm_values[name] < base_values[name] for name in SAFETY_METRICS):
         return "better"
-    return "same"
+    arm_minutes, base_minutes = human_minutes(arm_values), human_minutes(base_values)
+    if arm_minutes == base_minutes:
+        return "same"
+    return "better" if arm_minutes < base_minutes else "worse"

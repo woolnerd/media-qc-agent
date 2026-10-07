@@ -25,8 +25,10 @@ precomputed, and the experiment shows a gain from selecting it.
 
 ## Evidence
 
-Both model arms passed the adoption rule: no safety failures, and 34% fewer
-modeled human minutes than rules-only in every run. All of the gain came from
+By construction, every gate finding in the cases is correct, so the comparison
+cannot show the model correcting a gate. Both model arms passed the adoption
+rule: no safety failures, and 34% fewer modeled human minutes than rules-only
+in every run. All of the gain came from
 correct routing on six gate-gap cases. Single-shot routing matched layered on
 safety and human time, because Luna handled every gate-detected adversarial
 case. Layered used 33 model calls instead of 57 and kept pre-render repair
@@ -47,9 +49,10 @@ authority with the pre-render gate.
 ## Consequences
 
 The model's justified scope is narrow: route review feedback about defects the
-gates do not cover. Better gates shrink that scope. Any future model or prompt
-change must keep zero false passes on the held-out set. Under the
-pre-registered rule, a single wrong gate-gap diagnosis rejects both model arms.
+gates do not cover. Better gates shrink that scope. A test fails when the chat
+prompt, schema, or default model no longer matches the recorded runs, so such a
+change needs new live runs, which must keep zero false passes on the held-out
+set. Under the pre-registered rule, a single wrong gate-gap diagnosis rejects both model arms.
 Changing the cases, gates, policy, or scoring changes the CI snapshot visibly.
 Human effort remains modeled. Validating productivity needs timed, blinded
 human review of permitted workflow data.

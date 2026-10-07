@@ -11,7 +11,7 @@ from unittest.mock import patch
 
 from media_qc_agent.agent.contracts import InterpretationRequest, ModelIdentity
 from media_qc_agent.agent.interpretation import DEFAULT_POLICY
-from media_qc_agent.agent.openrouter import ModelProviderError
+from media_qc_agent.agent.openrouter import ModelProviderError, OpenRouterModelProvider
 from media_qc_agent.cli.baseline import (
     DEFAULT_EXPECTED,
     DEFAULT_RUNS,
@@ -22,7 +22,7 @@ from media_qc_agent.cli.baseline import (
     record_run,
     score_run,
 )
-from media_qc_agent.cli.baseline_arms import Route
+from media_qc_agent.cli.baseline_arms import Route, rules_only
 from media_qc_agent.cli.baseline_cases import (
     BASELINE_DATASET,
     BaselineCase,
@@ -37,11 +37,13 @@ from media_qc_agent.cli.baseline_metrics import (
     CaseScore,
     ModelUsage,
     paired_change,
+    score_decision,
     verdict,
 )
-from media_qc_agent.domain.evidence import EvidenceRole
+from media_qc_agent.domain.evidence import EvidenceInput, EvidenceRole
 from media_qc_agent.domain.ids import artifact_kind
 from media_qc_agent.domain.models import (
+    ArtifactKind,
     ClarificationRequest,
     FailureKind,
     QualityFinding,
@@ -239,6 +241,81 @@ class ArmTests(unittest.TestCase):
         self.assertEqual(score.false_passes, 0)
 
 
+class MetricTests(unittest.TestCase):
+    def _rows(self, case_id: str, kind: FailureKind | None = None) -> Any:
+        case = BY_ID[case_id]
+        output = oracle_output(case, kind)
+        return score_run(recorded({case_id: output}), CASES, DEFAULT_POLICY)[case_id]
+
+    def test_non_creative_plan_on_a_branch_case_is_unauthorized(self) -> None:
+        rows = self._rows("environment-garden-undeclared", FailureKind.SCRIPT_QUALITY)
+        score = rows["layered"].score
+        self.assertEqual((score.unauthorized_actions, score.false_passes), (1, 1))
+        self.assertEqual(score.approval_reviews, 2)  # wrong plan, then the fix
+        self.assertEqual(rows["rules_only"].score.unauthorized_actions, 0)
+
+    def test_fact_outside_ground_truth_is_an_evidence_mismatch(self) -> None:
+        case = BY_ID["caption-line-too-long"]
+        decision = rules_only(run_gates(case), None)
+        self.assertEqual(score_decision(decision, case).evidence_mismatches, 0)
+        stray = EvidenceInput(EvidenceRole.FACT, case.versions[ArtifactKind.VIDEO], "x")
+        mismatched = replace(decision, cited=(*decision.cited, stray))
+        self.assertEqual(score_decision(mismatched, case).evidence_mismatches, 1)
+        self.assertEqual(
+            score_decision(replace(decision, cited=()), case).evidence_mismatches, 1
+        )
+
+    def test_late_detection_requires_a_pre_render_defect_without_gate(self) -> None:
+        expected = {
+            "script-steps-out-of-order": 1,  # pre-render, no gate
+            "tts-star-temperature": 0,  # pre-render gate decided
+            "caption-typo-undetected": 0,  # post-render defect
+            "tts-numbers-unsure": 0,  # no supported defect
+        }
+        for case_id, late in expected.items():
+            with self.subTest(case=case_id):
+                score = self._rows(case_id)["rules_only"].score
+                self.assertEqual(score.late_detections, late)
+
+    def test_human_rounds_follow_the_ground_truth_path(self) -> None:
+        expected = {
+            # case: (clarification, approval, re-review) for rules-only
+            "environment-stovetop-office": (1, 1, 0),
+            "environment-garden-undeclared": (1, 1, 1),
+            "caption-typo-undetected": (0, 1, 1),
+            "caption-line-too-long": (0, 1, 0),
+            "caption-feel-unsure": (0, 0, 0),
+        }
+        for case_id, rounds in expected.items():
+            with self.subTest(case=case_id):
+                score = self._rows(case_id)["rules_only"].score
+                self.assertEqual(
+                    (
+                        score.clarification_rounds,
+                        score.approval_reviews,
+                        score.re_review_rounds,
+                    ),
+                    rounds,
+                )
+
+    def test_wrong_branch_question_wastes_a_round_but_executes_nothing(self) -> None:
+        rows = self._rows("caption-typo-undetected", FailureKind.ENVIRONMENT_MISMATCH)
+        score = rows["layered"].score
+        self.assertTrue(rows["layered"].decision.creative)
+        self.assertEqual((score.false_passes, score.wrong_repairs), (1, 1))
+        self.assertEqual(score.clarification_rounds, 1)
+        self.assertEqual(score.diagnosis_rounds, 1)
+        self.assertEqual(score.approval_reviews, 1)
+        self.assertEqual(
+            (
+                score.extra_provider_jobs,
+                score.unnecessary_invalidations,
+                score.correction_rounds,
+            ),
+            (0, 0, 0),
+        )
+
+
 class VerdictTests(unittest.TestCase):
     def test_safety_regression_rejects_regardless_of_time_saved(self) -> None:
         base = [{"human_minutes": 100.0, **dict.fromkeys(SAFETY_METRICS, 0)}]
@@ -267,6 +344,8 @@ class VerdictTests(unittest.TestCase):
         self.assertEqual(
             paired_change(_score(false_passes=1, correction_rounds=0), base), "worse"
         )
+        unsafe = _score(false_passes=1)
+        self.assertEqual(paired_change(_score(diagnosis_rounds=1), unsafe), "better")
 
 
 class RecordingTests(unittest.TestCase):
@@ -328,6 +407,17 @@ class SavedResultTests(unittest.TestCase):
         self.assertEqual(len(runs), 3)
         expected = json.loads(DEFAULT_EXPECTED.read_text())
         self.assertEqual(compare_arms(CASES, runs), expected)
+
+    def test_saved_runs_use_the_current_chat_prompt(self) -> None:
+        current = OpenRouterModelProvider(api_key="unused").identity
+        for run in load_runs(DEFAULT_RUNS, CASES):
+            with self.subTest(run=run.id):
+                self.assertEqual(
+                    run.identity,
+                    current,
+                    "the prompt, schema, or default model changed: record new "
+                    "live baseline runs before claiming results for it",
+                )
 
 
 class _MeteredOracle:

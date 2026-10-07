@@ -91,6 +91,16 @@ Per case and arm, from `cli/baseline_metrics.py`:
   outside the ground-truth artifacts; model holds on ambiguous cases that do
   not cite the supplied uncertainty.
 - **Late detection:** pre-render defects that only post-render review found.
+  *Clarified after results; the computation is unchanged:* the code counts
+  pre-render defects whose repair authority did not come from a pre-render
+  gate. A model turn that sees gate evidence but reads post-render feedback
+  counts as late. Informational only; it does not affect the verdict.
+
+Safety metrics overlap: one wrong decision can be both a false pass and a wrong
+repair, and also an unauthorized action or extra job. The verdict compares each
+metric separately, so the overlap does not change it, but sums are not counts
+of distinct events. "False blocks" in `rules_only` are its designed path: a
+human diagnoses a defect the gates missed. They cost time, not safety.
 
 Results are reported per run, summed, by failure class and by category, and
 as paired per-case changes against `rules_only` with every worse case listed.
@@ -110,6 +120,10 @@ as paired per-case changes against `rules_only` with every worse case listed.
 - The human diagnoses correctly. This favors `rules_only`.
 - A wrong authorized plan executes before anyone notices, then costs a
   correction round. This is the worst case for the model arms.
+- A wrong branch question executes nothing: the human rejects it and
+  diagnoses, so it costs a wasted clarification and a diagnosis round. *This
+  rule was made explicit after the review (#59). It changes no recorded outcome,
+  because no run asked a wrong branch question.*
 - Every arm needs the same final approval, branch choice, and re-review for
   the correct repair; they differ in diagnosis, wasted clarification,
   correction, and extra approvals.
@@ -159,6 +173,13 @@ rerun without `--expect`, redirect stdout to the snapshot, and explain the diff.
 - Gate-gap facts were written by a synthetic reviewer, who has already done
   part of the diagnosis. The 10-minute diagnosis weight may overstate what
   routing saves.
+- No case has a wrong gate finding or conflicting gates, so the comparison
+  cannot show the model correcting a gate. A later dataset version should add
+  such cases; changing this one would require new runs.
+- Replay is bound to each request, and a test fails if the chat prompt,
+  schema, or default model differs from the recorded runs. Ground-truth text
+  that no score reads, such as `post_repair_outcome`, can change without
+  failing CI.
 - Validating productivity claims would need blinded human review of real or
   permitted workflow data: reviewers timed on matched cases with and without
   model routing, ground truth from independent annotators, and observed rates
@@ -186,6 +207,14 @@ request per case, no retries, no provider errors. The
 metric above `rules_only`, and 34% fewer modeled human minutes in each run
 (threshold 15%). No case was worse than `rules_only` for either arm.
 
+Read these verdicts with the dataset's construction in mind. Every gate finding
+in these cases is correct, so `rules_only` has no safety failures by design.
+`layered` is identical to `rules_only` on the 13 gate-detected cases, including
+five of six adversarial cases, so it could only be worse on the six gate-gap
+cases. There are no gate false positives or gate/feedback conflicts. The three
+runs use one model and prompt, so they show run-to-run variation, not three
+independent confirmations.
+
 ### Where the difference comes from
 
 - **Model routing on gate gaps accounts for all of it.** The 18 better
@@ -208,6 +237,10 @@ metric above `rules_only`, and 34% fewer modeled human minutes in each run
   directly; `rules_only` asked after human diagnosis. All arms needed 18 human
   re-reviews for gate-gap repairs.
 - **Evidence selection is not implemented**, so it contributes nothing.
+- **`single_shot` is not a feedback-only classifier.** It sees the same gate
+  evidence, which makes it close to `layered`. A classifier without gate
+  evidence was not measured. Clarification and re-review counts follow from
+  ground truth and routing, so they could only differ if routing differed.
 - **Ambiguous cases still need a human in every arm.** The model correctly
   held all 15 ambiguous decisions. In run 1 it twice held without citing the
   supplied uncertainty, matching the October 6 pattern.
