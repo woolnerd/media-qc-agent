@@ -1,0 +1,429 @@
+{
+ "schema_version": 1,
+ "dataset": "baseline-cases-v1.json",
+ "runs": [
+  {
+   "id": "luna-2026-10-07-r1",
+   "provider": "openrouter-chat",
+   "model": "openai/gpt-6-luna",
+   "prompt_version": "chat:50c6b77a9c4a",
+   "cases": {
+    "script-steps-out-of-order": {
+     "request_sha256": "50da7097cc0c4eb5ca967b6d823d249723a629933176a98d9d9e233048412c13",
+     "raw_output": "{\"kind\":\"script_quality\",\"explanation\":\"The script lists frosting before baking, matching the reported ordering problem [0].\",\"confidence\":0.99,\"evidence_indices\":[0],\"action\":\"revise_script\",\"invalidates\":[\"captions\",\"script\",\"tts_input\",\"video\"]}",
+     "error": null,
+     "elapsed_seconds": 2.845,
+     "cost_usd": 9.88e-05
+    },
+    "script-vague-pacing": {
+     "request_sha256": "4e7dfb9affb7db38bb887acd84b0ec103884799f52ef04356f09551a902befc3",
+     "raw_output": "{\"kind\":null,\"explanation\":\"Could you identify the specific passage and explain what feels off about its pacing or impact?\",\"confidence\":0.97,\"evidence_indices\":[],\"action\":null,\"invalidates\":[]}",
+     "error": null,
+     "elapsed_seconds": 2.995,
+     "cost_usd": 0.0001147
+    },
+    "script-unsafe-instruction-adversarial": {
+     "request_sha256": "d152e825e0f792c6b9c38d20526045580e36dfd72c46b60cb46486815f5c9622",
+     "raw_output": "{\"kind\":\"script_quality\",\"explanation\":\"The script instructs viewers to store raw chicken above ready-to-eat salad, contrary to the supplied food-safety brief requiring raw meat on the bottom shelf.\",\"confidence\":0.99,\"evidence_indices\":[0],\"action\":\"revise_script\",\"invalidates\":[\"captions\",\"script\",\"tts_input\",\"video\"]}",
+     "error": null,
+     "elapsed_seconds": 3.058,
+     "cost_usd": 0.0001179
+    },
+    "environment-stovetop-office": {
+     "request_sha256": "9918fac4707e5d03e14192410f79ab6e5f5b2dddbb74d0e4e652caf9ff494281",
+     "raw_output": "{\"kind\":\"environment_mismatch\",\"explanation\":\"The script declares a kitchen scene, while the avatar’s declared environment is an office. Which environment should be used?\",\"confidence\":0.98,\"evidence_indices\":[0,1],\"action\":null,\"invalidates\":[]}",
+     "error": null,
+     "elapsed_seconds": 3.04,
+     "cost_usd": 0.0001298
+    },
+    "environment-garden-undeclared": {
+     "request_sha256": "59819c3e8a40d784bc66a723b38d8b9588d4911c2ce694471a44569b50d14f97",
+     "raw_output": "{\"kind\":\"environment_mismatch\",\"explanation\":\"The script describes walking through a vegetable garden, while the avatar’s declared environment is an office. Which should be changed: the environment to a garden, or the script to fit an office?\",\"confidence\":0.98,\"evidence_indices\":[0,1],\"action\":null,\"invalidates\":[]}",
+     "error": null,
+     "elapsed_seconds": 2.735,
+     "cost_usd": 0.0001224
+    },
+    "environment-background-unsure": {
+     "request_sha256": "988f83db51df27e66bc602d7a597448def9032d22b5922836d3a650e85140ae0",
+     "raw_output": "{\"kind\":null,\"explanation\":\"Could you specify what about the background seems mismatched with the topic? The supplied evidence only says the reviewer questions the background and names no conflict (evidence 0).\",\"confidence\":0.95,\"evidence_indices\":[0],\"action\":null,\"invalidates\":[]}",
+     "error": null,
+     "elapsed_seconds": 3.451,
+     "cost_usd": 0.0001259
+    },
+    "environment-preselected-branch-adversarial": {
+     "request_sha256": "d781405ad0d988e51009d99a7f17e0110618d4592441c87ebcb6617c64e8e1c6",
+     "raw_output": "{\"kind\":\"environment_mismatch\",\"explanation\":\"The script declares an office scene, while the avatar’s declared environment is a kitchen (evidence 0, 1). Which environment should be used?\",\"confidence\":0.98,\"evidence_indices\":[0,1],\"action\":null,\"invalidates\":[]}",
+     "error": null,
+     "elapsed_seconds": 3.037,
+     "cost_usd": 0.0001327
+    },
+    "tts-star-temperature": {
+     "request_sha256": "2ba1695762229b8b11a53a3db35132c06332378bd747cfe1a917525961e428e5",
+     "raw_output": "{\"kind\":\"tts_input_compatibility\",\"explanation\":\"The TTS input contains “375*F,” which is ambiguous for the specified TTS notation and does not provide explicit spoken text. Replace it with explicit wording such as “375 degrees Fahrenheit.”\",\"confidence\":0.98,\"evidence_indices\":[0],\"action\":\"repair_tts_input\",\"invalidates\":[\"captions\",\"tts_input\",\"video\"]}",
+     "error": null,
+     "elapsed_seconds": 3.001,
+     "cost_usd": 0.0001308
+    },
+    "tts-abbreviation-undetected": {
+     "request_sha256": "cb6ba071b4edcd131f696e1016db18cbebdd4f6a9a41dd8785b428573b6b3497",
+     "raw_output": "{\"kind\":\"tts_input_compatibility\",\"explanation\":\"The synthetic voice profile reads “Dr.” as “drive,” so the TTS input needs a compatible spelling or expansion.\",\"confidence\":0.99,\"evidence_indices\":[0],\"action\":\"repair_tts_input\",\"invalidates\":[\"captions\",\"tts_input\",\"video\"]}",
+     "error": null,
+     "elapsed_seconds": 2.499,
+     "cost_usd": 0.0001128
+    },
+    "tts-numbers-unsure": {
+     "request_sha256": "5dd0bba5d41923e6bbd68a8f3a3faa21a3c980464af0e271b42a6f88a130b92e",
+     "raw_output": "{\"kind\":null,\"explanation\":\"Could you identify which numbers sound incorrect and describe how they should be read? The feedback is tentative and does not specify the mispronounced words.\",\"confidence\":0.97,\"evidence_indices\":[0],\"action\":null,\"invalidates\":[]}",
+     "error": null,
+     "elapsed_seconds": 2.315,
+     "cost_usd": 0.0001307
+    },
+    "tts-rewrite-everything-adversarial": {
+     "request_sha256": "1f2207627f576b7e476ea2fa9efb1d657f5b0b58d105270f62ea180db1433a46",
+     "raw_output": "{\"kind\":\"tts_input_compatibility\",\"explanation\":\"The spoken-text check flags “220*C” as ambiguous for the declared TTS notation and requires explicit spoken text.\",\"confidence\":0.98,\"evidence_indices\":[0],\"action\":\"repair_tts_input\",\"invalidates\":[\"captions\",\"tts_input\",\"video\"]}",
+     "error": null,
+     "elapsed_seconds": 3.277,
+     "cost_usd": 0.0001239
+    },
+    "caption-line-too-long": {
+     "request_sha256": "dc3872110932002ad84dff72ef263532170021959629ddc2b08feb259468d762",
+     "raw_output": "{\"kind\":\"caption_format\",\"explanation\":\"Caption check reports cue 0 is too long (63 characters; limit 42), consistent with a caption running off-screen.\",\"confidence\":0.98,\"evidence_indices\":[0],\"action\":\"repair_captions\",\"invalidates\":[\"captions\"]}",
+     "error": null,
+     "elapsed_seconds": 1.699,
+     "cost_usd": 9.78e-05
+    },
+    "caption-typo-undetected": {
+     "request_sha256": "ef1958ed5ce159567a057c440a37cf8856abcc009d9b0d2da10953f5e4565ba3",
+     "raw_output": "{\"kind\":\"caption_format\",\"explanation\":\"Evidence confirms a caption typo: cue 1 says “degress” instead of “degrees.” This differs from the feedback’s reference to the second caption; should cue 1 be corrected?\",\"confidence\":0.97,\"evidence_indices\":[0],\"action\":\"repair_captions\",\"invalidates\":[\"captions\"]}",
+     "error": null,
+     "elapsed_seconds": 3.191,
+     "cost_usd": 0.0001271
+    },
+    "caption-feel-unsure": {
+     "request_sha256": "ff72f4069972c1e540828a416c77af9467f50639d4e6dcdc06c7dc1ad3d8a86b",
+     "raw_output": "{\"kind\":null,\"explanation\":\"What specifically feels off about the captions—for example, their timing, wording, or formatting?\",\"confidence\":0.98,\"evidence_indices\":[],\"action\":null,\"invalidates\":[]}",
+     "error": null,
+     "elapsed_seconds": 1.401,
+     "cost_usd": 7.62e-05
+    },
+    "caption-overlap-rerender-adversarial": {
+     "request_sha256": "e25f5002f3fb8438e25791b68943ae457b26d75ea5aa4eb626cb9e33c1ec3852",
+     "raw_output": "{\"kind\":\"caption_format\",\"explanation\":\"Evidence 0 reports an overlapping caption cue starting at 2000 ms, below the 2500 ms limit. Repair the captions; no video regeneration is needed.\",\"confidence\":0.98,\"evidence_indices\":[0],\"action\":\"repair_captions\",\"invalidates\":[\"captions\"]}",
+     "error": null,
+     "elapsed_seconds": 2.855,
+     "cost_usd": 0.0001171
+    },
+    "visual-head-snaps": {
+     "request_sha256": "ba5f949b195f158248dec5314e9e670fc2bec1a1b0d9b7f335e287b0926a2b8b",
+     "raw_output": "{\"kind\":\"visual_quality\",\"explanation\":\"The supplied motion checks report same-shot jumps of 19–21 px/frame, exceeding the 12 px/frame limit (evidence indices 0–3).\",\"confidence\":0.98,\"evidence_indices\":[0,1,2,3],\"action\":\"regenerate_video\",\"invalidates\":[\"captions\",\"video\"]}",
+     "error": null,
+     "elapsed_seconds": 3.222,
+     "cost_usd": 0.0001377
+    },
+    "visual-lip-sync-undetected": {
+     "request_sha256": "72f133c8568109b043329d2f98fe92e6e909e58e8eafdc549519db81a523d7da",
+     "raw_output": "{\"kind\":\"visual_quality\",\"explanation\":\"The supplied evidence reports that mouth movement in the rendered video trails the audio by about half a second from 0:12, indicating a visual synchronization issue.\",\"confidence\":0.94,\"evidence_indices\":[0],\"action\":\"regenerate_video\",\"invalidates\":[\"captions\",\"video\"]}",
+     "error": null,
+     "elapsed_seconds": 3.748,
+     "cost_usd": 0.0001289
+    },
+    "visual-single-jump-unsure": {
+     "request_sha256": "29f1c65af1116a1c914d063fd0182ccd9f3f7297b4deb764e6b17af008c0e377",
+     "raw_output": "{\"kind\":null,\"explanation\":\"Could you identify the approximate timestamp and describe what looks glitchy, and whether that change was intended?\",\"confidence\":0.98,\"evidence_indices\":[0],\"action\":null,\"invalidates\":[]}",
+     "error": null,
+     "elapsed_seconds": 3.134,
+     "cost_usd": 0.000106
+    },
+    "visual-blame-script-adversarial": {
+     "request_sha256": "a16c6859618d59bad7fb8009bd8dfd5c581ad9c22a77f2295ca2bb43da7db50f",
+     "raw_output": "{\"kind\":\"visual_quality\",\"explanation\":\"The video exceeds the motion-jump limit across four consecutive frame transitions, supporting a visual-quality issue. The evidence does not establish that script length caused it.\",\"confidence\":0.95,\"evidence_indices\":[0,1,2,3],\"action\":\"regenerate_video\",\"invalidates\":[\"captions\",\"video\"]}",
+     "error": null,
+     "elapsed_seconds": 3.122,
+     "cost_usd": 0.0001438
+    }
+   }
+  },
+  {
+   "id": "luna-2026-10-07-r2",
+   "provider": "openrouter-chat",
+   "model": "openai/gpt-6-luna",
+   "prompt_version": "chat:50c6b77a9c4a",
+   "cases": {
+    "script-steps-out-of-order": {
+     "request_sha256": "50da7097cc0c4eb5ca967b6d823d249723a629933176a98d9d9e233048412c13",
+     "raw_output": "{\"kind\":\"script_quality\",\"explanation\":\"The authored script lists frosting before baking, so the steps are in the wrong order. Revise the script to put baking before frosting.\",\"confidence\":0.99,\"evidence_indices\":[0],\"action\":\"revise_script\",\"invalidates\":[\"captions\",\"script\",\"tts_input\",\"video\"]}",
+     "error": null,
+     "elapsed_seconds": 2.968,
+     "cost_usd": 0.0001143
+    },
+    "script-vague-pacing": {
+     "request_sha256": "4e7dfb9affb7db38bb887acd84b0ec103884799f52ef04356f09551a902befc3",
+     "raw_output": "{\"kind\":null,\"explanation\":\"Could you identify what feels off about the pacing, such as a specific passage or a moment that feels too fast or too slow?\",\"confidence\":0.95,\"evidence_indices\":[0],\"action\":null,\"invalidates\":[]}",
+     "error": null,
+     "elapsed_seconds": 2.645,
+     "cost_usd": 0.0001047
+    },
+    "script-unsafe-instruction-adversarial": {
+     "request_sha256": "d152e825e0f792c6b9c38d20526045580e36dfd72c46b60cb46486815f5c9622",
+     "raw_output": "{\"kind\":\"script_quality\",\"explanation\":\"The script gives unsafe storage guidance that contradicts the food-safety brief: raw chicken should be stored below ready-to-eat salad. Revise the script and regenerate dependent artifacts.\",\"confidence\":0.99,\"evidence_indices\":[0],\"action\":\"revise_script\",\"invalidates\":[\"captions\",\"script\",\"tts_input\",\"video\"]}",
+     "error": null,
+     "elapsed_seconds": 2.837,
+     "cost_usd": 0.0001199
+    },
+    "environment-stovetop-office": {
+     "request_sha256": "9918fac4707e5d03e14192410f79ab6e5f5b2dddbb74d0e4e652caf9ff494281",
+     "raw_output": "{\"kind\":\"environment_mismatch\",\"explanation\":\"The script declares a kitchen scene and mentions the stovetop, while the avatar’s declared environment is an office (evidence 0, 1). Which should be changed: the presenter’s environment to a kitchen, or the script to fit an office?\",\"confidence\":0.99,\"evidence_indices\":[0,1],\"action\":null,\"invalidates\":[]}",
+     "error": null,
+     "elapsed_seconds": 2.615,
+     "cost_usd": 0.0001523
+    },
+    "environment-garden-undeclared": {
+     "request_sha256": "59819c3e8a40d784bc66a723b38d8b9588d4911c2ce694471a44569b50d14f97",
+     "raw_output": "{\"kind\":\"environment_mismatch\",\"explanation\":\"The script describes walking through a vegetable garden, while the avatar’s declared environment is an office. Which setting should the video use: a garden or an office?\",\"confidence\":0.98,\"evidence_indices\":[0,1],\"action\":null,\"invalidates\":[]}",
+     "error": null,
+     "elapsed_seconds": 3.065,
+     "cost_usd": 0.0001274
+    },
+    "environment-background-unsure": {
+     "request_sha256": "988f83db51df27e66bc602d7a597448def9032d22b5922836d3a650e85140ae0",
+     "raw_output": "{\"kind\":null,\"explanation\":\"Could you identify what specific aspect of the background conflicts with the topic, if any?\",\"confidence\":0.98,\"evidence_indices\":[0],\"action\":null,\"invalidates\":[]}",
+     "error": null,
+     "elapsed_seconds": 2.823,
+     "cost_usd": 0.0001184
+    },
+    "environment-preselected-branch-adversarial": {
+     "request_sha256": "d781405ad0d988e51009d99a7f17e0110618d4592441c87ebcb6617c64e8e1c6",
+     "raw_output": "{\"kind\":\"environment_mismatch\",\"explanation\":\"The script declares an office/conference-room scene, while the avatar declares a kitchen environment. Which environment should be used?\",\"confidence\":0.98,\"evidence_indices\":[0,1],\"action\":null,\"invalidates\":[]}",
+     "error": null,
+     "elapsed_seconds": 2.645,
+     "cost_usd": 0.0001222
+    },
+    "tts-star-temperature": {
+     "request_sha256": "2ba1695762229b8b11a53a3db35132c06332378bd747cfe1a917525961e428e5",
+     "raw_output": "{\"kind\":\"tts_input_compatibility\",\"explanation\":\"Evidence 0 shows the TTS input used “375*F,” which was flagged as ambiguous and requires explicit spoken text. This supports a TTS-input compatibility issue.\",\"confidence\":0.97,\"evidence_indices\":[0],\"action\":\"repair_tts_input\",\"invalidates\":[\"captions\",\"tts_input\",\"video\"]}",
+     "error": null,
+     "elapsed_seconds": 2.758,
+     "cost_usd": 0.0001343
+    },
+    "tts-abbreviation-undetected": {
+     "request_sha256": "cb6ba071b4edcd131f696e1016db18cbebdd4f6a9a41dd8785b428573b6b3497",
+     "raw_output": "{\"kind\":\"tts_input_compatibility\",\"explanation\":\"The TTS input contains “Dr.”, which the voice profile reads as “drive.”\",\"confidence\":0.99,\"evidence_indices\":[0],\"action\":\"repair_tts_input\",\"invalidates\":[\"captions\",\"tts_input\",\"video\"]}",
+     "error": null,
+     "elapsed_seconds": 2.855,
+     "cost_usd": 0.0001183
+    },
+    "tts-numbers-unsure": {
+     "request_sha256": "5dd0bba5d41923e6bbd68a8f3a3faa21a3c980464af0e271b42a6f88a130b92e",
+     "raw_output": "{\"kind\":null,\"explanation\":\"Could you identify which numbers sound incorrect and describe how they should be pronounced? The feedback is uncertain, and the evidence does not identify any mispronounced words.\",\"confidence\":0.97,\"evidence_indices\":[0],\"action\":null,\"invalidates\":[]}",
+     "error": null,
+     "elapsed_seconds": 3.179,
+     "cost_usd": 0.0001252
+    },
+    "tts-rewrite-everything-adversarial": {
+     "request_sha256": "1f2207627f576b7e476ea2fa9efb1d657f5b0b58d105270f62ea180db1433a46",
+     "raw_output": "{\"kind\":\"tts_input_compatibility\",\"explanation\":\"The spoken-text check flags “220*C” as ambiguous for the stated TTS notation and requires explicit spoken text. Repair the TTS input; the feedback’s broader requests are not supported by this evidence.\",\"confidence\":0.96,\"evidence_indices\":[0],\"action\":\"repair_tts_input\",\"invalidates\":[\"captions\",\"tts_input\",\"video\"]}",
+     "error": null,
+     "elapsed_seconds": 3.347,
+     "cost_usd": 0.0001309
+    },
+    "caption-line-too-long": {
+     "request_sha256": "dc3872110932002ad84dff72ef263532170021959629ddc2b08feb259468d762",
+     "raw_output": "{\"kind\":\"caption_format\",\"explanation\":\"The caption check reports cue 0 is 63 characters, exceeding the 42-character limit. Repair the caption formatting.\",\"confidence\":0.99,\"evidence_indices\":[0],\"action\":\"repair_captions\",\"invalidates\":[\"captions\"]}",
+     "error": null,
+     "elapsed_seconds": 2.493,
+     "cost_usd": 0.0001043
+    },
+    "caption-typo-undetected": {
+     "request_sha256": "ef1958ed5ce159567a057c440a37cf8856abcc009d9b0d2da10953f5e4565ba3",
+     "raw_output": "{\"kind\":\"caption_format\",\"explanation\":\"Caption cue 1 contains “degress” instead of “degrees,” while the script has the correct spelling. Repair the caption typo.\",\"confidence\":0.99,\"evidence_indices\":[0],\"action\":\"repair_captions\",\"invalidates\":[\"captions\"]}",
+     "error": null,
+     "elapsed_seconds": 2.783,
+     "cost_usd": 0.0001181
+    },
+    "caption-feel-unsure": {
+     "request_sha256": "ff72f4069972c1e540828a416c77af9467f50639d4e6dcdc06c7dc1ad3d8a86b",
+     "raw_output": "{\"kind\":null,\"explanation\":\"What specifically feels off about the captions—for example, their timing, wording, or formatting? The supplied evidence does not identify a caption cue or rule (evidence index 0).\",\"confidence\":0.99,\"evidence_indices\":[0],\"action\":null,\"invalidates\":[]}",
+     "error": null,
+     "elapsed_seconds": 2.953,
+     "cost_usd": 0.0001152
+    },
+    "caption-overlap-rerender-adversarial": {
+     "request_sha256": "e25f5002f3fb8438e25791b68943ae457b26d75ea5aa4eb626cb9e33c1ec3852",
+     "raw_output": "{\"kind\":\"caption_format\",\"explanation\":\"The caption check reports an overlapping cue: cue 1 starts at 2000 ms, before the required 2500 ms. Repair the captions only.\",\"confidence\":0.98,\"evidence_indices\":[0],\"action\":\"repair_captions\",\"invalidates\":[\"captions\"]}",
+     "error": null,
+     "elapsed_seconds": 2.523,
+     "cost_usd": 0.0001161
+    },
+    "visual-head-snaps": {
+     "request_sha256": "ba5f949b195f158248dec5314e9e670fc2bec1a1b0d9b7f335e287b0926a2b8b",
+     "raw_output": "{\"kind\":\"visual_quality\",\"explanation\":\"The motion checks show repeated same-shot jumps above the 12 px/frame limit, consistent with the reported head snaps.\",\"confidence\":0.98,\"evidence_indices\":[0,1,2,3],\"action\":\"regenerate_video\",\"invalidates\":[\"captions\",\"video\"]}",
+     "error": null,
+     "elapsed_seconds": 3.163,
+     "cost_usd": 0.0001247
+    },
+    "visual-lip-sync-undetected": {
+     "request_sha256": "72f133c8568109b043329d2f98fe92e6e909e58e8eafdc549519db81a523d7da",
+     "raw_output": "{\"kind\":\"visual_quality\",\"explanation\":\"The evidence reports that mouth movement in the rendered video trails the audio by about half a second from 0:12, indicating a video lip-sync issue.\",\"confidence\":0.96,\"evidence_indices\":[0],\"action\":\"regenerate_video\",\"invalidates\":[\"captions\",\"video\"]}",
+     "error": null,
+     "elapsed_seconds": 3.125,
+     "cost_usd": 0.0001379
+    },
+    "visual-single-jump-unsure": {
+     "request_sha256": "29f1c65af1116a1c914d063fd0182ccd9f3f7297b4deb764e6b17af008c0e377",
+     "raw_output": "{\"kind\":null,\"explanation\":\"Could you provide the approximate timestamp and describe what looks glitchy, and clarify whether the abrupt motion change noted in evidence 0 is unintended?\",\"confidence\":0.97,\"evidence_indices\":[0],\"action\":null,\"invalidates\":[]}",
+     "error": null,
+     "elapsed_seconds": 3.081,
+     "cost_usd": 0.0001245
+    },
+    "visual-blame-script-adversarial": {
+     "request_sha256": "a16c6859618d59bad7fb8009bd8dfd5c581ad9c22a77f2295ca2bb43da7db50f",
+     "raw_output": "{\"kind\":\"visual_quality\",\"explanation\":\"The supplied motion checks show same-shot jumps above the 12 px/frame limit in all four transitions (evidence indices 0–3). They do not establish that script length caused the motion issue.\",\"confidence\":0.96,\"evidence_indices\":[0,1,2,3],\"action\":\"regenerate_video\",\"invalidates\":[\"captions\",\"video\"]}",
+     "error": null,
+     "elapsed_seconds": 3.248,
+     "cost_usd": 0.0001373
+    }
+   }
+  },
+  {
+   "id": "luna-2026-10-07-r3",
+   "provider": "openrouter-chat",
+   "model": "openai/gpt-6-luna",
+   "prompt_version": "chat:50c6b77a9c4a",
+   "cases": {
+    "script-steps-out-of-order": {
+     "request_sha256": "50da7097cc0c4eb5ca967b6d823d249723a629933176a98d9d9e233048412c13",
+     "raw_output": "{\"kind\":\"script_quality\",\"explanation\":\"The script lists frosting as step 1 and baking as step 2, placing the steps in the wrong order.\",\"confidence\":0.98,\"evidence_indices\":[0],\"action\":\"revise_script\",\"invalidates\":[\"captions\",\"script\",\"tts_input\",\"video\"]}",
+     "error": null,
+     "elapsed_seconds": 3.29,
+     "cost_usd": 0.0001143
+    },
+    "script-vague-pacing": {
+     "request_sha256": "4e7dfb9affb7db38bb887acd84b0ec103884799f52ef04356f09551a902befc3",
+     "raw_output": "{\"kind\":null,\"explanation\":\"Could you identify the passage that feels off and describe what about its pacing isn’t working?\",\"confidence\":0.95,\"evidence_indices\":[0],\"action\":null,\"invalidates\":[]}",
+     "error": null,
+     "elapsed_seconds": 3.088,
+     "cost_usd": 0.0001282
+    },
+    "script-unsafe-instruction-adversarial": {
+     "request_sha256": "d152e825e0f792c6b9c38d20526045580e36dfd72c46b60cb46486815f5c9622",
+     "raw_output": "{\"kind\":\"script_quality\",\"explanation\":\"Evidence 0 shows the script tells viewers to store raw chicken above ready-to-eat salad, contrary to the food-safety brief requiring raw meat on the bottom shelf.\",\"confidence\":0.99,\"evidence_indices\":[0],\"action\":\"revise_script\",\"invalidates\":[\"captions\",\"script\",\"tts_input\",\"video\"]}",
+     "error": null,
+     "elapsed_seconds": 2.888,
+     "cost_usd": 0.0001199
+    },
+    "environment-stovetop-office": {
+     "request_sha256": "9918fac4707e5d03e14192410f79ab6e5f5b2dddbb74d0e4e652caf9ff494281",
+     "raw_output": "{\"kind\":\"environment_mismatch\",\"explanation\":\"The script declares a kitchen scene and mentions a stovetop, while the avatar’s declared environment is an office. Which environment should the presenter use: kitchen or office?\",\"confidence\":0.98,\"evidence_indices\":[0,1],\"action\":null,\"invalidates\":[]}",
+     "error": null,
+     "elapsed_seconds": 2.341,
+     "cost_usd": 0.0001348
+    },
+    "environment-garden-undeclared": {
+     "request_sha256": "59819c3e8a40d784bc66a723b38d8b9588d4911c2ce694471a44569b50d14f97",
+     "raw_output": "{\"kind\":\"environment_mismatch\",\"explanation\":\"The script describes walking through a vegetable garden, while the avatar’s declared environment is an office. Which should be changed: the environment to a garden, or the script to fit an office?\",\"confidence\":0.98,\"evidence_indices\":[0,1],\"action\":null,\"invalidates\":[]}",
+     "error": null,
+     "elapsed_seconds": 4.013,
+     "cost_usd": 0.0001279
+    },
+    "environment-background-unsure": {
+     "request_sha256": "988f83db51df27e66bc602d7a597448def9032d22b5922836d3a650e85140ae0",
+     "raw_output": "{\"kind\":null,\"explanation\":\"The feedback is uncertain and does not identify a specific mismatch. What aspect of the background, if any, conflicts with what they are talking about?\",\"confidence\":0.98,\"evidence_indices\":[0],\"action\":null,\"invalidates\":[]}",
+     "error": null,
+     "elapsed_seconds": 2.72,
+     "cost_usd": 0.0001159
+    },
+    "environment-preselected-branch-adversarial": {
+     "request_sha256": "d781405ad0d988e51009d99a7f17e0110618d4592441c87ebcb6617c64e8e1c6",
+     "raw_output": "{\"kind\":\"environment_mismatch\",\"explanation\":\"The script describes a conference-room/office scene, while the avatar is declared to be in a kitchen (evidence 0 and 1). Which environment should the video use: the office or the kitchen?\",\"confidence\":0.98,\"evidence_indices\":[0,1],\"action\":null,\"invalidates\":[]}",
+     "error": null,
+     "elapsed_seconds": 3.947,
+     "cost_usd": 0.0001547
+    },
+    "tts-star-temperature": {
+     "request_sha256": "2ba1695762229b8b11a53a3db35132c06332378bd747cfe1a917525961e428e5",
+     "raw_output": "{\"kind\":\"tts_input_compatibility\",\"explanation\":\"The spoken-text check found ambiguous temperature notation: the TTS input is “375*F,” and the check says a star is not a verified degree sign (evidence 0). Please provide explicit spoken text for the temperature, such as “375 degrees Fahrenheit.”\",\"confidence\":0.98,\"evidence_indices\":[0],\"action\":\"repair_tts_input\",\"invalidates\":[\"captions\",\"tts_input\",\"video\"]}",
+     "error": null,
+     "elapsed_seconds": 2.676,
+     "cost_usd": 0.0001343
+    },
+    "tts-abbreviation-undetected": {
+     "request_sha256": "cb6ba071b4edcd131f696e1016db18cbebdd4f6a9a41dd8785b428573b6b3497",
+     "raw_output": "{\"kind\":\"tts_input_compatibility\",\"explanation\":\"The TTS input contains “Dr.”, which the voice profile expands as “drive”; repair the TTS input so it is spoken as “Doctor Patel.”\",\"confidence\":0.99,\"evidence_indices\":[0],\"action\":\"repair_tts_input\",\"invalidates\":[\"captions\",\"tts_input\",\"video\"]}",
+     "error": null,
+     "elapsed_seconds": 3.185,
+     "cost_usd": 0.0001173
+    },
+    "tts-numbers-unsure": {
+     "request_sha256": "5dd0bba5d41923e6bbd68a8f3a3faa21a3c980464af0e271b42a6f88a130b92e",
+     "raw_output": "{\"kind\":null,\"explanation\":\"Could you identify which numbers sound off and describe how the narrator should pronounce them?\",\"confidence\":0.97,\"evidence_indices\":[0],\"action\":null,\"invalidates\":[]}",
+     "error": null,
+     "elapsed_seconds": 3.204,
+     "cost_usd": 0.0001177
+    },
+    "tts-rewrite-everything-adversarial": {
+     "request_sha256": "1f2207627f576b7e476ea2fa9efb1d657f5b0b58d105270f62ea180db1433a46",
+     "raw_output": "{\"kind\":\"tts_input_compatibility\",\"explanation\":\"Evidence 0 flags “220*C” as ambiguous spoken text for the declared TTS notation. Please provide explicit spoken text for this notation.\",\"confidence\":0.94,\"evidence_indices\":[0],\"action\":\"repair_tts_input\",\"invalidates\":[\"captions\",\"tts_input\",\"video\"]}",
+     "error": null,
+     "elapsed_seconds": 2.289,
+     "cost_usd": 0.0001369
+    },
+    "caption-line-too-long": {
+     "request_sha256": "dc3872110932002ad84dff72ef263532170021959629ddc2b08feb259468d762",
+     "raw_output": "{\"kind\":\"caption_format\",\"explanation\":\"Evidence 0 reports a caption line of 63 characters exceeding the 42-character limit. Repair the caption formatting.\",\"confidence\":0.99,\"evidence_indices\":[0],\"action\":\"repair_captions\",\"invalidates\":[\"captions\"]}",
+     "error": null,
+     "elapsed_seconds": 2.925,
+     "cost_usd": 9.88e-05
+    },
+    "caption-typo-undetected": {
+     "request_sha256": "ef1958ed5ce159567a057c440a37cf8856abcc009d9b0d2da10953f5e4565ba3",
+     "raw_output": "{\"kind\":\"caption_format\",\"explanation\":\"The evidence identifies “degress” in caption cue 1, while the feedback refers to the second caption. Please confirm which caption should be corrected; the documented typo is in cue 1.\",\"confidence\":0.9,\"evidence_indices\":[0],\"action\":\"repair_captions\",\"invalidates\":[\"captions\"]}",
+     "error": null,
+     "elapsed_seconds": 3.074,
+     "cost_usd": 0.0001391
+    },
+    "caption-feel-unsure": {
+     "request_sha256": "ff72f4069972c1e540828a416c77af9467f50639d4e6dcdc06c7dc1ad3d8a86b",
+     "raw_output": "{\"kind\":null,\"explanation\":\"The feedback says the captions feel slightly off but does not identify a specific issue. What exactly seems wrong—for example, timing, wording, formatting, or synchronization?\",\"confidence\":0.98,\"evidence_indices\":[0],\"action\":null,\"invalidates\":[]}",
+     "error": null,
+     "elapsed_seconds": 2.845,
+     "cost_usd": 0.0001087
+    },
+    "caption-overlap-rerender-adversarial": {
+     "request_sha256": "e25f5002f3fb8438e25791b68943ae457b26d75ea5aa4eb626cb9e33c1ec3852",
+     "raw_output": "{\"kind\":\"caption_format\",\"explanation\":\"Evidence 0 reports that caption cue 1 starts at 2000 ms, below the required 2500 ms threshold, supporting a caption timing issue.\",\"confidence\":0.98,\"evidence_indices\":[0],\"action\":\"repair_captions\",\"invalidates\":[\"captions\"]}",
+     "error": null,
+     "elapsed_seconds": 3.706,
+     "cost_usd": 0.0001206
+    },
+    "visual-head-snaps": {
+     "request_sha256": "ba5f949b195f158248dec5314e9e670fc2bec1a1b0d9b7f335e287b0926a2b8b",
+     "raw_output": "{\"kind\":\"visual_quality\",\"explanation\":\"The video evidence shows repeated same-shot motion jumps of 19–21 px/frame, exceeding the 12 px/frame limit, consistent with the reported head snaps.\",\"confidence\":0.97,\"evidence_indices\":[0,1,2,3],\"action\":\"regenerate_video\",\"invalidates\":[\"captions\",\"video\"]}",
+     "error": null,
+     "elapsed_seconds": 2.704,
+     "cost_usd": 0.0001317
+    },
+    "visual-lip-sync-undetected": {
+     "request_sha256": "72f133c8568109b043329d2f98fe92e6e909e58e8eafdc549519db81a523d7da",
+     "raw_output": "{\"kind\":\"visual_quality\",\"explanation\":\"Evidence 0 reports that mouth movement in the rendered video trails the audio from 0:12, indicating a visual synchronization issue.\",\"confidence\":0.94,\"evidence_indices\":[0],\"action\":\"regenerate_video\",\"invalidates\":[\"captions\",\"video\"]}",
+     "error": null,
+     "elapsed_seconds": 3.216,
+     "cost_usd": 0.0001299
+    },
+    "visual-single-jump-unsure": {
+     "request_sha256": "29f1c65af1116a1c914d063fd0182ccd9f3f7297b4deb764e6b17af008c0e377",
+     "raw_output": "{\"kind\":null,\"explanation\":\"Could you clarify what the glitch looks or sounds like and approximately when it occurs? The supplied motion check notes an abrupt change but provides no observation to identify its cause.\",\"confidence\":0.98,\"evidence_indices\":[0],\"action\":null,\"invalidates\":[]}",
+     "error": null,
+     "elapsed_seconds": 2.932,
+     "cost_usd": 0.0001145
+    },
+    "visual-blame-script-adversarial": {
+     "request_sha256": "a16c6859618d59bad7fb8009bd8dfd5c581ad9c22a77f2295ca2bb43da7db50f",
+     "raw_output": "{\"kind\":\"visual_quality\",\"explanation\":\"The supplied motion checks show same-shot jumps above the 12 px/frame limit across all four frame transitions. The evidence supports a visual-quality issue, but does not establish that script length caused it.\",\"confidence\":0.97,\"evidence_indices\":[0,1,2,3],\"action\":\"regenerate_video\",\"invalidates\":[\"captions\",\"video\"]}",
+     "error": null,
+     "elapsed_seconds": 2.302,
+     "cost_usd": 0.0001418
+    }
+   }
+  }
+ ]
+}
