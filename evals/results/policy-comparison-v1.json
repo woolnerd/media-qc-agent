@@ -1,5 +1,5 @@
 {
-  "default_policy": "confidence-v1",
+  "default_policy": "grounded-scope-v2",
   "policies": {
     "confidence-v1": {
       "version": "confidence-v1",

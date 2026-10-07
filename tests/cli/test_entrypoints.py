@@ -32,7 +32,7 @@ class CommandEntrypointTests(unittest.TestCase):
             "--expect",
             str(snapshot / "policy-comparison-v1.json"),
         )
-        self.assertEqual(result["default_policy"], "confidence-v1")
+        self.assertEqual(result["default_policy"], "grounded-scope-v2")
 
     def test_workflow_demo_command(self) -> None:
         result = self.run_command("media_qc_agent.cli.demo")

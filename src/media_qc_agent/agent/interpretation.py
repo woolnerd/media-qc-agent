@@ -54,7 +54,7 @@ CONFIDENCE_POLICY = AcceptancePolicy("confidence-v1")
 GROUNDED_SCOPE_POLICY = AcceptancePolicy(
     "grounded-scope-v2", require_grounded_scope=True
 )
-DEFAULT_POLICY = CONFIDENCE_POLICY
+DEFAULT_POLICY = GROUNDED_SCOPE_POLICY
 POLICIES = {
     policy.version: policy for policy in (CONFIDENCE_POLICY, GROUNDED_SCOPE_POLICY)
 }

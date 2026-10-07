@@ -62,7 +62,7 @@ class InterpretationTracingTests(unittest.TestCase):
                 "gen_ai.provider.name": "fake",
                 "gen_ai.request.model": "fixture",
                 "agent.prompt.version": "fixture",
-                "agent.policy.version": "confidence-v1",
+                "agent.policy.version": "grounded-scope-v2",
                 "agent.artifact_refs": tuple(
                     reference(v) for v in case.request.artifact_version_ids
                 ),

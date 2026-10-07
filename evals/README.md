@@ -43,7 +43,7 @@ PYTHONPATH=src python3 -m media_qc_agent.cli.evaluate --live --case-id caption-f
 
 Add `--traces PATH` to write one JSONL record per case with the model and
 prompt version, acceptance policy version, synthetic inputs, raw output, outcome,
-and score. `--policy grounded-scope-v2` replays under the candidate policy. See
+and score. `--policy confidence-v1` replays under the previous default policy. See
 [model traces](../docs/agent/model-traces.md).
 
 Omit `--case-id` to run all 15 cases live (one request per case, no retries).
@@ -117,8 +117,8 @@ PYTHONPATH=src python3 -m media_qc_agent.cli.compare --expect evals/results/poli
 
 | Policy | Passed | False passes | False blocks | Blocked wrong outputs | Other failures |
 | --- | --- | --- | --- | --- | --- |
-| `confidence-v1` (default) | 114/120 | 2 | 1 | 0 | 3 |
-| `grounded-scope-v2` | 114/120 | 0 | 1 | 2 | 3 |
+| `confidence-v1` | 114/120 | 2 | 1 | 0 | 3 |
+| `grounded-scope-v2` (default) | 114/120 | 0 | 1 | 2 | 3 |
 
 Totals include the 15 fixture cases, which pass under both policies.
 

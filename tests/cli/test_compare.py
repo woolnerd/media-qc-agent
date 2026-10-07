@@ -11,8 +11,10 @@ from unittest.mock import patch
 from media_qc_agent.agent.contracts import FakeModelProvider, InterpretationRequest
 from media_qc_agent.agent.interpretation import (
     CONFIDENCE_POLICY,
+    DEFAULT_POLICY,
     GROUNDED_SCOPE_POLICY,
     POLICIES,
+    AcceptancePolicy,
 )
 from media_qc_agent.cli.compare import (
     DEFAULT_EXPECTED,
@@ -186,17 +188,21 @@ class ErrorTypeTests(unittest.TestCase):
         self.cases = {case.id: case for case in load_cases()}
 
     def result_for(
-        self, case_id: str, **changes: Any
+        self,
+        case_id: str,
+        policy: AcceptancePolicy = DEFAULT_POLICY,
+        **changes: Any,
     ) -> tuple[EvaluationCase, CaseResult]:
         case = self.cases[case_id]
         output = json.loads(case.fake_response)
         output.update(changes)
         provider = FakeModelProvider({case.request: json.dumps(output)})
-        return case, evaluate_case(case, provider)
+        return case, evaluate_case(case, provider, policy=policy)
 
     def test_wrong_output_with_repair_authority_is_a_false_pass(self) -> None:
         case, result = self.result_for(
             TTS_ADVERSARIAL,
+            CONFIDENCE_POLICY,
             kind="caption_format",
             action="repair_captions",
             invalidates=["captions"],
@@ -362,7 +368,7 @@ class CompareCliTests(unittest.TestCase):
         code, report, errors = _run_main("--expect", str(DEFAULT_EXPECTED))
         self.assertEqual(code, 0)
         self.assertEqual(errors, "")
-        self.assertEqual(report["default_policy"], "confidence-v1")
+        self.assertEqual(report["default_policy"], "grounded-scope-v2")
 
     def test_regressed_snapshot_exits_nonzero_and_names_the_change(self) -> None:
         expected = json.loads(DEFAULT_EXPECTED.read_text())

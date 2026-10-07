@@ -28,6 +28,7 @@ digest of the request it answered. CI compares the full report to a checked-in s
 - Make `grounded-scope-v2` the default now: it removed the recorded false passes
   without new false blocks, but no saved case yet tests a correct diagnosis that
   cites only out-of-scope facts; adoption is a separate product decision.
+  ADR 0026 later adopted it.
 - Parse the three result formats at replay time: spreads format handling into
   the evaluator; normalization with a provenance test keeps it in one place.
 

@@ -45,16 +45,32 @@ class InterpretationTests(unittest.TestCase):
         )
 
     def test_all_failure_classes_pass_through_deterministic_policy(self) -> None:
+        versions = (
+            "script-1",
+            "tts-1",
+            "avatar-1",
+            "voice-1",
+            "video:job-1",
+            "caption-1",
+        )
+        # One fact per artifact, so every repair has an in-scope citation.
+        request = InterpretationRequest(
+            self.request.feedback,
+            versions,
+            tuple(
+                EvidenceInput(EvidenceRole.FACT, v, "Synthetic fact") for v in versions
+            ),
+        )
         for kind in FailureKind:
             with self.subTest(kind=kind):
-                raw = json.dumps(output_for(kind))
-                result = interpret_feedback(
-                    FakeModelProvider({self.request: raw}), self.request
-                )
+                output = output_for(kind)
+                output["evidence_indices"] = list(range(len(versions)))
+                raw = json.dumps(output)
+                result = interpret_feedback(FakeModelProvider({request: raw}), request)
                 assert result.finding is not None
                 self.assertEqual(result.finding.kind, kind)
                 self.assertEqual(result.decision, plan_repair(result.finding))
-                self.assertEqual(result.evidence, self.request.evidence)
+                self.assertEqual(result.evidence, request.evidence)
                 self.assertIsNone(result.clarification)
                 if kind is FailureKind.ENVIRONMENT_MISMATCH:
                     self.assertIsInstance(result.decision, ClarificationRequest)
@@ -153,9 +169,9 @@ class AcceptancePolicyTests(unittest.TestCase):
             ),
         )
 
-    def test_versions_are_unique_and_production_default_is_unchanged(self) -> None:
+    def test_versions_are_unique_and_grounded_scope_is_the_default(self) -> None:
         self.assertEqual(set(POLICIES), {"confidence-v1", "grounded-scope-v2"})
-        self.assertIs(DEFAULT_POLICY, CONFIDENCE_POLICY)
+        self.assertIs(DEFAULT_POLICY, GROUNDED_SCOPE_POLICY)
         self.assertEqual(
             CONFIDENCE_POLICY.min_confidence, GROUNDED_SCOPE_POLICY.min_confidence
         )
@@ -218,8 +234,10 @@ class AcceptancePolicyTests(unittest.TestCase):
     ) -> None:
         raw = json.dumps(output_for(FailureKind.ENVIRONMENT_MISMATCH))
         request = self.request("voice-1")
-        self.assertIsNotNone(validate_interpretation(raw, request).finding)
-        held = validate_interpretation(raw, request, GROUNDED_SCOPE_POLICY)
+        self.assertIsNotNone(
+            validate_interpretation(raw, request, CONFIDENCE_POLICY).finding
+        )
+        held = validate_interpretation(raw, request)
         self.assertIsNone(held.finding)
         self.assertIsNone(held.decision)
 
@@ -230,10 +248,10 @@ class AcceptancePolicyTests(unittest.TestCase):
             (EvidenceInput(EvidenceRole.FACT, "video-1", "Same-shot jump"),),
         )
         raw = json.dumps(output_for(FailureKind.VISUAL_QUALITY))
-        self.assertIsNotNone(validate_interpretation(raw, request).finding)
-        self.assertIsNone(
-            validate_interpretation(raw, request, GROUNDED_SCOPE_POLICY).finding
+        self.assertIsNotNone(
+            validate_interpretation(raw, request, CONFIDENCE_POLICY).finding
         )
+        self.assertIsNone(validate_interpretation(raw, request).finding)
 
     def test_policies_do_not_relax_structural_or_scope_validation(self) -> None:
         output = output_for(FailureKind.CAPTION_FORMAT)

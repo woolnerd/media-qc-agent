@@ -8,8 +8,8 @@ be scored under each.
 
 | Version | Authority requires |
 | --- | --- |
-| `confidence-v1` (default) | Confidence of at least 0.8 and at least one cited fact |
-| `grounded-scope-v2` | `confidence-v1`, plus at least one cited fact on an artifact the repair (or any offered creative branch) replaces |
+| `confidence-v1` | Confidence of at least 0.8 and at least one cited fact |
+| `grounded-scope-v2` (default) | `confidence-v1`, plus at least one cited fact on an artifact the repair (or any offered creative branch) replaces |
 
 The artifact kind comes from the version ID prefix (`script-`, `tts-`,
 `avatar-`, `voice-`, `caption-`, `video:`). Unrecognized IDs never ground a
@@ -73,6 +73,8 @@ outcome therefore needs a snapshot update that is visible in the PR diff.
   (feedback, version IDs, evidence, after masking when used). Replay fails if a
   case's text changed after recording, so outputs are never scored against
   inputs the model did not see.
-- `grounded-scope-v2` is not the default. On these cases it held only wrong
-  outputs, but a correct diagnosis citing only an out-of-scope fact would become
-  a false block, and no saved case tests that yet.
+- `grounded-scope-v2` became the default in [ADR 0026](../adr/0026-default-to-grounded-scope-acceptance.md).
+  On these cases it held only wrong outputs, but a correct diagnosis citing only
+  an out-of-scope fact would become a false block, and no saved case tests that
+  yet. Version IDs that are not well formed never ground a repair, so callers
+  must pass real artifact version IDs.
