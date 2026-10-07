@@ -161,3 +161,52 @@ class OpenRouterTests(unittest.TestCase):
         ):
             changed = OpenRouterModelProvider(api_key="k").identity
         self.assertNotEqual(changed.prompt_version, luna.prompt_version)
+
+
+class MeteredInterpretationTests(unittest.TestCase):
+    def setUp(self) -> None:
+        self.provider = OpenRouterModelProvider(api_key="test-secret")
+        self.request = InterpretationRequest("Video jumps", ("video-1",))
+
+    def _respond(self, transport: MagicMock, usage: object) -> None:
+        envelope: dict[str, object] = {
+            "choices": [
+                {"finish_reason": "stop", "message": {"content": '{"kind":null}'}}
+            ]
+        }
+        if usage is not None:
+            envelope["usage"] = usage
+        transport.return_value.__enter__.return_value.read.return_value = json.dumps(
+            envelope
+        ).encode()
+
+    @patch("media_qc_agent.agent.openrouter.urlopen")
+    def test_reports_provider_cost_with_the_same_output(
+        self, transport: MagicMock
+    ) -> None:
+        self._respond(transport, {"cost": 0.0001083, "total_tokens": 635})
+        self.assertEqual(
+            self.provider.interpret_metered(self.request), ('{"kind":null}', 0.0001083)
+        )
+        transport.assert_called_once()
+
+    @patch("media_qc_agent.agent.openrouter.urlopen")
+    def test_missing_or_invalid_cost_is_unknown_not_zero(
+        self, transport: MagicMock
+    ) -> None:
+        usages: tuple[object, ...] = (
+            None,
+            {},
+            {"cost": "0.1"},
+            {"cost": -1},
+            {"cost": True},
+            {"cost": float("nan")},
+            [],
+        )
+        for usage in usages:
+            with self.subTest(usage=usage):
+                self._respond(transport, usage)
+                self.assertEqual(
+                    self.provider.interpret_metered(self.request),
+                    ('{"kind":null}', None),
+                )
