@@ -32,6 +32,7 @@ from media_qc_agent.cli.evaluate import (
     CaseResult,
     EvaluationCase,
     evaluate_case,
+    exact_fields,
     load_cases,
     mask_version_labels,
 )
@@ -87,8 +88,7 @@ class ReplayProvider(FakeModelProvider):
 
 
 def _run(data: Any, case_ids: set[str]) -> RecordedRun:
-    if not isinstance(data, dict) or set(data) != _RUN_FIELDS:
-        raise ValueError("recorded run has missing or extra fields")
+    data = exact_fields(data, _RUN_FIELDS, "recorded run")
     if set(data["cases"]) != case_ids:
         raise ValueError(f"run {data['id']} must record every dataset case")
     return RecordedRun(

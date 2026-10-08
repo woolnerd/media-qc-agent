@@ -57,6 +57,8 @@ from media_qc_agent.workflow.models import (
     WorkflowStatus,
     classify_completion,
     has_current_approval,
+    require_approved_video_plan,
+    require_video_submission,
 )
 from media_qc_agent.workflow.plan_versions import (
     decode_plan_version,
@@ -491,9 +493,7 @@ class WorkflowRepository:
             _require_current_version(current, expected_plan_version_id)
             if current.status is WorkflowStatus.SUBMITTED:
                 return current
-            if current.status not in {WorkflowStatus.READY, WorkflowStatus.SUBMITTING}:
-                raise ValueError("workflow is not ready for provider submission")
-            _require_video_submission(current)
+            require_video_submission(current)
             self._set_status(run_id, WorkflowStatus.SUBMITTING)
             reserved = self.get(run_id)
         self._observer.emit(
@@ -529,7 +529,7 @@ class WorkflowRepository:
                 if current.external_job_id != external_job_id:
                     raise ValueError("workflow already references another provider job")
                 return current
-            _require_video_submission(current)
+            require_approved_video_plan(current)
             if current.status is not WorkflowStatus.SUBMITTING:
                 raise ValueError("workflow has no reserved provider submission")
             self._connection.execute(
@@ -951,15 +951,6 @@ def _require_current_version(run: WorkflowRun, expected: str | None) -> None:
 def _require_optional_version(run: WorkflowRun, expected: str | None) -> None:
     if expected is not None:
         _require_current_version(run, expected)
-
-
-def _require_video_submission(run: WorkflowRun) -> None:
-    if run.plan is None or run.idempotency_key is None:
-        raise ValueError("workflow has no executable repair plan")
-    if run.plan.action is RepairAction.REPAIR_CAPTIONS:
-        raise ValueError("caption repair cannot submit a video provider job")
-    if not has_current_approval(run):
-        raise ValueError("workflow has no current plan-version approval")
 
 
 def _encode_clarification(request: ClarificationRequest) -> str:

@@ -2,11 +2,10 @@
 
 from typing import Protocol
 
-from media_qc_agent.domain.models import RepairAction
 from media_qc_agent.workflow.models import (
     WorkflowRun,
     WorkflowStatus,
-    has_current_approval,
+    require_video_submission,
 )
 from media_qc_agent.workflow.provider import VideoProvider
 from media_qc_agent.workflow.telemetry import (
@@ -63,13 +62,13 @@ class WorkflowExecutor:
         run = self._repository.get(run_id)
         if run.status is WorkflowStatus.SUBMITTED:
             return run
-        self._validate_submission(run)
+        require_video_submission(run)
         run = self._repository.reserve_submission(
             run_id=run.id, expected_plan_version_id=run.plan_version_id
         )
         if run.status is WorkflowStatus.SUBMITTED:
             return run
-        self._validate_submission(run)
+        require_video_submission(run)
         assert run.plan is not None
         assert run.idempotency_key is not None
 
@@ -132,13 +131,3 @@ class WorkflowExecutor:
         finally:
             if event is not None:
                 self._observer.emit(event)
-
-    def _validate_submission(self, run: WorkflowRun) -> None:
-        if run.status not in {WorkflowStatus.READY, WorkflowStatus.SUBMITTING}:
-            raise ValueError("workflow must be approved before submission")
-        if run.plan is None or run.idempotency_key is None:
-            raise ValueError("workflow has no executable repair plan")
-        if not has_current_approval(run):
-            raise ValueError("workflow has no current plan-version approval")
-        if run.plan.action is RepairAction.REPAIR_CAPTIONS:
-            raise ValueError("caption repair must not submit a video provider job")
