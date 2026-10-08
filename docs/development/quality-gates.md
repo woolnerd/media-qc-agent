@@ -9,7 +9,7 @@ An LLM review provides additional evidence; it does not certify the change.
 | Gate | Evidence | Enforcement today |
 | --- | --- | --- |
 | Static checks | Compilation, Ruff, formatting, mypy; complexity at most 6 per function | Existing CI `verify` job |
-| Behavior | Full tests, synthetic demo, offline evaluation fixtures, and the recorded-output policy comparison; new behavior has tests; bug fixes start with a failing reproduction | CI runs the checks; reviewer checks relevance |
+| Behavior | Full tests, synthetic demo, offline evaluation fixtures, the recorded-output policy comparison, and the rules-only baseline comparison; new behavior has tests; bug fixes start with a failing reproduction | CI runs the checks; reviewer checks relevance |
 | Architecture | Completed PR template, affected invariant IDs, alternatives, limitations, and a diagram when boundaries or state transitions change | Human review |
 | Failure scenarios | Tests for the affected crash, timeout, concurrency, stale-input, or callback sequences | Tests run in CI; reviewer checks scenario selection |
 | Adversarial review | A fresh review of the current commit, recorded findings and dispositions | Review protocol; no automatic LLM job |

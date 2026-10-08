@@ -108,6 +108,16 @@ def _content(envelope: Any) -> str:
         ) from None
 
 
+def _cost(envelope: Any) -> float | None:
+    """Provider-reported request cost in USD; None when absent or malformed."""
+
+    usage = envelope.get("usage") if isinstance(envelope, dict) else None
+    cost = usage.get("cost") if isinstance(usage, dict) else None
+    if isinstance(cost, bool) or not isinstance(cost, int | float):
+        return None
+    return float(cost) if math.isfinite(cost) and cost >= 0 else None
+
+
 def _sampling_parameters(model: str) -> dict[str, int]:
     return {} if model == LUNA_MODEL else {"temperature": 0}
 
@@ -146,6 +156,17 @@ class OpenRouterModelProvider:
         )
 
     def interpret(self, request: InterpretationRequest) -> str:
+        return _content(self._post(request))
+
+    def interpret_metered(
+        self, request: InterpretationRequest
+    ) -> tuple[str, float | None]:
+        """The same single request, also returning the reported cost in USD."""
+
+        envelope = self._post(request)
+        return _content(envelope), _cost(envelope)
+
+    def _post(self, request: InterpretationRequest) -> Any:
         payload = {
             "model": self._model,
             **_sampling_parameters(self._model),
@@ -164,13 +185,11 @@ class OpenRouterModelProvider:
                 },
             },
         }
-        return _content(
-            post_openrouter_json(
-                endpoint=_ENDPOINT,
-                payload=payload,
-                api_key=self._api_key,
-                timeout=self._timeout,
-            )
+        return post_openrouter_json(
+            endpoint=_ENDPOINT,
+            payload=payload,
+            api_key=self._api_key,
+            timeout=self._timeout,
         )
 
 
