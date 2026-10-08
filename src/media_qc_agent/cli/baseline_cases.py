@@ -13,7 +13,7 @@ from pathlib import Path
 from typing import Any
 
 from media_qc_agent.agent.contracts import InterpretationRequest
-from media_qc_agent.cli.evaluate import DEFAULT_DATASET
+from media_qc_agent.cli.evaluate import DEFAULT_DATASET, exact_fields
 from media_qc_agent.domain.evidence import EvidenceInput, EvidenceRole
 from media_qc_agent.domain.models import (
     ArtifactKind,
@@ -104,14 +104,12 @@ class GateReport:
         return self.findings[0] if len(self.findings) == 1 else None
 
 
-def _fields(value: Any, fields: set[str]) -> dict[str, Any]:
-    if not isinstance(value, dict) or set(value) != fields:
-        raise ValueError("baseline dataset object has missing or extra fields")
-    return value
-
-
 def _artifacts(data: dict[str, Any]) -> CaseArtifacts:
-    data = _fields(data, {"script", "avatar", "tts_input", "captions", "video"})
+    data = exact_fields(
+        data,
+        {"script", "avatar", "tts_input", "captions", "video"},
+        "baseline dataset object",
+    )
     script, tts, video = data["script"], data["tts_input"], data["video"]
     scene = ScriptScene(
         Environment(script["scene"]["environment"]), script["scene"]["evidence_phrase"]
@@ -144,7 +142,7 @@ def _kinds(values: Any) -> frozenset[ArtifactKind]:
 
 
 def _truth(data: dict[str, Any]) -> GroundTruth:
-    data = _fields(
+    data = exact_fields(
         data,
         {
             "defect",
@@ -156,6 +154,7 @@ def _truth(data: dict[str, Any]) -> GroundTruth:
             "post_repair_check",
             "post_repair_outcome",
         },
+        "baseline dataset object",
     )
     repairs = {
         RepairAction(action): _kinds(kinds)
@@ -185,7 +184,7 @@ def _check_truth(truth: GroundTruth) -> None:
 
 
 def _case(data: dict[str, Any]) -> BaselineCase:
-    data = _fields(
+    data = exact_fields(
         data,
         {
             "id",
@@ -198,6 +197,7 @@ def _case(data: dict[str, Any]) -> BaselineCase:
             "reviewer_evidence",
             "ground_truth",
         },
+        "baseline dataset object",
     )
     if data["category"] not in _CATEGORIES:
         raise ValueError("unknown case category")
@@ -227,8 +227,10 @@ def _case(data: dict[str, Any]) -> BaselineCase:
 
 
 def load_baseline_cases(path: Path = BASELINE_DATASET) -> tuple[BaselineCase, ...]:
-    data = _fields(
-        json.loads(path.read_text()), {"schema_version", "description", "cases"}
+    data = exact_fields(
+        json.loads(path.read_text()),
+        {"schema_version", "description", "cases"},
+        "baseline dataset object",
     )
     if data["schema_version"] != 1 or not data["cases"]:
         raise ValueError("expected a nonempty version-1 baseline dataset")

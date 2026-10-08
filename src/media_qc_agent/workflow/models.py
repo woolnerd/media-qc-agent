@@ -3,7 +3,12 @@
 from dataclasses import dataclass
 from enum import StrEnum
 
-from media_qc_agent.domain.models import ArtifactKind, ClarificationRequest, RepairPlan
+from media_qc_agent.domain.models import (
+    ArtifactKind,
+    ClarificationRequest,
+    RepairAction,
+    RepairPlan,
+)
 
 
 class WorkflowStatus(StrEnum):
@@ -102,6 +107,19 @@ def has_current_approval(run: WorkflowRun) -> bool:
         and version.target_video_version_id == run.active_video_version_id
         and version.target_caption_version_id == run.active_caption_version_id
     )
+
+
+def require_video_submission(run: WorkflowRun) -> None:
+    """The one pre-submission check, applied by the store and the executor."""
+
+    if run.status not in {WorkflowStatus.READY, WorkflowStatus.SUBMITTING}:
+        raise ValueError("workflow must be approved before provider submission")
+    if run.plan is None or run.idempotency_key is None:
+        raise ValueError("workflow has no executable repair plan")
+    if run.plan.action is RepairAction.REPAIR_CAPTIONS:
+        raise ValueError("caption repair cannot submit a video provider job")
+    if not has_current_approval(run):
+        raise ValueError("workflow has no current plan-version approval")
 
 
 @dataclass(frozen=True)

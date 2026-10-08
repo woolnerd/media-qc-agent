@@ -41,6 +41,7 @@ from media_qc_agent.cli.baseline_metrics import (
     verdict,
 )
 from media_qc_agent.cli.compare import ReplayProvider, differences, request_digest
+from media_qc_agent.cli.evaluate import exact_fields
 
 DEFAULT_RUNS = BASELINE_DATASET.parent / "results" / "baseline-runs-v1.json"
 DEFAULT_EXPECTED = BASELINE_DATASET.parent / "results" / "baseline-comparison-v1.json"
@@ -123,20 +124,14 @@ def record_run(
     }
 
 
-def _fields(value: Any, fields: set[str]) -> dict[str, Any]:
-    if not isinstance(value, dict) or set(value) != fields:
-        raise ValueError("baseline run has missing or extra fields")
-    return value
-
-
 def _run(data: Any, cases: tuple[BaselineCase, ...]) -> BaselineRun:
-    data = _fields(data, _RUN_FIELDS)
+    data = exact_fields(data, _RUN_FIELDS, "baseline run")
     if set(data["cases"]) != {case.id for case in cases}:
         raise ValueError(f"run {data['id']} must record every baseline case")
     outputs: dict[str, str | None] = {}
     usage = {}
     for case in cases:
-        call = _fields(data["cases"][case.id], _CALL_FIELDS)
+        call = exact_fields(data["cases"][case.id], _CALL_FIELDS, "baseline run")
         digest = request_digest(interpretation_request(case, run_gates(case)))
         if call["request_sha256"] != digest:
             raise ValueError(f"case {case.id} differs from the request run saw")

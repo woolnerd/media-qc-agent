@@ -69,14 +69,18 @@ class CaseResult:
         return not self.failures
 
 
-def _fields(value: Any, fields: set[str]) -> dict[str, Any]:
+def exact_fields(
+    value: Any, fields: set[str], what: str = "dataset object"
+) -> dict[str, Any]:
+    """Saved eval files are strict: an object must have exactly these fields."""
+
     if not isinstance(value, dict) or set(value) != fields:
-        raise ValueError("dataset object has missing or extra fields")
+        raise ValueError(f"{what} has missing or extra fields")
     return value
 
 
 def _input_versions(data: dict[str, Any]) -> tuple[str, ...]:
-    versions = _fields(data, {kind.value for kind in ArtifactKind})
+    versions = exact_fields(data, {kind.value for kind in ArtifactKind})
     for kind in ArtifactKind:
         version = versions[kind.value]
         if not isinstance(version, str):
@@ -93,7 +97,7 @@ def _input_versions(data: dict[str, Any]) -> tuple[str, ...]:
 def _expectation(
     data: dict[str, Any], request: InterpretationRequest
 ) -> CaseExpectation:
-    data = _fields(
+    data = exact_fields(
         data,
         {
             "kind",
@@ -132,7 +136,7 @@ def _expectation(
 
 
 def _case(data: dict[str, Any]) -> EvaluationCase:
-    data = _fields(
+    data = exact_fields(
         data,
         {
             "id",
@@ -173,7 +177,7 @@ def _case(data: dict[str, Any]) -> EvaluationCase:
 
 
 def load_cases(path: Path = DEFAULT_DATASET) -> tuple[EvaluationCase, ...]:
-    data = _fields(
+    data = exact_fields(
         json.loads(path.read_text()), {"schema_version", "description", "cases"}
     )
     if (
