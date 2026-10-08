@@ -167,8 +167,11 @@ src/media_qc_agent/
 tests/        Mirrors src/
 evals/        Synthetic cases and recorded results
 docs/adr/     Decisions, alternatives, and consequences
+docs/diagrams.md  Class, table, lineage, state, and sequence diagrams
 ```
 
-Decisions and their reasoning live in [the ADRs](docs/adr/README.md). Active
+Pictures of the models, tables, and run lifecycle are in
+[docs/diagrams.md](docs/diagrams.md). Decisions and their reasoning live in
+[the ADRs](docs/adr/README.md). Active
 work lives in [GitHub issues](https://github.com/woolnerd/media-qc-agent/issues).
 To contribute, see [CONTRIBUTING.md](CONTRIBUTING.md).
