@@ -82,6 +82,25 @@ array; lineage is an ordered array of `[kind, version_id]` pairs.
   as `[{"start_ms":0,"end_ms":1000,"text":"Fixed caption."}]`. It completes
   locally and preserves the video.
 
+## Demo fixtures
+
+[`api/scenarios.py`](../../src/media_qc_agent/api/scenarios.py) seeds one
+invented brand, Halden Home. Reviewer names, scripts, provider profiles, and
+motion samples are synthetic. No real people, client material, or media are used.
+
+| Scenario | Seeded input | Grounding |
+| --- | --- | --- |
+| `weak-script` | Thermostat draft says "press the thing, then the other thing" | Evidence quotes the exact script text |
+| `environment-mismatch` | Oven script bound to an office avatar | Pre-render environment gate |
+| `tts-input` | Script shorthand `450*F`; stored input used a corrected `450°F` under a `studio-v2` profile that wrongly declared temperature support | The spoken-text gate rejects the shorthand. The replacement for the same script and a literal profile reads "450 degrees Fahrenheit" |
+| `jerky-video` | A video rendered from the approved revised script, with two same-shot spikes in a slow push-in | Motion-jump signal |
+| `caption-format` | A 75-character caption line copied from the revised script | Caption rule `line_too_long` (limit 42) |
+
+Fixtures are immutable. On startup, seeding compares stored fixtures with the
+current definitions. If a demo database was created by an older seed, startup
+raises `FixtureDrift` instead of mixing versions. Delete the demo database and its
+`.provider.sqlite3` ledger, then restart.
+
 ## Limits and evidence
 
 The command serves one process on loopback. Multiple server processes sharing
