@@ -18,39 +18,6 @@ if TYPE_CHECKING:
     from media_qc_agent.workflow.repository import WorkflowRepository
 
 
-def initialize_worker_schema(connection: sqlite3.Connection) -> None:
-    connection.executescript(
-        """
-        CREATE TABLE IF NOT EXISTS worker_policy (
-            id INTEGER PRIMARY KEY CHECK (id = 1),
-            max_in_flight INTEGER NOT NULL,
-            max_attempts INTEGER NOT NULL,
-            lease_seconds REAL NOT NULL,
-            backoff_seconds REAL NOT NULL,
-            max_backoff_seconds REAL NOT NULL
-        );
-        CREATE TABLE IF NOT EXISTS worker_attempts (
-            plan_version_id TEXT PRIMARY KEY REFERENCES repair_plan_versions(id),
-            run_id TEXT NOT NULL REFERENCES workflow_runs(id),
-            attempts INTEGER NOT NULL,
-            lease_owner TEXT,
-            lease_until REAL,
-            next_attempt_at REAL NOT NULL DEFAULT 0,
-            stopped INTEGER NOT NULL DEFAULT 0,
-            error_type TEXT,
-            first_claimed_at TEXT
-        );
-        """
-    )
-    columns = {
-        row[1] for row in connection.execute("PRAGMA table_info(worker_attempts)")
-    }
-    if "first_claimed_at" not in columns:
-        connection.execute(
-            "ALTER TABLE worker_attempts ADD COLUMN first_claimed_at TEXT"
-        )
-
-
 def require_lease(
     connection: sqlite3.Connection, lease: SubmissionLease | None, now: float
 ) -> None:
@@ -100,7 +67,7 @@ def outstanding_capacity(connection: sqlite3.Connection) -> int:
             (SELECT 1 FROM provider_events e WHERE e.external_job_id = j.external_job_id))
           + (SELECT count(*) FROM workflow_runs pending WHERE pending.status = 'submitting'
              AND NOT EXISTS (SELECT 1 FROM provider_jobs j
-               WHERE j.idempotency_key = pending.idempotency_key))"""
+               WHERE j.plan_version_id = pending.plan_version_id))"""
     ).fetchone()
     return int(row[0])
 
@@ -173,11 +140,11 @@ class SubmissionQueue:
             """
             SELECT r.id AS run_id, p.id AS plan_version_id, coalesce(w.attempts, 0) AS attempts
             FROM workflow_runs r
-            JOIN repair_plan_versions p ON p.run_id = r.id
-              AND p.revision = (SELECT max(revision) FROM repair_plan_versions WHERE run_id = r.id)
+            JOIN repair_plan_versions p ON p.id = r.plan_version_id AND p.run_id = r.id
             JOIN plan_approvals a ON a.plan_version_id = p.id
             LEFT JOIN worker_attempts w ON w.plan_version_id = p.id
-            WHERE r.status IN ('ready', 'submitting') AND r.action <> 'repair_captions'
+            WHERE r.status IN ('ready', 'submitting')
+              AND json_extract(p.snapshot, '$.plan.action') <> 'repair_captions'
               AND (? IS NULL OR r.id = ?) AND (? IS NULL OR p.id = ?)
               AND coalesce(w.stopped, 0) = 0 AND coalesce(w.attempts, 0) < ?
               AND coalesce(w.next_attempt_at, 0) <= ?

@@ -21,6 +21,11 @@ from media_qc_agent.quality.spoken_text import (
     prepare_spoken_text,
 )
 from media_qc_agent.quality.visual_quality import MotionSample
+from media_qc_agent.workflow.gate_runs import (
+    open_caption_quality_run,
+    open_environment_run,
+    open_visual_quality_run,
+)
 from media_qc_agent.workflow.models import VideoSources, WorkflowRun
 from media_qc_agent.workflow.repository import WorkflowRepository
 
@@ -151,7 +156,7 @@ def _fixtures(repository: WorkflowRepository) -> tuple[_Fixture, ...]:
                 version_id,
                 partial(_script_identity, repository, version_id),
                 partial(
-                    repository.create_script_version,
+                    repository.artifacts.create_script_version,
                     version_id=version_id,
                     authored_text=text,
                     scene=scene,
@@ -165,10 +170,11 @@ def _fixtures(repository: WorkflowRepository) -> tuple[_Fixture, ...]:
             _Fixture(
                 f"avatar-api-{environment.value}",
                 partial(
-                    repository.get_avatar_environment, f"avatar-api-{environment.value}"
+                    repository.artifacts.avatar_environment,
+                    f"avatar-api-{environment.value}",
                 ),
                 partial(
-                    repository.create_avatar_version,
+                    repository.artifacts.create_avatar_version,
                     version_id=f"avatar-api-{environment.value}",
                     environment=environment,
                 ),
@@ -178,21 +184,17 @@ def _fixtures(repository: WorkflowRepository) -> tuple[_Fixture, ...]:
         ),
         _Fixture(
             "voice-api-demo",
-            lambda: repository.get_artifact_version("voice-api-demo").kind,
-            partial(
-                repository.create_source_version,
-                version_id="voice-api-demo",
-                kind=ArtifactKind.VOICE,
-            ),
+            lambda: repository.artifacts.get("voice-api-demo").kind,
+            partial(repository.artifacts.create_voice_version, "voice-api-demo"),
             ArtifactKind.VOICE,
         ),
         _Fixture(
             "video:api-observed",
             lambda: dict(
-                repository.get_artifact_version("video:api-observed").source_versions
+                repository.artifacts.get("video:api-observed").source_versions
             ),
             partial(
-                repository.create_synthetic_video_version,
+                repository.artifacts.create_synthetic_video_version,
                 fixture_job_id="api-observed",
                 sources=APPROVED_SOURCES,
             ),
@@ -200,9 +202,9 @@ def _fixtures(repository: WorkflowRepository) -> tuple[_Fixture, ...]:
         ),
         _Fixture(
             "caption-api-observed",
-            partial(repository.get_caption_cues, "caption-api-observed"),
+            partial(repository.artifacts.caption_cues, "caption-api-observed"),
             partial(
-                repository.record_caption_version,
+                repository.artifacts.create_caption_version,
                 version_id="caption-api-observed",
                 video_version_id="video:api-observed",
                 cues=CAPTION_CUES,
@@ -219,7 +221,7 @@ def _tts_fixtures(repository: WorkflowRepository) -> tuple[_Fixture, ...]:
             version_id,
             partial(_tts_identity, repository, version_id),
             partial(
-                repository.create_tts_input_version,
+                repository.artifacts.create_tts_input_version,
                 version_id=version_id,
                 script_version_id=script_id,
                 capabilities=profile,
@@ -241,8 +243,8 @@ def _script_identity(
     repository: WorkflowRepository, version_id: str
 ) -> tuple[str, ScriptScene]:
     return (
-        repository.get_script_text(version_id),
-        repository.get_script_scene(version_id),
+        repository.artifacts.script_text(version_id),
+        repository.artifacts.script_scene(version_id),
     )
 
 
@@ -251,7 +253,7 @@ def _tts_identity(
 ) -> tuple[str, SpokenTextCapabilities, str]:
     """Spoken text covers the candidate and the normalizer that produced it."""
 
-    stored = repository.get_tts_input_version(version_id)
+    stored = repository.artifacts.tts_input(version_id)
     return stored.script_version_id, stored.capabilities, stored.spoken_text
 
 
@@ -263,11 +265,12 @@ def create_scenario_run(
     builders: dict[str, Callable[[], WorkflowRun | None]] = {
         "weak-script": partial(_create_weak_script_run, repository, run_id),
         "environment-mismatch": partial(
-            repository.create_environment_run, run_id=run_id, sources=KITCHEN_SOURCES
+            open_environment_run, repository, run_id=run_id, sources=KITCHEN_SOURCES
         ),
         "tts-input": partial(_create_tts_run, repository, run_id),
         "jerky-video": partial(
-            repository.create_visual_quality_run,
+            open_visual_quality_run,
+            repository,
             run_id=run_id,
             video_version_id="video:api-observed",
             samples=tuple(
@@ -276,7 +279,8 @@ def create_scenario_run(
             ),
         ),
         "caption-format": partial(
-            repository.create_caption_quality_run,
+            open_caption_quality_run,
+            repository,
             run_id=run_id,
             caption_version_id="caption-api-observed",
         ),
@@ -323,9 +327,9 @@ def _create_tts_run(repository: WorkflowRepository, run_id: str) -> WorkflowRun:
     sources = OVEN_SOURCES
     script_id, tts_id = sources.script_version_id, sources.tts_input_version_id
     rejected = prepare_spoken_text(
-        repository.get_script_text(script_id), LITERAL_PROFILE
+        repository.artifacts.script_text(script_id), LITERAL_PROFILE
     )
-    observed = repository.get_tts_input_version(tts_id)
+    observed = repository.artifacts.tts_input(tts_id)
     gate_facts = tuple(
         EvidenceInput(
             EvidenceRole.FACT,

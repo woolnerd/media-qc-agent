@@ -1,11 +1,12 @@
 import sqlite3
 import unittest
 
-from media_qc_agent import ArtifactKind, FailureKind, QualityFinding, WorkflowRepository
+from media_qc_agent import FailureKind, QualityFinding, WorkflowRepository
 from media_qc_agent.domain.evidence import EvidenceInput, EvidenceRole
 from media_qc_agent.quality.captions import CaptionCue
 from media_qc_agent.quality.environment import Environment, ScriptScene
 from media_qc_agent.quality.spoken_text import SpokenTextCapabilities
+from media_qc_agent.workflow.gate_runs import open_caption_quality_run
 from media_qc_agent.workflow.models import VideoSources
 
 
@@ -14,26 +15,24 @@ class QualityRecordTests(unittest.TestCase):
         self.connection = sqlite3.connect(":memory:")
         self.repository = WorkflowRepository(self.connection)
         self.repository.initialize()
-        self.repository.create_script_version(
+        self.repository.artifacts.create_script_version(
             version_id="script-1",
             authored_text="A synthetic sentence.",
             scene=ScriptScene(Environment.NEUTRAL),
         )
-        self.repository.create_tts_input_version(
+        self.repository.artifacts.create_tts_input_version(
             version_id="tts-1",
             script_version_id="script-1",
             capabilities=SpokenTextCapabilities(
                 "synthetic-tts", "literal-v1", frozenset()
             ),
         )
-        self.repository.create_avatar_version(
+        self.repository.artifacts.create_avatar_version(
             version_id="avatar-1", environment=Environment.NEUTRAL
         )
-        self.repository.create_source_version(
-            version_id="voice-1", kind=ArtifactKind.VOICE
-        )
+        self.repository.artifacts.create_voice_version("voice-1")
         self.sources = VideoSources("script-1", "tts-1", "avatar-1", "voice-1")
-        self.video = self.repository.create_synthetic_video_version(
+        self.video = self.repository.artifacts.create_synthetic_video_version(
             fixture_job_id="fixture-1", sources=self.sources
         )
 
@@ -117,7 +116,7 @@ class QualityRecordTests(unittest.TestCase):
                 video_version_id=self.video.id,
                 observed_artifact_version_id="script-1",
             )
-        self.repository.create_script_version(
+        self.repository.artifacts.create_script_version(
             version_id="script-2",
             authored_text="Unrelated script.",
             scene=ScriptScene(Environment.NEUTRAL),
@@ -145,19 +144,19 @@ class QualityRecordTests(unittest.TestCase):
                 0, 1000, "A line that is much longer than forty-two characters."
             ),
         )
-        self.repository.record_caption_version(
+        self.repository.artifacts.create_caption_version(
             version_id="caption-1", video_version_id=self.video.id, cues=cues
         )
 
-        run = self.repository.create_caption_quality_run(
-            run_id="caption-run", caption_version_id="caption-1"
+        run = open_caption_quality_run(
+            self.repository, run_id="caption-run", caption_version_id="caption-1"
         )
 
         assert run is not None
         finding = self.repository.get_quality_finding(run.id)
         records = self.repository.get_quality_evidence(finding.id)
         self.assertEqual(finding.artifact_version_id, "caption-1")
-        self.assertEqual(self.repository.get_caption_cues("caption-1"), cues)
+        self.assertEqual(self.repository.artifacts.caption_cues("caption-1"), cues)
         self.assertEqual(records[0].role, EvidenceRole.FACT)
         self.assertEqual(records[0].artifact_version_id, "caption-1")
         self.assertEqual(records[0].limit, "42")

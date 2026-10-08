@@ -91,15 +91,14 @@ class WorkflowRun:
 
 
 def has_current_approval(run: WorkflowRun) -> bool:
+    """The current plan version is approved and still targets the run's outputs."""
+
     version = run.plan_version
     return (
         version is not None
         and run.approval is not None
         and run.approval.plan_version_id == version.id
         and version.run_id == run.id
-        and version.plan == run.plan
-        and version.sources == run.sources
-        and version.idempotency_key == run.idempotency_key
         and version.target_video_version_id == run.active_video_version_id
         and version.target_caption_version_id == run.active_caption_version_id
     )
@@ -107,13 +106,15 @@ def has_current_approval(run: WorkflowRun) -> bool:
 
 @dataclass(frozen=True)
 class ProviderJob:
+    """A submitted job; its action and sources are those of its plan version."""
+
     external_job_id: str
     run_id: str
+    plan_version_id: str
     idempotency_key: str
     action: str
     sources: VideoSources
     created_at: str
-    plan_version_id: str | None = None
 
 
 @dataclass(frozen=True)

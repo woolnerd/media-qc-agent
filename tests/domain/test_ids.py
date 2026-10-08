@@ -71,36 +71,29 @@ class IdContractTests(unittest.TestCase):
             repository = WorkflowRepository(connection)
             repository.initialize()
             with self.assertRaisesRegex(ValueError, "script"):
-                repository.create_script_version(
+                repository.artifacts.create_script_version(
                     version_id="avatar-2",
                     authored_text="A synthetic sentence.",
                     scene=ScriptScene(Environment.NEUTRAL),
                 )
             sources = VideoSources("script-1", "tts-1", "avatar-1", "voice-1")
-            repository.create_script_version(
+            repository.artifacts.create_script_version(
                 version_id="script-1",
                 authored_text="A synthetic sentence.",
                 scene=ScriptScene(Environment.NEUTRAL),
             )
-            repository.create_avatar_version(
+            repository.artifacts.create_avatar_version(
                 version_id="avatar-1", environment=Environment.NEUTRAL
             )
-            for kind, version_id in sources.dependencies():
-                if kind in {
-                    ArtifactKind.SCRIPT,
-                    ArtifactKind.TTS_INPUT,
-                    ArtifactKind.AVATAR,
-                }:
-                    continue
-                repository.create_source_version(version_id=version_id, kind=kind)
-            repository.create_tts_input_version(
+            repository.artifacts.create_voice_version(sources.voice_version_id)
+            repository.artifacts.create_tts_input_version(
                 version_id="tts-1",
                 script_version_id="script-1",
                 capabilities=SpokenTextCapabilities(
                     "synthetic-tts", "literal-v1", frozenset()
                 ),
             )
-            observed_video_id = repository.create_synthetic_video_version(
+            observed_video_id = repository.artifacts.create_synthetic_video_version(
                 fixture_job_id="observed-fixture", sources=sources
             ).id
             with self.assertRaisesRegex(ValueError, "run ID"):
@@ -137,7 +130,7 @@ class IdContractTests(unittest.TestCase):
                     external_job_id="job-1", external_event_id=" "
                 )
             with self.assertRaisesRegex(ValueError, "caption"):
-                repository.record_caption_version(
+                repository.artifacts.create_caption_version(
                     version_id="video:job-1", video_version_id="video:job-1"
                 )
         finally:

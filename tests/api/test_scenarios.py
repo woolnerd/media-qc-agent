@@ -36,12 +36,12 @@ class ScenarioFixtureTests(unittest.TestCase):
     def test_weak_script_evidence_quotes_the_observed_script(self) -> None:
         run_id = self.run_for("weak-script")
         observed = self.repository.get_quality_finding(run_id).artifact_version_id
-        script = self.repository.get_script_text(observed)
+        script = self.repository.artifacts.script_text(observed)
         quoted = [value for _, value in self.facts(run_id) if value]
         self.assertTrue(quoted)
         for value in quoted:
             self.assertIn(value, script)
-        revised = self.repository.get_script_text("script-api-revised")
+        revised = self.repository.artifacts.script_text("script-api-revised")
         self.assertNotIn(quoted[0], revised)
 
     def test_tts_scenario_grounds_rejection_and_normalization_in_the_gate(
@@ -49,11 +49,9 @@ class ScenarioFixtureTests(unittest.TestCase):
     ) -> None:
         run_id = self.run_for("tts-input")
         run = self.repository.get(run_id)
-        authored = self.repository.get_script_text(run.sources.script_version_id)
+        authored = self.repository.artifacts.script_text(run.sources.script_version_id)
         self.assertIn("450*F", authored)
-        observed = self.repository.get_tts_input_version(
-            run.sources.tts_input_version_id
-        )
+        observed = self.repository.artifacts.tts_input(run.sources.tts_input_version_id)
         self.assertIn("450°F", observed.spoken_text)
         self.assertTrue(
             any(
@@ -62,7 +60,7 @@ class ScenarioFixtureTests(unittest.TestCase):
             )
         )
 
-        replacement = self.repository.get_tts_input_version("tts-api-replacement")
+        replacement = self.repository.artifacts.tts_input("tts-api-replacement")
         self.assertEqual(replacement.script_version_id, run.sources.script_version_id)
         self.assertIn("450 degrees Fahrenheit", replacement.spoken_text)
         self.assertEqual(replacement.authored_text, authored)
@@ -70,20 +68,20 @@ class ScenarioFixtureTests(unittest.TestCase):
     def test_caption_scenario_captions_the_video_script(self) -> None:
         run_id = self.run_for("caption-format")
         caption_id = self.repository.get_quality_finding(run_id).artifact_version_id
-        video = self.repository.get_artifact_version(
-            dict(self.repository.get_artifact_version(caption_id).source_versions)[
+        video = self.repository.artifacts.get(
+            dict(self.repository.artifacts.get(caption_id).source_versions)[
                 ArtifactKind.VIDEO
             ]
         )
-        script = self.repository.get_script_text(
+        script = self.repository.artifacts.script_text(
             dict(video.source_versions)[ArtifactKind.SCRIPT]
         )
-        for cue in self.repository.get_caption_cues(caption_id):
+        for cue in self.repository.artifacts.caption_cues(caption_id):
             for line in cue.text.splitlines():
                 self.assertIn(line, script)
 
     def test_observed_video_renders_the_approved_revised_script(self) -> None:
-        video = self.repository.get_artifact_version("video:api-observed")
+        video = self.repository.artifacts.get("video:api-observed")
         self.assertEqual(
             dict(video.source_versions)[ArtifactKind.SCRIPT], "script-api-revised"
         )
@@ -100,7 +98,7 @@ class ScenarioFixtureTests(unittest.TestCase):
         run_id = self.run_for("tts-input")
         finding = self.repository.get_quality_finding(run_id)
         evidence = self.repository.get_quality_evidence(finding.id)
-        stored = self.repository.get_tts_input_version("tts-api-oven")
+        stored = self.repository.artifacts.tts_input("tts-api-oven")
         facts = [item for item in evidence if item.role is EvidenceRole.FACT]
         self.assertIn(stored.spoken_text, [item.observed for item in facts])
         for item in facts:
@@ -142,7 +140,7 @@ class FixtureDriftTests(unittest.TestCase):
         self.addCleanup(connection.close)
         repository = WorkflowRepository(connection)
         repository.initialize()
-        repository.create_script_version(
+        repository.artifacts.create_script_version(
             version_id="script-api-original",
             authored_text="A synthetic sentence.",
             scene=ScriptScene(Environment.NEUTRAL),
@@ -204,13 +202,13 @@ class FixtureDriftTests(unittest.TestCase):
         self.addCleanup(connection.close)
         repository = WorkflowRepository(connection)
         repository.initialize()
-        repository.create_avatar_version(
+        repository.artifacts.create_avatar_version(
             version_id="avatar-api-office", environment=Environment.KITCHEN
         )
         with self.assertRaises(FixtureDrift):
             seed_scenarios(repository)
         with self.assertRaises(KeyError):
-            repository.get_script_text("script-api-original")
+            repository.artifacts.script_text("script-api-original")
 
 
 if __name__ == "__main__":

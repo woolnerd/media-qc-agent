@@ -76,25 +76,24 @@ class CaptionRepairWorkflowTests(unittest.TestCase):
         self.connection = sqlite3.connect(":memory:")
         self.repository = WorkflowRepository(self.connection)
         self.repository.initialize()
-        self.repository.create_script_version(
+        self.repository.artifacts.create_script_version(
             version_id="script-1",
             authored_text="Heat the oven. Check the temperature.",
             scene=ScriptScene(Environment.NEUTRAL),
         )
-        self.repository.create_avatar_version(
+        self.repository.artifacts.create_avatar_version(
             version_id="avatar-1", environment=Environment.NEUTRAL
         )
-        self.repository.create_tts_input_version(
+        self.repository.artifacts.create_tts_input_version(
             version_id="tts-1",
             script_version_id="script-1",
             capabilities=SpokenTextCapabilities(
                 "synthetic-tts", "literal-v1", frozenset()
             ),
         )
-        for version_id, kind in (("voice-1", ArtifactKind.VOICE),):
-            self.repository.create_source_version(version_id=version_id, kind=kind)
+        self.repository.artifacts.create_voice_version("voice-1")
         self.sources = VideoSources("script-1", "tts-1", "avatar-1", "voice-1")
-        observed_video_id = self.repository.create_synthetic_video_version(
+        observed_video_id = self.repository.artifacts.create_synthetic_video_version(
             fixture_job_id="observed-fixture", sources=self.sources
         ).id
         self.provider = FakeVideoProvider()
@@ -123,7 +122,7 @@ class CaptionRepairWorkflowTests(unittest.TestCase):
         )
         self.video_id = self.repository.get("video-run").active_video_version_id
         assert self.video_id is not None
-        self.repository.record_caption_version(
+        self.repository.artifacts.create_caption_version(
             version_id="caption-1", video_version_id=self.video_id
         )
 
@@ -173,9 +172,9 @@ class CaptionRepairWorkflowTests(unittest.TestCase):
         self.assertEqual(
             repaired.source_versions, ((ArtifactKind.VIDEO, self.video_id),)
         )
-        self.assertEqual(self.repository.get_caption_cues("caption-2"), GOOD_CUES)
+        self.assertEqual(self.repository.artifacts.caption_cues("caption-2"), GOOD_CUES)
         self.assertEqual(
-            self.repository.get_artifact_version("caption-1").source_versions,
+            self.repository.artifacts.get("caption-1").source_versions,
             ((ArtifactKind.VIDEO, self.video_id),),
         )
         self.assertEqual(self.provider.submit_attempts, attempts_before)
@@ -205,7 +204,7 @@ class CaptionRepairWorkflowTests(unittest.TestCase):
             self.repository.get("caption-run").status, WorkflowStatus.READY
         )
         with self.assertRaises(KeyError):
-            self.repository.get_artifact_version("caption-2")
+            self.repository.artifacts.get("caption-2")
         self.assertEqual(self.provider.jobs_created, 1)
 
     def test_repair_requires_approval_and_cannot_be_replayed(self) -> None:
@@ -226,7 +225,7 @@ class CaptionRepairWorkflowTests(unittest.TestCase):
                 run_id="caption-run", version_id="caption-3", cues=GOOD_CUES
             )
         with self.assertRaises(KeyError):
-            self.repository.get_artifact_version("caption-3")
+            self.repository.artifacts.get("caption-3")
         self.assertEqual(self.provider.jobs_created, 1)
 
     def test_caption_finding_requires_exact_existing_video(self) -> None:

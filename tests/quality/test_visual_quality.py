@@ -14,6 +14,7 @@ from media_qc_agent.domain.evidence import EvidenceRole
 from media_qc_agent.quality.environment import Environment, ScriptScene
 from media_qc_agent.quality.spoken_text import SpokenTextCapabilities
 from media_qc_agent.quality.visual_quality import MotionSample, check_jerky_video
+from media_qc_agent.workflow.gate_runs import open_visual_quality_run
 from media_qc_agent.workflow.models import VideoSources
 
 SMOOTH = (
@@ -103,26 +104,24 @@ class VisualSignalWorkflowTests(unittest.TestCase):
         self.connection = sqlite3.connect(":memory:")
         self.repository = WorkflowRepository(self.connection)
         self.repository.initialize()
-        self.repository.create_script_version(
+        self.repository.artifacts.create_script_version(
             version_id="script-1",
             authored_text="A synthetic sentence.",
             scene=ScriptScene(Environment.NEUTRAL),
         )
-        self.repository.create_tts_input_version(
+        self.repository.artifacts.create_tts_input_version(
             version_id="tts-1",
             script_version_id="script-1",
             capabilities=SpokenTextCapabilities(
                 "synthetic-tts", "literal-v1", frozenset()
             ),
         )
-        self.repository.create_avatar_version(
+        self.repository.artifacts.create_avatar_version(
             version_id="avatar-1", environment=Environment.NEUTRAL
         )
-        self.repository.create_source_version(
-            version_id="voice-1", kind=ArtifactKind.VOICE
-        )
+        self.repository.artifacts.create_voice_version("voice-1")
         self.sources = VideoSources("script-1", "tts-1", "avatar-1", "voice-1")
-        observed_video_id = self.repository.create_synthetic_video_version(
+        observed_video_id = self.repository.artifacts.create_synthetic_video_version(
             fixture_job_id="observed-fixture", sources=self.sources
         ).id
         self.provider = FakeVideoProvider()
@@ -156,8 +155,11 @@ class VisualSignalWorkflowTests(unittest.TestCase):
         self.connection.close()
 
     def test_signal_opens_approval_before_retrying_exact_video(self) -> None:
-        run = self.repository.create_visual_quality_run(
-            run_id="retry-run", video_version_id=self.video_id, samples=JERKY
+        run = open_visual_quality_run(
+            self.repository,
+            run_id="retry-run",
+            video_version_id=self.video_id,
+            samples=JERKY,
         )
 
         assert run is not None
@@ -193,12 +195,15 @@ class VisualSignalWorkflowTests(unittest.TestCase):
             self.repository.get("retry-run").active_video_version_id, self.video_id
         )
         self.assertEqual(
-            self.repository.get_artifact_version(self.video_id).kind, ArtifactKind.VIDEO
+            self.repository.artifacts.get(self.video_id).kind, ArtifactKind.VIDEO
         )
 
     def test_borderline_signal_creates_no_automatic_run(self) -> None:
-        result = self.repository.create_visual_quality_run(
-            run_id="borderline-run", video_version_id=self.video_id, samples=SMOOTH
+        result = open_visual_quality_run(
+            self.repository,
+            run_id="borderline-run",
+            video_version_id=self.video_id,
+            samples=SMOOTH,
         )
 
         self.assertIsNone(result)

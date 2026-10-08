@@ -87,13 +87,13 @@ def artifact_description(
     repository: WorkflowRepository, artifact: ArtifactVersion
 ) -> str:
     if artifact.kind is ArtifactKind.SCRIPT:
-        return repository.get_script_text(artifact.id)
+        return repository.artifacts.script_text(artifact.id)
     if artifact.kind is ArtifactKind.TTS_INPUT:
-        return repository.get_tts_input_version(artifact.id).spoken_text
+        return repository.artifacts.tts_input(artifact.id).spoken_text
     if artifact.kind is ArtifactKind.AVATAR:
         return (
             "Declared environment: "
-            + repository.get_avatar_environment(artifact.id).value
+            + repository.artifacts.avatar_environment(artifact.id).value
         )
     return "Immutable " + artifact.kind.value.replace("_", " ") + " version"
 
@@ -118,9 +118,7 @@ def review_snapshot(
         )
     )
     artifacts = tuple(
-        repository.get_artifact_version(version)
-        for version in ids
-        if version is not None
+        repository.artifacts.get(version) for version in ids if version is not None
     )
     versions = repository.get_plan_versions(run_id)
     return ReviewSnapshot(

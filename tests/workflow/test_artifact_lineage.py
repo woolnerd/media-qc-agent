@@ -23,26 +23,27 @@ class ArtifactLineageTests(unittest.TestCase):
         self.repository.initialize()
         self.provider = FakeVideoProvider()
         self.sources = VideoSources("script-1", "tts-1", "avatar-1", "voice-1")
-        self.repository.create_script_version(
+        self.repository.artifacts.create_script_version(
             version_id="script-1",
             authored_text="A synthetic sentence.",
             scene=ScriptScene(Environment.NEUTRAL),
         )
-        self.repository.create_avatar_version(
+        self.repository.artifacts.create_avatar_version(
             version_id="avatar-1", environment=Environment.NEUTRAL
         )
-        for version_id, kind in (("voice-1", ArtifactKind.VOICE),):
-            self.repository.create_source_version(version_id=version_id, kind=kind)
-        self.repository.create_tts_input_version(
+        self.repository.artifacts.create_voice_version("voice-1")
+        self.repository.artifacts.create_tts_input_version(
             version_id="tts-1",
             script_version_id="script-1",
             capabilities=SpokenTextCapabilities(
                 "synthetic-tts", "literal-v1", frozenset()
             ),
         )
-        self.observed_video_id = self.repository.create_synthetic_video_version(
-            fixture_job_id="observed-fixture", sources=self.sources
-        ).id
+        self.observed_video_id = (
+            self.repository.artifacts.create_synthetic_video_version(
+                fixture_job_id="observed-fixture", sources=self.sources
+            ).id
+        )
 
     def tearDown(self) -> None:
         self.connection.close()
@@ -79,7 +80,7 @@ class ArtifactLineageTests(unittest.TestCase):
         )
         first_video = self.repository.get("run-1").active_video_version_id
         assert first_video is not None
-        prior_caption = self.repository.record_caption_version(
+        prior_caption = self.repository.artifacts.create_caption_version(
             version_id="caption-1", video_version_id=first_video
         )
 
@@ -93,15 +94,15 @@ class ArtifactLineageTests(unittest.TestCase):
 
         self.assertNotEqual(first_video, second_video)
         self.assertEqual(
-            self.repository.get_artifact_version(first_video).source_versions,
+            self.repository.artifacts.get(first_video).source_versions,
             self.sources.dependencies(),
         )
         self.assertEqual(
-            self.repository.get_artifact_version(second_video).source_versions,
+            self.repository.artifacts.get(second_video).source_versions,
             self.sources.dependencies(),
         )
         self.assertEqual(
-            self.repository.get_artifact_version(first_video).external_job_id,
+            self.repository.artifacts.get(first_video).external_job_id,
             first_job,
         )
         self.assertEqual(
@@ -118,14 +119,14 @@ class ArtifactLineageTests(unittest.TestCase):
         video_id = self.repository.get("run-1").active_video_version_id
         assert video_id is not None
 
-        caption = self.repository.record_caption_version(
+        caption = self.repository.artifacts.create_caption_version(
             version_id="caption-1", video_version_id=video_id
         )
 
         self.assertEqual(caption.kind, ArtifactKind.CAPTIONS)
         self.assertEqual(caption.source_versions, ((ArtifactKind.VIDEO, video_id),))
         with self.assertRaises(sqlite3.IntegrityError):
-            self.repository.record_caption_version(
+            self.repository.artifacts.create_caption_version(
                 version_id="caption-1", video_version_id=video_id
             )
 
@@ -134,7 +135,7 @@ class ArtifactLineageTests(unittest.TestCase):
     ) -> None:
         self.create_run("run-1", FailureKind.ENVIRONMENT_MISMATCH)
         self.repository.select_repair("run-1", RepairAction.REVISE_SCRIPT)
-        self.repository.create_script_version(
+        self.repository.artifacts.create_script_version(
             version_id="script-2",
             authored_text="A revised synthetic sentence.",
             scene=ScriptScene(Environment.NEUTRAL),
@@ -148,7 +149,7 @@ class ArtifactLineageTests(unittest.TestCase):
             self.repository.approve(
                 "run-1", plan_version_id=self.repository.get("run-1").plan_version_id
             )
-        self.repository.create_tts_input_version(
+        self.repository.artifacts.create_tts_input_version(
             version_id="tts-2",
             script_version_id="script-2",
             capabilities=SpokenTextCapabilities(
@@ -164,11 +165,11 @@ class ArtifactLineageTests(unittest.TestCase):
         assert video_id is not None
         self.assertIn(
             (ArtifactKind.SCRIPT, "script-2"),
-            self.repository.get_artifact_version(video_id).source_versions,
+            self.repository.artifacts.get(video_id).source_versions,
         )
         self.assertIn(
             (ArtifactKind.TTS_INPUT, "tts-2"),
-            self.repository.get_artifact_version(video_id).source_versions,
+            self.repository.artifacts.get(video_id).source_versions,
         )
 
     def test_wrong_kind_replacement_stays_blocked(self) -> None:
@@ -183,7 +184,7 @@ class ArtifactLineageTests(unittest.TestCase):
     def test_avatar_replacement_binds_selected_version(self) -> None:
         self.create_run("run-1", FailureKind.ENVIRONMENT_MISMATCH)
         self.repository.select_repair("run-1", RepairAction.CHANGE_AVATAR)
-        self.repository.create_avatar_version(
+        self.repository.artifacts.create_avatar_version(
             version_id="avatar-2", environment=Environment.NEUTRAL
         )
 
@@ -205,7 +206,7 @@ class ArtifactLineageTests(unittest.TestCase):
 
         self.assertIsNone(self.repository.get("run-1").active_video_version_id)
         with self.assertRaises(KeyError):
-            self.repository.get_artifact_version(f"video:{old_job}")
+            self.repository.artifacts.get(f"video:{old_job}")
         self.repository.record_completion(
             external_job_id=current_job, external_event_id="current-event"
         )
@@ -216,7 +217,7 @@ class ArtifactLineageTests(unittest.TestCase):
 
     def test_source_version_identity_is_immutable(self) -> None:
         with self.assertRaises(sqlite3.IntegrityError):
-            self.repository.create_script_version(
+            self.repository.artifacts.create_script_version(
                 version_id="script-1",
                 authored_text="Another sentence.",
                 scene=ScriptScene(Environment.NEUTRAL),
