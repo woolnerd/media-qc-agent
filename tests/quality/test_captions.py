@@ -162,7 +162,10 @@ class CaptionRepairWorkflowTests(unittest.TestCase):
                 ).plan_version_id,
             )
         repaired = self.repository.record_caption_repair(
-            run_id="caption-run", version_id="caption-2", cues=GOOD_CUES
+            run_id="caption-run",
+            version_id="caption-2",
+            cues=GOOD_CUES,
+            expected_plan_version_id=self.repository.get("caption-run").plan_version_id,
         )
 
         run = self.repository.get("caption-run")
@@ -197,6 +200,9 @@ class CaptionRepairWorkflowTests(unittest.TestCase):
                         "A line that is much too long for this caption gate to accept.",
                     ),
                 ),
+                expected_plan_version_id=self.repository.get(
+                    "caption-run"
+                ).plan_version_id,
             )
 
         self.assertEqual(failure.exception.evidence[0].rule, "line_too_long")
@@ -211,18 +217,31 @@ class CaptionRepairWorkflowTests(unittest.TestCase):
         self.create_caption_repair()
         with self.assertRaisesRegex(ValueError, "ready"):
             self.repository.record_caption_repair(
-                run_id="caption-run", version_id="caption-2", cues=GOOD_CUES
+                run_id="caption-run",
+                version_id="caption-2",
+                cues=GOOD_CUES,
+                expected_plan_version_id=self.repository.get(
+                    "caption-run"
+                ).plan_version_id,
             )
         self.repository.approve(
             "caption-run",
             plan_version_id=self.repository.get("caption-run").plan_version_id,
         )
         self.repository.record_caption_repair(
-            run_id="caption-run", version_id="caption-2", cues=GOOD_CUES
+            run_id="caption-run",
+            version_id="caption-2",
+            cues=GOOD_CUES,
+            expected_plan_version_id=self.repository.get("caption-run").plan_version_id,
         )
         with self.assertRaisesRegex(ValueError, "ready"):
             self.repository.record_caption_repair(
-                run_id="caption-run", version_id="caption-3", cues=GOOD_CUES
+                run_id="caption-run",
+                version_id="caption-3",
+                cues=GOOD_CUES,
+                expected_plan_version_id=self.repository.get(
+                    "caption-run"
+                ).plan_version_id,
             )
         with self.assertRaises(KeyError):
             self.repository.artifacts.get("caption-3")

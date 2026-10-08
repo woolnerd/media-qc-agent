@@ -24,8 +24,8 @@ def table(headings: tuple[str, ...], rows: Iterable[tuple[object, ...]]) -> str:
     return f'<div class="table-scroll"><table><thead><tr>{header}</tr></thead><tbody>{body}</tbody></table></div>'
 
 
-def panel(title: str, content: str, *, style: str = "") -> str:
-    return f'<section class="panel {style}"><h2>{text(title)}</h2>{content}</section>'
+def panel(title: str, content: str, *, style: str = "", level: int = 2) -> str:
+    return f'<section class="panel {style}"><h{level}>{text(title)}</h{level}>{content}</section>'
 
 
 def document(title: str, body: str, *, refresh: bool = False) -> str:

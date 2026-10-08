@@ -18,7 +18,7 @@ from media_qc_agent.workflow.durable_provider import (
 )
 from media_qc_agent.workflow.executor import SimulatedProcessCrash
 from media_qc_agent.workflow.models import WorkflowRun, WorkflowStatus
-from media_qc_agent.workflow.repository import WorkflowRepository
+from media_qc_agent.workflow.repository import STALE_PLAN, WorkflowRepository
 from media_qc_agent.workflow.worker import DurableWorker
 from media_qc_agent.workflow.worker_queue import load_worker_policy
 
@@ -80,12 +80,10 @@ class DemoControls:
             )
 
     def execute(self, run_id: str, command: UiCommand) -> str:
+        """Each command checks the reviewed version inside its own transaction."""
+
         with self.database.repository() as repository:
             run = repository.get(run_id)
-            if run.plan_version_id != command.expected_plan_version_id:
-                raise ValueError(
-                    "The plan changed. Refresh and review the current version."
-                )
             if command.action in {"submit", "interrupt", "recover"}:
                 return self._step(run, command)
             self._command(repository, run, command)
@@ -105,7 +103,9 @@ class DemoControls:
                 run.id, plan_version_id=command.expected_plan_version_id
             ),
             "choose": lambda: repository.select_repair(
-                run.id, RepairAction(command.value)
+                run.id,
+                RepairAction(command.value),
+                expected_plan_version_id=command.expected_plan_version_id,
             ),
             "bind": lambda: repository.bind_replacement(
                 run.id,
@@ -182,6 +182,8 @@ class DemoControls:
             raise ValueError(
                 "This worker control is not available in the current state."
             )
+        if command.expected_plan_version_id is None:
+            raise ValueError(STALE_PLAN)
         with self.database.connection() as connection:
             WorkflowRepository(connection)
             policy = load_worker_policy(connection)
@@ -201,6 +203,11 @@ class DemoControls:
             )
         except SimulatedProcessCrash:
             return "Interrupted after synthetic provider acceptance. Wait for lease expiry, then recover."
+        if result.outcome == "idle":
+            with self.database.repository() as repository:
+                current = repository.get(run.id).plan_version_id
+            if current != command.expected_plan_version_id:
+                raise ValueError(STALE_PLAN)
         return {
             "submitted": "Worker recorded the accepted job. Complete it to create the replacement.",
             "idle": "No claim made. Check lease, backoff, approval, and shared capacity; then refresh.",

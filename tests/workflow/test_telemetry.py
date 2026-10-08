@@ -128,7 +128,10 @@ class TelemetryTests(unittest.TestCase):
         self.worker().run_once()
         with self.database.repository() as repository:
             first = repository.list_provider_jobs("run-1")[0]
-            run = repository.request_retry("run-1")
+            run = repository.request_retry(
+                "run-1",
+                expected_plan_version_id=repository.get("run-1").plan_version_id,
+            )
             repository.approve(run.id, plan_version_id=run.plan_version_id)
         self.worker().run_once()
         seen = []
@@ -326,7 +329,12 @@ class TelemetryTests(unittest.TestCase):
                 ).run_once()
                 self.assertEqual(result.outcome, "submitted")
                 with self.database.repository() as repository:
-                    repository.request_retry("run-1")
+                    repository.request_retry(
+                        "run-1",
+                        expected_plan_version_id=repository.get(
+                            "run-1"
+                        ).plan_version_id,
+                    )
             return lease
 
         with patch.object(SubmissionQueue, "claim", supersede_after_claim):

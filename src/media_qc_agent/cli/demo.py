@@ -67,7 +67,10 @@ def run_demo(tracer: Tracer | None = None) -> dict[str, object]:
         )
         old_job = executor.submit("demo-run").external_job_id
         assert old_job is not None
-        repository.request_retry("demo-run")
+        repository.request_retry(
+            "demo-run",
+            expected_plan_version_id=repository.get("demo-run").plan_version_id,
+        )
         repository.approve(
             "demo-run", plan_version_id=repository.get("demo-run").plan_version_id
         )

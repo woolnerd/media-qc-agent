@@ -10,7 +10,7 @@ STATE_HELP = {
     "needs_input": "Choose whether to revise the script or change the avatar.",
     "needs_repair_input": "Bind the exact replacement input before approval.",
     "awaiting_approval": "Review this plan and its inputs, then approve its exact version.",
-    "ready": "Approved inputs are ready for execution.",
+    "ready": "Approved. Run the worker step below, or start the separate worker.",
     "submitting": "Submission is reserved. Inputs remain locked while acceptance is resolved.",
     "submitted": "The provider job is recorded. Completion will create its replacement version.",
     "succeeded": "Review the accepted replacement and its exact lineage.",
@@ -42,25 +42,49 @@ def dashboard(
     return document("Scenarios & runs", body)
 
 
+_EXECUTION = frozenset(
+    {
+        WorkflowStatus.READY,
+        WorkflowStatus.SUBMITTING,
+        WorkflowStatus.SUBMITTED,
+        WorkflowStatus.SUCCEEDED,
+    }
+)
+
+
 def review_page(data: ReviewSnapshot, message: str = "", error: bool = False) -> str:
+    """Decision first, then the fault lab once approved, then the audit trail."""
+
     run = data.run
     state = run.status.value
-    header = f'<div class="heading"><div><p class="eyebrow">Workflow review</p><h1>{text(run.id)}</h1></div><span class="badge {text(state)}">{text(state.replace("_", " "))}</span></div>'
-    header += f'<p class="lead">{text(STATE_HELP[state])}</p><p class="demo-notice">{text(DEMO_NOTICE)}</p>'
-    header += f'<a class="refresh" href="{text(run_url(run.id))}">Refresh state</a>'
-    body = header + notice(message, error) + _proof(data)
-    body += (
-        '<div class="grid"><div>'
-        + _finding(data)
-        + _artifacts(data)
-        + "</div><div>"
-        + decision_forms(data)
-        + worker_forms(data)
-        + callback_forms(data)
-        + "</div></div>"
+    body = f'<div class="heading"><div><p class="eyebrow">Workflow review</p><h1>{text(run.id)}</h1></div><span class="badge {text(state)}">{text(state.replace("_", " "))}</span></div>'
+    body += f'<p class="lead"><strong>Next:</strong> {text(STATE_HELP[state])}</p>'
+    body += f'<p class="demo-notice">{text(DEMO_NOTICE)}</p>'
+    body += f'<a class="refresh" href="{text(run_url(run.id))}">Refresh state</a>'
+    body += notice(message, error)
+    body += f'<div class="grid"><div>{_finding(data)}</div><div>{decision_forms(data)}</div></div>'
+    if run.status in _EXECUTION or data.jobs:
+        body += _section(
+            "Execution & recovery",
+            "A synthetic fault harness. Stop the separate worker before using "
+            "these controls. Recorded jobs stay completable after a retry.",
+        )
+        if run.status in _EXECUTION:
+            body += _proof(data)
+            body += f'<div class="grid"><div>{worker_forms(data)}</div><div>{callback_forms(data)}</div></div>'
+        else:
+            body += callback_forms(data)
+    body += _section(
+        "Audit trail", "Exact versions, every plan revision, and each callback."
     )
-    body += _history(data) + _events(data)
+    body += _artifacts(data) + _history(data) + _events(data)
     return document(run.id, body, refresh=run.status is WorkflowStatus.SUBMITTING)
+
+
+def _section(title: str, hint: str) -> str:
+    return (
+        f'<h2 class="section-title">{text(title)}</h2><p class="hint">{text(hint)}</p>'
+    )
 
 
 def _intro(title: str, subtitle: str) -> str:
@@ -75,11 +99,12 @@ def _proof(data: ReviewSnapshot) -> str:
             "Accepted video preserved",
             f'<p>Caption-only repair creates no video job. Review the active caption and video lineage below.</p><p class="hint">Caption: <code>{text(data.run.active_caption_version_id or "not yet repaired")}</code></p>',
             style="proof-panel",
+            level=3,
         )
     detail = f'<p class="hint">Accepted job: <code>{text(data.accepted_job or "not yet accepted")}</code></p>'
     counters = f'<div class="proof"><div><strong>{accepted}</strong><span>accepted job for the current key</span></div><div><strong data-testid="replacement-count">{count}</strong><span>replacement video for this plan</span></div></div>'
     title = "Single replacement confirmed" if count == 1 else "Recovery evidence"
-    return panel(title, counters + detail, style="proof-panel")
+    return panel(title, counters + detail, style="proof-panel", level=3)
 
 
 def _finding(data: ReviewSnapshot) -> str:
@@ -109,6 +134,7 @@ def _artifacts(data: ReviewSnapshot) -> str:
     return panel(
         "Artifact versions & lineage",
         table(("Kind", "Version", "Content / declaration", "Derived from"), rows),
+        level=3,
     )
 
 
@@ -146,6 +172,7 @@ def _history(data: ReviewSnapshot) -> str:
         current
         + table(("Revision", "Plan version", "Action", "Rationale", "Approval"), rows)
         + details,
+        level=3,
     )
 
 
@@ -164,4 +191,5 @@ def _events(data: ReviewSnapshot) -> str:
         table(("Event", "Provider job", "Disposition", "Reason"), rows)
         if data.events
         else '<p class="hint">No completion events yet.</p>',
+        level=3,
     )

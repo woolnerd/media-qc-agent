@@ -94,13 +94,14 @@ def _review_form(data: ReviewSnapshot) -> str:
         + form(run, "edit", "Save new plan revision", fields=fields, style="secondary")
         + "</details>"
     )
-    result += form(
-        run,
-        "approve",
-        "Approve this exact plan",
-        disabled=run.status is not WorkflowStatus.AWAITING_APPROVAL
-        or not _matching_tts(data),
-    )
+    if run.status is not WorkflowStatus.READY:
+        result += form(
+            run,
+            "approve",
+            "Approve this exact plan",
+            disabled=run.status is not WorkflowStatus.AWAITING_APPROVAL
+            or not _matching_tts(data),
+        )
     if not _matching_tts(data):
         result += '<p class="hint">Bind a TTS input derived from the current script before approval.</p>'
     result += _approval_summary(run)
@@ -172,11 +173,9 @@ def worker_forms(data: ReviewSnapshot) -> str:
     if info.stopped:
         status += '<p class="notice error">Automatic recovery stopped. The original outcome needs reconciliation; capacity remains reserved.</p>'
     return panel(
-        "Recovery controls",
-        '<p class="hint">Synthetic fault harness. For a controlled interruption, pause the separate worker and use these steps.</p><div class="actions">'
-        + controls
-        + "</div>"
-        + status,
+        "Worker controls",
+        '<div class="actions">' + controls + "</div>" + status,
+        level=3,
     )
 
 
@@ -210,4 +209,5 @@ def callback_forms(data: ReviewSnapshot) -> str:
     return panel(
         "Completion controls",
         rows or '<p class="hint">Available once the worker records a provider job.</p>',
+        level=3,
     )

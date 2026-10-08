@@ -143,11 +143,19 @@ class EnvironmentWorkflowTests(unittest.TestCase):
 
     def test_avatar_choice_resolves_mismatch_before_approval(self) -> None:
         open_environment_run(self.repository, run_id="run-oven", sources=self.sources)
-        self.repository.select_repair("run-oven", RepairAction.CHANGE_AVATAR)
+        self.repository.select_repair(
+            "run-oven",
+            RepairAction.CHANGE_AVATAR,
+            expected_plan_version_id=self.repository.get("run-oven").plan_version_id,
+        )
         self.repository.artifacts.create_avatar_version(
             version_id="avatar-kitchen", environment=Environment.KITCHEN
         )
-        self.repository.bind_replacement("run-oven", "avatar-kitchen")
+        self.repository.bind_replacement(
+            "run-oven",
+            "avatar-kitchen",
+            expected_plan_version_id=self.repository.get("run-oven").plan_version_id,
+        )
 
         approved = self.repository.approve(
             "run-oven", plan_version_id=self.repository.get("run-oven").plan_version_id
@@ -158,7 +166,11 @@ class EnvironmentWorkflowTests(unittest.TestCase):
 
     def test_script_choice_needs_new_matching_script_and_tts_input(self) -> None:
         open_environment_run(self.repository, run_id="run-oven", sources=self.sources)
-        self.repository.select_repair("run-oven", RepairAction.REVISE_SCRIPT)
+        self.repository.select_repair(
+            "run-oven",
+            RepairAction.REVISE_SCRIPT,
+            expected_plan_version_id=self.repository.get("run-oven").plan_version_id,
+        )
         self.repository.artifacts.create_script_version(
             version_id="script-office",
             authored_text="Review the report in the office.",
@@ -169,8 +181,16 @@ class EnvironmentWorkflowTests(unittest.TestCase):
             script_version_id="script-office",
             capabilities=LITERAL_MODEL,
         )
-        self.repository.bind_replacement("run-oven", "script-office")
-        self.repository.bind_tts_input("run-oven", "tts-office")
+        self.repository.bind_replacement(
+            "run-oven",
+            "script-office",
+            expected_plan_version_id=self.repository.get("run-oven").plan_version_id,
+        )
+        self.repository.bind_tts_input(
+            "run-oven",
+            "tts-office",
+            expected_plan_version_id=self.repository.get("run-oven").plan_version_id,
+        )
 
         approved = self.repository.approve(
             "run-oven", plan_version_id=self.repository.get("run-oven").plan_version_id
