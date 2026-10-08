@@ -14,6 +14,7 @@ from media_qc_agent.workflow.models import (
     RepairPlanVersion,
     VideoSources,
     WorkflowRun,
+    require_video_submission,
 )
 
 
@@ -55,44 +56,49 @@ class InMemoryWorkflowStore:
         return self.run
 
 
+def approved_run() -> WorkflowRun:
+    run = WorkflowRun(
+        id="run-1",
+        status=WorkflowStatus.READY,
+        plan=RepairPlan(
+            action=RepairAction.REGENERATE_VIDEO,
+            invalidates=frozenset({ArtifactKind.VIDEO, ArtifactKind.CAPTIONS}),
+            requires_repair_input=False,
+            rationale="Retry the video",
+        ),
+        clarification=None,
+        idempotency_key="workflow-run:run-1:regenerate_video",
+        external_job_id=None,
+        sources=VideoSources("script-1", "tts-1", "avatar-1", "voice-1"),
+        active_video_version_id=None,
+        created_at="2026-09-24T00:00:00.000Z",
+        updated_at="2026-09-24T00:00:00.000Z",
+    )
+    assert run.plan is not None
+    snapshot = RepairPlanVersion(
+        "plan-run-1-1",
+        "run-1",
+        1,
+        run.plan,
+        run.sources,
+        None,
+        None,
+        "video:observed",
+        (),
+        run.idempotency_key,
+        run.created_at,
+    )
+    run = replace(
+        run,
+        plan_version=snapshot,
+        approval=PlanApproval(snapshot.id, run.created_at),
+    )
+    return run
+
+
 class WorkflowExecutorBoundaryTests(unittest.TestCase):
     def setUp(self) -> None:
-        self.workflow_run = WorkflowRun(
-            id="run-1",
-            status=WorkflowStatus.READY,
-            plan=RepairPlan(
-                action=RepairAction.REGENERATE_VIDEO,
-                invalidates=frozenset({ArtifactKind.VIDEO, ArtifactKind.CAPTIONS}),
-                requires_repair_input=False,
-                rationale="Retry the video",
-            ),
-            clarification=None,
-            idempotency_key="workflow-run:run-1:regenerate_video",
-            external_job_id=None,
-            sources=VideoSources("script-1", "tts-1", "avatar-1", "voice-1"),
-            active_video_version_id=None,
-            created_at="2026-09-24T00:00:00.000Z",
-            updated_at="2026-09-24T00:00:00.000Z",
-        )
-        assert self.workflow_run.plan is not None
-        snapshot = RepairPlanVersion(
-            "plan-run-1-1",
-            "run-1",
-            1,
-            self.workflow_run.plan,
-            self.workflow_run.sources,
-            None,
-            None,
-            "video:observed",
-            (),
-            self.workflow_run.idempotency_key,
-            self.workflow_run.created_at,
-        )
-        self.workflow_run = replace(
-            self.workflow_run,
-            plan_version=snapshot,
-            approval=PlanApproval(snapshot.id, self.workflow_run.created_at),
-        )
+        self.workflow_run = approved_run()
         self.store = InMemoryWorkflowStore(self.workflow_run)
         self.provider = FakeVideoProvider()
         self.executor = WorkflowExecutor(
@@ -121,3 +127,35 @@ class WorkflowExecutorBoundaryTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class SubmissionCheckTests(unittest.TestCase):
+    """One check guards both the store's reservation and the executor."""
+
+    def setUp(self) -> None:
+        self.approved = approved_run()
+
+    def test_each_rejection_reports_its_reason(self) -> None:
+        assert self.approved.plan is not None
+        caption = replace(self.approved.plan, action=RepairAction.REPAIR_CAPTIONS)
+        cases = (
+            (
+                replace(self.approved, status=WorkflowStatus.AWAITING_APPROVAL),
+                "approved",
+            ),
+            (replace(self.approved, status=WorkflowStatus.SUCCEEDED), "approved"),
+            (replace(self.approved, idempotency_key=None), "executable"),
+            (replace(self.approved, plan=caption), "caption repair"),
+            (replace(self.approved, approval=None), "plan-version approval"),
+        )
+        for run, reason in cases:
+            with (
+                self.subTest(reason=reason),
+                self.assertRaisesRegex(ValueError, reason),
+            ):
+                require_video_submission(run)
+
+    def test_ready_and_reserved_approved_runs_pass(self) -> None:
+        for status in (WorkflowStatus.READY, WorkflowStatus.SUBMITTING):
+            with self.subTest(status=status):
+                require_video_submission(replace(self.approved, status=status))

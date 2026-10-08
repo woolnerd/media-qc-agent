@@ -57,6 +57,7 @@ from media_qc_agent.workflow.models import (
     WorkflowStatus,
     classify_completion,
     has_current_approval,
+    require_approved_video_plan,
     require_video_submission,
 )
 from media_qc_agent.workflow.plan_versions import (
@@ -528,7 +529,7 @@ class WorkflowRepository:
                 if current.external_job_id != external_job_id:
                     raise ValueError("workflow already references another provider job")
                 return current
-            require_video_submission(current)
+            require_approved_video_plan(current)
             if current.status is not WorkflowStatus.SUBMITTING:
                 raise ValueError("workflow has no reserved provider submission")
             self._connection.execute(

@@ -114,6 +114,10 @@ def require_video_submission(run: WorkflowRun) -> None:
 
     if run.status not in {WorkflowStatus.READY, WorkflowStatus.SUBMITTING}:
         raise ValueError("workflow must be approved before provider submission")
+    require_approved_video_plan(run)
+
+
+def require_approved_video_plan(run: WorkflowRun) -> None:
     if run.plan is None or run.idempotency_key is None:
         raise ValueError("workflow has no executable repair plan")
     if run.plan.action is RepairAction.REPAIR_CAPTIONS:

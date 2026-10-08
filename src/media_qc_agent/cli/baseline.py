@@ -131,7 +131,7 @@ def _run(data: Any, cases: tuple[BaselineCase, ...]) -> BaselineRun:
     outputs: dict[str, str | None] = {}
     usage = {}
     for case in cases:
-        call = exact_fields(data["cases"][case.id], _CALL_FIELDS, "baseline run")
+        call = exact_fields(data["cases"][case.id], _CALL_FIELDS, "baseline call")
         digest = request_digest(interpretation_request(case, run_gates(case)))
         if call["request_sha256"] != digest:
             raise ValueError(f"case {case.id} differs from the request run saw")
