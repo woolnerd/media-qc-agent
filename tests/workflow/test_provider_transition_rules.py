@@ -22,30 +22,23 @@ class ProviderTransitionRuleTests(unittest.TestCase):
         self.repository.initialize()
         self.provider = FakeVideoProvider()
         sources = VideoSources("script-1", "tts-1", "avatar-1", "voice-1")
-        self.repository.create_script_version(
+        self.repository.artifacts.create_script_version(
             version_id="script-1",
             authored_text="A synthetic sentence.",
             scene=ScriptScene(Environment.NEUTRAL),
         )
-        self.repository.create_avatar_version(
+        self.repository.artifacts.create_avatar_version(
             version_id="avatar-1", environment=Environment.NEUTRAL
         )
-        for kind, version_id in sources.dependencies():
-            if kind in {
-                ArtifactKind.SCRIPT,
-                ArtifactKind.TTS_INPUT,
-                ArtifactKind.AVATAR,
-            }:
-                continue
-            self.repository.create_source_version(version_id=version_id, kind=kind)
-        self.repository.create_tts_input_version(
+        self.repository.artifacts.create_voice_version(sources.voice_version_id)
+        self.repository.artifacts.create_tts_input_version(
             version_id="tts-1",
             script_version_id="script-1",
             capabilities=SpokenTextCapabilities(
                 "synthetic-tts", "literal-v1", frozenset()
             ),
         )
-        observed_video_id = self.repository.create_synthetic_video_version(
+        observed_video_id = self.repository.artifacts.create_synthetic_video_version(
             fixture_job_id="observed-fixture", sources=sources
         ).id
         self.repository.create(
@@ -96,7 +89,7 @@ class ProviderTransitionRuleTests(unittest.TestCase):
             ProviderEventDisposition.STALE,
         )
         with self.assertRaises(KeyError):
-            self.repository.get_artifact_version(f"video:{old_job}")
+            self.repository.artifacts.get(f"video:{old_job}")
 
     def test_duplicate_current_event_cannot_make_another_video(self) -> None:
         job_id = self.submit()

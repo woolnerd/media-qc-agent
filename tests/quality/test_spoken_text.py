@@ -85,68 +85,69 @@ class TtsInputVersionTests(unittest.TestCase):
         self.connection = sqlite3.connect(":memory:")
         self.repository = WorkflowRepository(self.connection)
         self.repository.initialize()
-        self.repository.create_script_version(
+        self.repository.artifacts.create_script_version(
             version_id="script-1",
             authored_text="Heat to 450°F.",
             scene=ScriptScene(Environment.NEUTRAL),
         )
-        self.repository.create_avatar_version(
+        self.repository.artifacts.create_avatar_version(
             version_id="avatar-1", environment=Environment.NEUTRAL
         )
-        for version_id, kind in (("voice-1", ArtifactKind.VOICE),):
-            self.repository.create_source_version(version_id=version_id, kind=kind)
+        self.repository.artifacts.create_voice_version("voice-1")
 
     def tearDown(self) -> None:
         self.connection.close()
 
     def test_accepted_input_retains_script_and_profile_lineage(self) -> None:
-        self.repository.create_tts_input_version(
+        self.repository.artifacts.create_tts_input_version(
             version_id="tts-1",
             script_version_id="script-1",
             capabilities=LITERAL_MODEL,
         )
 
-        artifact = self.repository.get_artifact_version("tts-1")
-        spoken = self.repository.get_tts_input_version("tts-1")
-        self.assertEqual(self.repository.get_script_text("script-1"), "Heat to 450°F.")
+        artifact = self.repository.artifacts.get("tts-1")
+        spoken = self.repository.artifacts.tts_input("tts-1")
+        self.assertEqual(
+            self.repository.artifacts.script_text("script-1"), "Heat to 450°F."
+        )
         self.assertEqual(artifact.source_versions, ((ArtifactKind.SCRIPT, "script-1"),))
         self.assertEqual(spoken.authored_text, "Heat to 450°F.")
         self.assertEqual(spoken.spoken_text, "Heat to 450 degrees Fahrenheit.")
         self.assertEqual(spoken.capabilities, LITERAL_MODEL)
         with self.assertRaises(sqlite3.IntegrityError):
-            self.repository.create_script_version(
+            self.repository.artifacts.create_script_version(
                 version_id="script-1",
                 authored_text="Changed text.",
                 scene=ScriptScene(Environment.NEUTRAL),
             )
-        self.assertEqual(self.repository.get_script_text("script-1"), "Heat to 450°F.")
+        self.assertEqual(
+            self.repository.artifacts.script_text("script-1"), "Heat to 450°F."
+        )
 
-    def test_generic_source_creation_cannot_bypass_text_gate(self) -> None:
-        with self.assertRaisesRegex(ValueError, "create_tts_input_version"):
-            self.repository.create_source_version(
-                version_id="tts-1", kind=ArtifactKind.TTS_INPUT
-            )
+    def test_voice_creation_cannot_bypass_text_gate(self) -> None:
+        with self.assertRaisesRegex(ValueError, "voice version ID"):
+            self.repository.artifacts.create_voice_version("tts-1")
 
     def test_explicit_candidate_preserves_ambiguous_authored_text(self) -> None:
-        self.repository.create_script_version(
+        self.repository.artifacts.create_script_version(
             version_id="script-2",
             authored_text="Heat to 450*F.",
             scene=ScriptScene(Environment.NEUTRAL),
         )
-        self.repository.create_tts_input_version(
+        self.repository.artifacts.create_tts_input_version(
             version_id="tts-1",
             script_version_id="script-2",
             candidate_text="Heat to 450 degrees Fahrenheit.",
             capabilities=LITERAL_MODEL,
         )
 
-        spoken = self.repository.get_tts_input_version("tts-1")
+        spoken = self.repository.artifacts.tts_input("tts-1")
         self.assertEqual(spoken.authored_text, "Heat to 450*F.")
         self.assertEqual(spoken.candidate_text, "Heat to 450 degrees Fahrenheit.")
         self.assertEqual(spoken.spoken_text, spoken.candidate_text)
 
     def test_unsafe_replacement_never_reaches_provider(self) -> None:
-        self.repository.create_tts_input_version(
+        self.repository.artifacts.create_tts_input_version(
             version_id="tts-1",
             script_version_id="script-1",
             capabilities=LITERAL_MODEL,
@@ -163,7 +164,7 @@ class TtsInputVersionTests(unittest.TestCase):
         provider = FakeVideoProvider()
 
         with self.assertRaises(UnsafeSpokenText) as failure:
-            self.repository.create_tts_input_version(
+            self.repository.artifacts.create_tts_input_version(
                 version_id="tts-2",
                 script_version_id="script-1",
                 candidate_text="Heat to 450*F.",
@@ -172,7 +173,7 @@ class TtsInputVersionTests(unittest.TestCase):
 
         self.assertIn("450*F", {issue.token for issue in failure.exception.issues})
         with self.assertRaises(KeyError):
-            self.repository.get_artifact_version("tts-2")
+            self.repository.artifacts.get("tts-2")
         with self.assertRaises(KeyError):
             self.repository.bind_replacement("run-1", "tts-2")
         with self.assertRaisesRegex(ValueError, "not awaiting approval"):
@@ -186,12 +187,12 @@ class TtsInputVersionTests(unittest.TestCase):
         self.assertEqual(provider.jobs_created, 0)
 
     def test_run_cannot_start_with_tts_input_from_another_script(self) -> None:
-        self.repository.create_script_version(
+        self.repository.artifacts.create_script_version(
             version_id="script-2",
             authored_text="Another synthetic sentence.",
             scene=ScriptScene(Environment.NEUTRAL),
         )
-        self.repository.create_tts_input_version(
+        self.repository.artifacts.create_tts_input_version(
             version_id="tts-1",
             script_version_id="script-1",
             capabilities=LITERAL_MODEL,

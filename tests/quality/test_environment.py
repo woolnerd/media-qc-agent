@@ -2,7 +2,6 @@ import sqlite3
 import unittest
 
 from media_qc_agent import (
-    ArtifactKind,
     FailureKind,
     FakeVideoProvider,
     QualityFinding,
@@ -18,6 +17,7 @@ from media_qc_agent.quality.environment import (
     check_script_avatar_compatibility,
 )
 from media_qc_agent.quality.spoken_text import SpokenTextCapabilities
+from media_qc_agent.workflow.gate_runs import open_environment_run
 from media_qc_agent.workflow.models import VideoSources
 
 LITERAL_MODEL = SpokenTextCapabilities("synthetic-tts", "literal-v1", frozenset())
@@ -62,36 +62,36 @@ class EnvironmentWorkflowTests(unittest.TestCase):
         self.connection = sqlite3.connect(":memory:")
         self.repository = WorkflowRepository(self.connection)
         self.repository.initialize()
-        self.repository.create_script_version(
+        self.repository.artifacts.create_script_version(
             version_id="script-oven",
             authored_text="Bake the bread in the oven.",
             scene=ScriptScene(Environment.KITCHEN, evidence_phrase="oven"),
         )
-        self.repository.create_tts_input_version(
+        self.repository.artifacts.create_tts_input_version(
             version_id="tts-oven",
             script_version_id="script-oven",
             capabilities=LITERAL_MODEL,
         )
-        self.repository.create_avatar_version(
+        self.repository.artifacts.create_avatar_version(
             version_id="avatar-office", environment=Environment.OFFICE
         )
-        self.repository.create_source_version(
-            version_id="voice-1", kind=ArtifactKind.VOICE
-        )
+        self.repository.artifacts.create_voice_version("voice-1")
         self.sources = VideoSources(
             "script-oven", "tts-oven", "avatar-office", "voice-1"
         )
-        self.observed_video_id = self.repository.create_synthetic_video_version(
-            fixture_job_id="observed-fixture", sources=self.sources
-        ).id
+        self.observed_video_id = (
+            self.repository.artifacts.create_synthetic_video_version(
+                fixture_job_id="observed-fixture", sources=self.sources
+            ).id
+        )
         self.provider = FakeVideoProvider()
 
     def tearDown(self) -> None:
         self.connection.close()
 
     def test_preflight_creates_human_choice_without_provider_job(self) -> None:
-        run = self.repository.create_environment_run(
-            run_id="run-oven", sources=self.sources
+        run = open_environment_run(
+            self.repository, run_id="run-oven", sources=self.sources
         )
 
         assert run is not None
@@ -108,11 +108,13 @@ class EnvironmentWorkflowTests(unittest.TestCase):
         )
         self.assertEqual(self.provider.jobs_created, 0)
         self.assertEqual(
-            WorkflowRepository(self.connection).get_script_scene("script-oven"),
+            WorkflowRepository(self.connection).artifacts.script_scene("script-oven"),
             ScriptScene(Environment.KITCHEN, evidence_phrase="oven"),
         )
         self.assertEqual(
-            WorkflowRepository(self.connection).get_avatar_environment("avatar-office"),
+            WorkflowRepository(self.connection).artifacts.avatar_environment(
+                "avatar-office"
+            ),
             Environment.OFFICE,
         )
 
@@ -140,9 +142,9 @@ class EnvironmentWorkflowTests(unittest.TestCase):
         self.assertEqual(self.provider.jobs_created, 0)
 
     def test_avatar_choice_resolves_mismatch_before_approval(self) -> None:
-        self.repository.create_environment_run(run_id="run-oven", sources=self.sources)
+        open_environment_run(self.repository, run_id="run-oven", sources=self.sources)
         self.repository.select_repair("run-oven", RepairAction.CHANGE_AVATAR)
-        self.repository.create_avatar_version(
+        self.repository.artifacts.create_avatar_version(
             version_id="avatar-kitchen", environment=Environment.KITCHEN
         )
         self.repository.bind_replacement("run-oven", "avatar-kitchen")
@@ -155,14 +157,14 @@ class EnvironmentWorkflowTests(unittest.TestCase):
         self.assertEqual(approved.sources.avatar_version_id, "avatar-kitchen")
 
     def test_script_choice_needs_new_matching_script_and_tts_input(self) -> None:
-        self.repository.create_environment_run(run_id="run-oven", sources=self.sources)
+        open_environment_run(self.repository, run_id="run-oven", sources=self.sources)
         self.repository.select_repair("run-oven", RepairAction.REVISE_SCRIPT)
-        self.repository.create_script_version(
+        self.repository.artifacts.create_script_version(
             version_id="script-office",
             authored_text="Review the report in the office.",
             scene=ScriptScene(Environment.OFFICE, evidence_phrase="office"),
         )
-        self.repository.create_tts_input_version(
+        self.repository.artifacts.create_tts_input_version(
             version_id="tts-office",
             script_version_id="script-office",
             capabilities=LITERAL_MODEL,
@@ -179,19 +181,17 @@ class EnvironmentWorkflowTests(unittest.TestCase):
 
     def test_scene_evidence_must_exist_in_script(self) -> None:
         with self.assertRaisesRegex(ValueError, "evidence phrase"):
-            self.repository.create_script_version(
+            self.repository.artifacts.create_script_version(
                 version_id="script-bad",
                 authored_text="A generic synthetic sentence.",
                 scene=ScriptScene(Environment.KITCHEN, evidence_phrase="oven"),
             )
         with self.assertRaises(KeyError):
-            self.repository.get_artifact_version("script-bad")
+            self.repository.artifacts.get("script-bad")
 
     def test_avatar_cannot_be_created_without_environment_metadata(self) -> None:
-        with self.assertRaisesRegex(ValueError, "create_avatar_version"):
-            self.repository.create_source_version(
-                version_id="avatar-missing", kind=ArtifactKind.AVATAR
-            )
+        with self.assertRaisesRegex(ValueError, "voice version ID"):
+            self.repository.artifacts.create_voice_version("avatar-missing")
 
 
 if __name__ == "__main__":

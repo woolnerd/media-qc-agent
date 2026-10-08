@@ -16,6 +16,7 @@ from media_qc_agent import (
 from media_qc_agent.quality.environment import Environment, ScriptScene
 from media_qc_agent.quality.spoken_text import SpokenTextCapabilities
 from media_qc_agent.workflow.models import VideoSources, WorkflowRun
+from media_qc_agent.workflow.schema import IncompatibleDatabase
 
 
 class PlanVersionTests(unittest.TestCase):
@@ -24,24 +25,22 @@ class PlanVersionTests(unittest.TestCase):
         self.repository = WorkflowRepository(self.connection)
         self.repository.initialize()
         self.sources = VideoSources("script-1", "tts-1", "avatar-1", "voice-1")
-        self.repository.create_script_version(
+        self.repository.artifacts.create_script_version(
             version_id="script-1",
             authored_text="Synthetic sentence.",
             scene=ScriptScene(Environment.NEUTRAL),
         )
-        self.repository.create_tts_input_version(
+        self.repository.artifacts.create_tts_input_version(
             version_id="tts-1",
             script_version_id="script-1",
             capabilities=SpokenTextCapabilities("fake", "literal", frozenset()),
         )
         for version_id in ("avatar-1", "avatar-2", "avatar-3"):
-            self.repository.create_avatar_version(
+            self.repository.artifacts.create_avatar_version(
                 version_id=version_id, environment=Environment.NEUTRAL
             )
-        self.repository.create_source_version(
-            version_id="voice-1", kind=ArtifactKind.VOICE
-        )
-        self.video = self.repository.create_synthetic_video_version(
+        self.repository.artifacts.create_voice_version("voice-1")
+        self.video = self.repository.artifacts.create_synthetic_video_version(
             fixture_job_id="observed", sources=self.sources
         )
         self.provider = FakeVideoProvider()
@@ -231,6 +230,25 @@ class PlanVersionTests(unittest.TestCase):
             ((ArtifactKind.AVATAR, "avatar-3"),),
         )
 
+    def test_each_plan_change_appends_one_current_version_with_its_own_key(
+        self,
+    ) -> None:
+        self.create_run(FailureKind.ENVIRONMENT_MISMATCH)
+        runs = [
+            self.repository.select_repair("run-1", RepairAction.CHANGE_AVATAR),
+            self.repository.bind_replacement("run-1", "avatar-2"),
+            self.repository.bind_replacement("run-1", "avatar-3"),
+        ]
+        versions = self.repository.get_plan_versions("run-1")
+        self.assertEqual(len(versions), len(runs))
+        for run, version in zip(runs, versions, strict=True):
+            self.assertEqual(run.plan_version, version)
+            self.assertEqual(run.sources, version.sources)
+            self.assertEqual(run.idempotency_key, version.idempotency_key)
+        self.assertIsNone(versions[0].idempotency_key)
+        keys = [version.idempotency_key for version in versions[1:]]
+        self.assertEqual(len(set(keys)), len(keys))
+
     def test_retry_requires_its_own_version_approval(self) -> None:
         original = self.create_run()
         assert original.plan_version_id is not None
@@ -265,11 +283,8 @@ class PlanVersionTests(unittest.TestCase):
                 expected_plan_version_id=original.plan_version_id,
             )
 
-    def test_ready_status_alone_or_mutated_sources_cannot_authorize_side_effect(
-        self,
-    ) -> None:
+    def test_ready_status_alone_cannot_authorize_side_effect(self) -> None:
         original = self.create_run()
-        assert original.plan_version_id is not None
         self.connection.execute(
             "UPDATE workflow_runs SET status = ? WHERE id = ?",
             (WorkflowStatus.READY, "run-1"),
@@ -279,22 +294,25 @@ class PlanVersionTests(unittest.TestCase):
             WorkflowExecutor(repository=self.repository, provider=self.provider).submit(
                 "run-1"
             )
-        self.connection.execute(
-            "UPDATE workflow_runs SET status = ? WHERE id = ?",
-            (WorkflowStatus.AWAITING_APPROVAL, "run-1"),
-        )
-        self.connection.commit()
+        self.assertEqual(self.provider.jobs_created, 0)
+        self.assertIsNone(original.approval)
+
+    def test_submission_uses_the_approved_version_not_the_run_row(self) -> None:
+        original = self.create_run()
         self.repository.approve("run-1", plan_version_id=original.plan_version_id)
         self.connection.execute(
             "UPDATE workflow_runs SET avatar_version_id = ? WHERE id = ?",
             ("avatar-2", "run-1"),
         )
         self.connection.commit()
-        with self.assertRaisesRegex(ValueError, "approval"):
-            WorkflowExecutor(repository=self.repository, provider=self.provider).submit(
-                "run-1"
-            )
-        self.assertEqual(self.provider.jobs_created, 0)
+        submitted = WorkflowExecutor(
+            repository=self.repository, provider=self.provider
+        ).submit("run-1")
+        assert submitted.external_job_id is not None
+        job = self.repository.get_provider_job(submitted.external_job_id)
+        assert original.plan_version is not None
+        self.assertEqual(job.sources, original.plan_version.sources)
+        self.assertEqual(job.plan_version_id, original.plan_version_id)
 
     def test_plan_and_approval_rows_cannot_be_updated_or_deleted(self) -> None:
         run = self.create_run()
@@ -314,49 +332,28 @@ class PlanVersionTests(unittest.TestCase):
         self.assertEqual(len(self.repository.get_plan_versions("run-1")), 1)
         self.assertIsNotNone(self.repository.get("run-1").approval)
 
-    def test_legacy_ready_run_needs_explicit_version_approval_after_upgrade(
-        self,
-    ) -> None:
-        self.create_run()
-        self.connection.execute(
-            "UPDATE workflow_runs SET status = 'ready' WHERE id = 'run-1'"
-        )
-        self.connection.commit()
-        # Reconstruct a pre-versioning database, preserving original artifacts/findings.
+    def test_database_from_another_schema_version_is_rejected(self) -> None:
         legacy = sqlite3.connect(":memory:")
         self.addCleanup(legacy.close)
-        dump = "\n".join(
-            statement
-            for statement in self.connection.iterdump()
-            if "repair_plan_versions" not in statement
-            and "plan_approvals" not in statement
-        )
-        legacy.executescript(dump)
-        upgraded = WorkflowRepository(legacy)
-        upgraded.initialize()
-        run = upgraded.get("run-1")
-        self.assertEqual(run.status, WorkflowStatus.AWAITING_APPROVAL)
-        self.assertIsNone(run.approval)
-        self.assertIsNotNone(run.plan_version_id)
-        upgraded.initialize()
-        self.assertEqual(len(upgraded.get_plan_versions("run-1")), 1)
-        approved = upgraded.approve("run-1", plan_version_id=run.plan_version_id)
-        self.assertEqual(approved.status, WorkflowStatus.READY)
+        legacy.execute("CREATE TABLE workflow_runs (id TEXT PRIMARY KEY)")
+        with self.assertRaisesRegex(IncompatibleDatabase, "delete this demo database"):
+            WorkflowRepository(legacy).initialize()
+        self.repository.initialize()
 
     def test_script_and_tts_choices_both_survive_restart_and_rebinding(self) -> None:
         original = self.create_run(FailureKind.SCRIPT_QUALITY)
         assert original.plan_version_id is not None
-        self.repository.create_script_version(
+        self.repository.artifacts.create_script_version(
             version_id="script-2",
             authored_text="Revised synthetic text.",
             scene=ScriptScene(Environment.NEUTRAL),
         )
-        self.repository.create_tts_input_version(
+        self.repository.artifacts.create_tts_input_version(
             version_id="tts-2",
             script_version_id="script-2",
             capabilities=SpokenTextCapabilities("fake", "literal", frozenset()),
         )
-        self.repository.create_tts_input_version(
+        self.repository.artifacts.create_tts_input_version(
             version_id="tts-3",
             script_version_id="script-2",
             capabilities=SpokenTextCapabilities("fake", "literal", frozenset()),

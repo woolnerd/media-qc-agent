@@ -73,6 +73,6 @@ def read_routes(database: Database) -> APIRouter:
     @router.get("/artifacts/{version_id}")
     def artifact(version_id: str) -> object:
         with database.repository() as repository:
-            return repository.get_artifact_version(version_id)
+            return repository.artifacts.get(version_id)
 
     return router

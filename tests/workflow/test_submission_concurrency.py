@@ -12,7 +12,6 @@ from threading import Event
 from unittest.mock import patch
 
 from media_qc_agent import (
-    ArtifactKind,
     FailureKind,
     FakeVideoProvider,
     QualityFinding,
@@ -37,23 +36,21 @@ class SubmissionConcurrencyTests(unittest.TestCase):
         self.repository = WorkflowRepository(self.connection)
         self.repository.initialize()
         self.sources = VideoSources("script-1", "tts-1", "avatar-1", "voice-1")
-        self.repository.create_script_version(
+        self.repository.artifacts.create_script_version(
             version_id="script-1",
             authored_text="Synthetic sentence.",
             scene=ScriptScene(Environment.NEUTRAL),
         )
-        self.repository.create_tts_input_version(
+        self.repository.artifacts.create_tts_input_version(
             version_id="tts-1",
             script_version_id="script-1",
             capabilities=SpokenTextCapabilities("fake", "literal", frozenset()),
         )
-        self.repository.create_avatar_version(
+        self.repository.artifacts.create_avatar_version(
             version_id="avatar-1", environment=Environment.NEUTRAL
         )
-        self.repository.create_source_version(
-            version_id="voice-1", kind=ArtifactKind.VOICE
-        )
-        video = self.repository.create_synthetic_video_version(
+        self.repository.artifacts.create_voice_version("voice-1")
+        video = self.repository.artifacts.create_synthetic_video_version(
             fixture_job_id="observed", sources=self.sources
         )
         run = self.repository.create(

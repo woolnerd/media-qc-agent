@@ -7,7 +7,6 @@ from opentelemetry.trace import Tracer
 
 from media_qc_agent.agent.tracing import interpret_traced
 from media_qc_agent.cli.review import synthetic_provider, synthetic_request
-from media_qc_agent.domain.models import ArtifactKind
 from media_qc_agent.quality.environment import Environment, ScriptScene
 from media_qc_agent.quality.spoken_text import SpokenTextCapabilities
 from media_qc_agent.workflow.executor import WorkflowExecutor
@@ -25,30 +24,23 @@ def run_demo(tracer: Tracer | None = None) -> dict[str, object]:
         repository = WorkflowRepository(connection)
         repository.initialize()
         sources = VideoSources("script-1", "tts-1", "avatar-1", "voice-1")
-        repository.create_script_version(
+        repository.artifacts.create_script_version(
             version_id="script-1",
             authored_text="Heat to 450°F.",
             scene=ScriptScene(Environment.KITCHEN, evidence_phrase="Heat"),
         )
-        repository.create_avatar_version(
+        repository.artifacts.create_avatar_version(
             version_id="avatar-1", environment=Environment.KITCHEN
         )
-        for kind, version_id in sources.dependencies():
-            if kind in {
-                ArtifactKind.SCRIPT,
-                ArtifactKind.TTS_INPUT,
-                ArtifactKind.AVATAR,
-            }:
-                continue
-            repository.create_source_version(version_id=version_id, kind=kind)
-        repository.create_tts_input_version(
+        repository.artifacts.create_voice_version(sources.voice_version_id)
+        repository.artifacts.create_tts_input_version(
             version_id="tts-1",
             script_version_id="script-1",
             capabilities=SpokenTextCapabilities(
                 "synthetic-tts", "literal-v1", frozenset()
             ),
         )
-        observed_video_id = repository.create_synthetic_video_version(
+        observed_video_id = repository.artifacts.create_synthetic_video_version(
             fixture_job_id="observed-fixture", sources=sources
         ).id
         request = synthetic_request(observed_video_id)
@@ -90,8 +82,8 @@ def run_demo(tracer: Tracer | None = None) -> dict[str, object]:
         )
         run = repository.get("demo-run")
         assert run.active_video_version_id is not None
-        video = repository.get_artifact_version(run.active_video_version_id)
-        caption = repository.record_caption_version(
+        video = repository.artifacts.get(run.active_video_version_id)
+        caption = repository.artifacts.create_caption_version(
             version_id="caption-1", video_version_id=video.id
         )
         return {
