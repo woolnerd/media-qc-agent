@@ -98,6 +98,7 @@ def has_current_approval(run: WorkflowRun) -> bool:
         version is not None
         and run.approval is not None
         and run.approval.plan_version_id == version.id
+        and version.run_id == run.id
         and version.target_video_version_id == run.active_video_version_id
         and version.target_caption_version_id == run.active_caption_version_id
     )

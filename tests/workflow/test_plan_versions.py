@@ -48,9 +48,11 @@ class PlanVersionTests(unittest.TestCase):
     def tearDown(self) -> None:
         self.connection.close()
 
-    def create_run(self, kind: FailureKind = FailureKind.VISUAL_QUALITY) -> WorkflowRun:
+    def create_run(
+        self, kind: FailureKind = FailureKind.VISUAL_QUALITY, run_id: str = "run-1"
+    ) -> WorkflowRun:
         return self.repository.create(
-            run_id="run-1",
+            run_id=run_id,
             finding=QualityFinding(kind, "Synthetic finding", 0.95),
             sources=self.sources,
             observed_artifact_version_id=self.video.id
@@ -295,13 +297,24 @@ class PlanVersionTests(unittest.TestCase):
                 "run-1"
             )
         self.assertEqual(self.provider.jobs_created, 0)
+        self.assertIsNone(self.repository.get("run-1").approval)
         self.assertIsNone(original.approval)
+
+    def test_run_cannot_point_at_another_runs_approved_version(self) -> None:
+        other = self.create_run(run_id="run-2")
+        self.repository.approve("run-2", plan_version_id=other.plan_version_id)
+        self.create_run()
+        with self.assertRaisesRegex(sqlite3.IntegrityError, "its own plan versions"):
+            self.connection.execute(
+                "UPDATE workflow_runs SET plan_version_id = ? WHERE id = 'run-1'",
+                (other.plan_version_id,),
+            )
 
     def test_submission_uses_the_approved_version_not_the_run_row(self) -> None:
         original = self.create_run()
         self.repository.approve("run-1", plan_version_id=original.plan_version_id)
         self.connection.execute(
-            "UPDATE workflow_runs SET avatar_version_id = ? WHERE id = ?",
+            "UPDATE workflow_runs SET observed_avatar_version_id = ? WHERE id = ?",
             ("avatar-2", "run-1"),
         )
         self.connection.commit()

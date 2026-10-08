@@ -31,7 +31,11 @@ _SOURCE_ORDER = (
 
 
 class ArtifactStore:
-    """Writes commit immediately unless the caller already holds a transaction."""
+    """Each create method commits its own transaction; call it outside one.
+
+    The insert methods write within the caller's transaction, and only for the
+    outputs a workflow transition produces: generated video and captions.
+    """
 
     def __init__(self, connection: sqlite3.Connection) -> None:
         self._connection = connection
@@ -40,7 +44,7 @@ class ArtifactStore:
     def create_voice_version(self, version_id: str) -> ArtifactVersion:
         validate_artifact_version_id(version_id, ArtifactKind.VOICE)
         with self._connection:
-            self.insert(version_id, ArtifactKind.VOICE, ())
+            self._insert(version_id, ArtifactKind.VOICE, ())
         return self.get(version_id)
 
     def create_script_version(
@@ -51,7 +55,7 @@ class ArtifactStore:
             raise ValueError("authored script text must not be blank")
         scene.validate_text(authored_text)
         with self._connection:
-            self.insert(version_id, ArtifactKind.SCRIPT, ())
+            self._insert(version_id, ArtifactKind.SCRIPT, ())
             self._connection.execute(
                 """INSERT INTO script_versions
                    (version_id, authored_text, environment, evidence_phrase)
@@ -67,7 +71,7 @@ class ArtifactStore:
         if not isinstance(environment, Environment):
             raise TypeError("avatar environment must be a declared Environment")
         with self._connection:
-            self.insert(version_id, ArtifactKind.AVATAR, ())
+            self._insert(version_id, ArtifactKind.AVATAR, ())
             self._connection.execute(
                 "INSERT INTO avatar_versions (version_id, environment) VALUES (?, ?)",
                 (version_id, environment),
@@ -96,7 +100,7 @@ class ArtifactStore:
             raise UnsafeSpokenText(result.issues)
         notation = sorted(item.value for item in capabilities.supported_notation)
         with self._connection:
-            self.insert(
+            self._insert(
                 version_id,
                 ArtifactKind.TTS_INPUT,
                 ((ArtifactKind.SCRIPT, script_version_id),),
@@ -128,7 +132,7 @@ class ArtifactStore:
         self.validate_sources(sources)
         version_id = video_version_id(fixture_job_id)
         with self._connection:
-            self.insert(version_id, ArtifactKind.VIDEO, sources.dependencies())
+            self._insert(version_id, ArtifactKind.VIDEO, sources.dependencies())
         return self.get(version_id)
 
     def create_caption_version(
@@ -145,7 +149,32 @@ class ArtifactStore:
             self.insert_captions(version_id, video_version_id, cues)
         return self.get(version_id)
 
-    def insert(
+    def insert_video(
+        self, version_id: str, sources: VideoSources, external_job_id: str
+    ) -> None:
+        self._insert(
+            version_id,
+            ArtifactKind.VIDEO,
+            sources.dependencies(),
+            external_job_id=external_job_id,
+        )
+
+    def insert_captions(
+        self,
+        version_id: str,
+        video_version_id: str,
+        cues: tuple[CaptionCue, ...] | None,
+    ) -> None:
+        self._insert(
+            version_id, ArtifactKind.CAPTIONS, ((ArtifactKind.VIDEO, video_version_id),)
+        )
+        if cues is not None:
+            self._connection.execute(
+                "INSERT INTO caption_contents (version_id, cues_json) VALUES (?, ?)",
+                (version_id, json.dumps([asdict(cue) for cue in cues])),
+            )
+
+    def _insert(
         self,
         version_id: str,
         kind: ArtifactKind,
@@ -153,8 +182,6 @@ class ArtifactStore:
         *,
         external_job_id: str | None = None,
     ) -> None:
-        """Insert within the caller's transaction."""
-
         self._connection.execute(
             "INSERT INTO artifact_versions (id, kind, external_job_id) VALUES (?, ?, ?)",
             (version_id, kind, external_job_id),
@@ -167,23 +194,6 @@ class ArtifactStore:
                 for source_kind, source_id in sources
             ),
         )
-
-    def insert_captions(
-        self,
-        version_id: str,
-        video_version_id: str,
-        cues: tuple[CaptionCue, ...] | None,
-    ) -> None:
-        """Insert within the caller's transaction."""
-
-        self.insert(
-            version_id, ArtifactKind.CAPTIONS, ((ArtifactKind.VIDEO, video_version_id),)
-        )
-        if cues is not None:
-            self._connection.execute(
-                "INSERT INTO caption_contents (version_id, cues_json) VALUES (?, ?)",
-                (version_id, json.dumps([asdict(cue) for cue in cues])),
-            )
 
     def get(self, version_id: str) -> ArtifactVersion:
         row = self._row("SELECT * FROM artifact_versions WHERE id = ?", version_id)

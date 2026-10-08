@@ -1,8 +1,9 @@
 """SQLite schema for workflow state, artifacts, and worker coordination.
 
 A run points at its current immutable plan version, which is the only record of
-the current plan, sources, recovery key, and targets. The run row keeps mutable
-execution state and the sources its finding was observed on.
+the current plan, sources, recovery key, and targets. The pointer is NULL only
+while a run awaits a creative choice. The run row keeps mutable execution state
+and the sources its finding was observed on.
 """
 
 import sqlite3
@@ -54,10 +55,10 @@ CREATE TABLE workflow_runs (
     status TEXT NOT NULL,
     plan_version_id TEXT REFERENCES repair_plan_versions(id),
     clarification TEXT,
-    script_version_id TEXT NOT NULL REFERENCES artifact_versions(id),
-    tts_input_version_id TEXT NOT NULL REFERENCES artifact_versions(id),
-    avatar_version_id TEXT NOT NULL REFERENCES artifact_versions(id),
-    voice_version_id TEXT NOT NULL REFERENCES artifact_versions(id),
+    observed_script_version_id TEXT NOT NULL REFERENCES artifact_versions(id),
+    observed_tts_input_version_id TEXT NOT NULL REFERENCES artifact_versions(id),
+    observed_avatar_version_id TEXT NOT NULL REFERENCES artifact_versions(id),
+    observed_voice_version_id TEXT NOT NULL REFERENCES artifact_versions(id),
     external_job_id TEXT,
     active_video_version_id TEXT REFERENCES artifact_versions(id),
     active_caption_version_id TEXT REFERENCES artifact_versions(id),
@@ -80,6 +81,10 @@ CREATE TRIGGER immutable_plan_update BEFORE UPDATE ON repair_plan_versions
 BEGIN SELECT RAISE(ABORT, 'plan versions are immutable'); END;
 CREATE TRIGGER immutable_plan_delete BEFORE DELETE ON repair_plan_versions
 BEGIN SELECT RAISE(ABORT, 'plan versions are immutable'); END;
+CREATE TRIGGER plan_pointer_same_run BEFORE UPDATE OF plan_version_id ON workflow_runs
+WHEN NEW.plan_version_id IS NOT NULL AND NEW.id IS NOT
+    (SELECT run_id FROM repair_plan_versions WHERE id = NEW.plan_version_id)
+BEGIN SELECT RAISE(ABORT, 'a run can only point at its own plan versions'); END;
 CREATE TRIGGER immutable_approval_update BEFORE UPDATE ON plan_approvals
 BEGIN SELECT RAISE(ABORT, 'approvals are immutable'); END;
 CREATE TRIGGER immutable_approval_delete BEFORE DELETE ON plan_approvals
@@ -149,10 +154,17 @@ CREATE TABLE worker_attempts (
 
 class IncompatibleDatabase(RuntimeError):
     def __init__(self, found: int) -> None:
-        super().__init__(
-            f"database schema version {found} is not {SCHEMA_VERSION}; delete this "
-            "demo database and its .provider.sqlite3 ledger, then restart."
-        )
+        if found > SCHEMA_VERSION:
+            message = (
+                f"database schema version {found} is newer than this application "
+                f"({SCHEMA_VERSION}); upgrade the application."
+            )
+        else:
+            message = (
+                f"database schema version {found} is not {SCHEMA_VERSION}; delete "
+                "this demo database and its .provider.sqlite3 ledger, then restart."
+            )
+        super().__init__(message)
 
 
 def initialize_schema(connection: sqlite3.Connection) -> None:
@@ -166,10 +178,13 @@ def initialize_schema(connection: sqlite3.Connection) -> None:
                 f"BEGIN IMMEDIATE; {SCHEMA}"
                 f"PRAGMA user_version = {SCHEMA_VERSION}; COMMIT;"
             )
+            version = SCHEMA_VERSION
         except sqlite3.OperationalError:
-            # Another connection created the schema first.
             connection.rollback()
-        version, has_tables = _state(connection)
+            # Accept only the schema another connection created first.
+            version = _state(connection)[0]
+            if version != SCHEMA_VERSION:
+                raise
     if version != SCHEMA_VERSION:
         raise IncompatibleDatabase(version)
 

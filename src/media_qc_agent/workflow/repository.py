@@ -155,9 +155,9 @@ class WorkflowRepository:
             self._connection.execute("BEGIN IMMEDIATE")
             self._connection.execute(
                 """INSERT INTO workflow_runs (
-                       id, status, clarification, script_version_id,
-                       tts_input_version_id, avatar_version_id, voice_version_id,
-                       active_video_version_id
+                       id, status, clarification, observed_script_version_id,
+                       observed_tts_input_version_id, observed_avatar_version_id,
+                       observed_voice_version_id, active_video_version_id
                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)""",
                 (
                     run_id,
@@ -638,12 +638,7 @@ class WorkflowRepository:
 
     def _promote_generated_video(self, job: ProviderJob) -> None:
         generated_id = video_version_id(job.external_job_id)
-        self.artifacts.insert(
-            generated_id,
-            ArtifactKind.VIDEO,
-            job.sources.dependencies(),
-            external_job_id=job.external_job_id,
-        )
+        self.artifacts.insert_video(generated_id, job.sources, job.external_job_id)
         updated = self._connection.execute(
             f"""UPDATE workflow_runs SET status = ?, active_video_version_id = ?, {_TOUCH}
                 WHERE id = ? AND status = ? AND external_job_id = ?""",
@@ -736,10 +731,10 @@ class WorkflowRepository:
             else None
         )
         observed_sources = VideoSources(
-            script_version_id=row["script_version_id"],
-            tts_input_version_id=row["tts_input_version_id"],
-            avatar_version_id=row["avatar_version_id"],
-            voice_version_id=row["voice_version_id"],
+            script_version_id=row["observed_script_version_id"],
+            tts_input_version_id=row["observed_tts_input_version_id"],
+            avatar_version_id=row["observed_avatar_version_id"],
+            voice_version_id=row["observed_voice_version_id"],
         )
         return WorkflowRun(
             id=row["id"],

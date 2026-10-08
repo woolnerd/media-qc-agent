@@ -62,13 +62,42 @@ class SchemaTests(unittest.TestCase):
         with patch("media_qc_agent.workflow.schema._state", side_effect=stale_read):
             initialize_schema(self.connect())
 
+    def test_lock_contention_is_reported_not_called_incompatible(self) -> None:
+        blocker = self.connect()
+        blocker.execute("BEGIN EXCLUSIVE")
+        waiting = sqlite3.connect(self.path, timeout=0.05)
+        self.addCleanup(waiting.close)
+        with self.assertRaisesRegex(sqlite3.OperationalError, "locked"):
+            initialize_schema(waiting)
+        blocker.rollback()
+        initialize_schema(waiting)
+
+    def test_old_schema_is_rejected_without_writes(self) -> None:
+        connection = self.connect()
+        connection.executescript(
+            """CREATE TABLE workflow_runs (id TEXT PRIMARY KEY, status TEXT);
+               INSERT INTO workflow_runs VALUES ('run-1', 'ready');"""
+        )
+        changes = connection.total_changes
+        with self.assertRaisesRegex(IncompatibleDatabase, "delete this demo database"):
+            initialize_schema(connection)
+        self.assertEqual(connection.total_changes, changes)
+        self.assertEqual(connection.execute("PRAGMA user_version").fetchone()[0], 0)
+
+    def test_newer_schema_asks_for_an_application_upgrade(self) -> None:
+        connection = self.connect()
+        initialize_schema(connection)
+        connection.execute(f"PRAGMA user_version = {SCHEMA_VERSION + 1}")
+        with self.assertRaisesRegex(IncompatibleDatabase, "upgrade the application"):
+            initialize_schema(connection)
+
     def test_unversioned_or_other_version_database_is_rejected(self) -> None:
         connection = self.connect()
         connection.execute("CREATE TABLE workflow_runs (id TEXT PRIMARY KEY)")
         connection.commit()
         with self.assertRaises(IncompatibleDatabase):
             initialize_schema(connection)
-        connection.execute(f"PRAGMA user_version = {SCHEMA_VERSION + 1}")
+        connection.execute("PRAGMA user_version = 1")
         with self.assertRaisesRegex(IncompatibleDatabase, "delete this demo database"):
             initialize_schema(connection)
 
