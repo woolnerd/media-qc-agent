@@ -82,6 +82,27 @@ array; lineage is an ordered array of `[kind, version_id]` pairs.
   as `[{"start_ms":0,"end_ms":1000,"text":"Fixed caption."}]`. It completes
   locally and preserves the video.
 
+## Demo fixtures
+
+[`api/scenarios.py`](../../src/media_qc_agent/api/scenarios.py) seeds one
+invented brand, Halden Home. Reviewers are unnamed roles, and scripts, provider
+profiles, and motion samples are synthetic. No real people, client material, or
+media files exist. A video is an artifact record with lineage, not a file.
+
+| Scenario | Seeded input | Grounding |
+| --- | --- | --- |
+| `weak-script` | Thermostat draft says "press the thing, then the other thing" | Evidence quotes the exact script text |
+| `environment-mismatch` | Oven script bound to an office avatar | Pre-render environment gate |
+| `tts-input` | Script shorthand `450*F`. The stored input keeps a corrected `450°F` because its `studio-v2` profile declares temperature support | Facts come from the gate and stored records. The reported "four fifty F" is an inference from a fixture assumption, since no audio exists. The replacement for the same script and a literal profile reads "450 degrees Fahrenheit" |
+| `jerky-video` | A video record derived from the approved revised script; two spikes in a slow push-in | Motion-jump signal reports four abrupt changes, a rise and fall per spike |
+| `caption-format` | A 75-character caption line copied from the revised script | Caption rule `line_too_long` (limit 42) |
+
+Seeding checks every stored fixture before creating any missing one. Script text
+and scene, avatar environment, TTS source, profile and spoken text, video
+lineage, and caption cues must all match the current definitions. A database
+from an older seed raises `FixtureDrift` and gains no rows; delete it and its
+`.provider.sqlite3` ledger, then restart.
+
 ## Limits and evidence
 
 The command serves one process on loopback. Multiple server processes sharing
