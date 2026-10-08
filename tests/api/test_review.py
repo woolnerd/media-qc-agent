@@ -112,6 +112,24 @@ class ReviewTests(unittest.TestCase):
         self.assertEqual(self.run_state("older")["status"], "ready")
         self.assertEqual(self.run_state()["status"], "submitted")
 
+    def test_page_puts_the_decision_first_and_fault_controls_after_approval(
+        self,
+    ) -> None:
+        self.create("weak-script")
+        page = self.client.get("/review/review-1").text
+        self.assertLess(page.index("Finding &amp; evidence"), page.index("Audit trail"))
+        self.assertLess(
+            page.index("Plan &amp; exact approval"), page.index("Audit trail")
+        )
+        self.assertNotIn("Worker controls", page)
+        self.create(run_id="review-2")
+        self.command("approve", run_id="review-2")
+        page = self.client.get("/review/review-2").text
+        self.assertLess(
+            page.index("Plan &amp; exact approval"), page.index("Worker controls")
+        )
+        self.assertLess(page.index("Worker controls"), page.index("Audit trail"))
+
     def test_stale_forms_do_not_mutate_the_current_plan(self) -> None:
         self.create("weak-script")
         old = self.run_state()["plan_version"]["id"]

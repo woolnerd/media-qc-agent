@@ -42,25 +42,46 @@ def dashboard(
     return document("Scenarios & runs", body)
 
 
+_EXECUTION = frozenset(
+    {
+        WorkflowStatus.READY,
+        WorkflowStatus.SUBMITTING,
+        WorkflowStatus.SUBMITTED,
+        WorkflowStatus.SUCCEEDED,
+    }
+)
+
+
 def review_page(data: ReviewSnapshot, message: str = "", error: bool = False) -> str:
+    """Decision first, then the fault lab once approved, then the audit trail."""
+
     run = data.run
     state = run.status.value
-    header = f'<div class="heading"><div><p class="eyebrow">Workflow review</p><h1>{text(run.id)}</h1></div><span class="badge {text(state)}">{text(state.replace("_", " "))}</span></div>'
-    header += f'<p class="lead">{text(STATE_HELP[state])}</p><p class="demo-notice">{text(DEMO_NOTICE)}</p>'
-    header += f'<a class="refresh" href="{text(run_url(run.id))}">Refresh state</a>'
-    body = header + notice(message, error) + _proof(data)
-    body += (
-        '<div class="grid"><div>'
-        + _finding(data)
-        + _artifacts(data)
-        + "</div><div>"
-        + decision_forms(data)
-        + worker_forms(data)
-        + callback_forms(data)
-        + "</div></div>"
+    body = f'<div class="heading"><div><p class="eyebrow">Workflow review</p><h1>{text(run.id)}</h1></div><span class="badge {text(state)}">{text(state.replace("_", " "))}</span></div>'
+    body += f'<p class="lead"><strong>Next:</strong> {text(STATE_HELP[state])}</p>'
+    body += f'<p class="demo-notice">{text(DEMO_NOTICE)}</p>'
+    body += f'<a class="refresh" href="{text(run_url(run.id))}">Refresh state</a>'
+    body += notice(message, error)
+    body += f'<div class="grid"><div>{_finding(data)}</div><div>{decision_forms(data)}</div></div>'
+    if run.status in _EXECUTION:
+        body += _section(
+            "Execution & recovery",
+            "A synthetic fault harness for the approved plan. Stop the separate "
+            "worker before using these controls.",
+        )
+        body += _proof(data)
+        body += f'<div class="grid"><div>{worker_forms(data)}</div><div>{callback_forms(data)}</div></div>'
+    body += _section(
+        "Audit trail", "Exact versions, every plan revision, and each callback."
     )
-    body += _history(data) + _events(data)
+    body += _artifacts(data) + _history(data) + _events(data)
     return document(run.id, body, refresh=run.status is WorkflowStatus.SUBMITTING)
+
+
+def _section(title: str, hint: str) -> str:
+    return (
+        f'<h2 class="section-title">{text(title)}</h2><p class="hint">{text(hint)}</p>'
+    )
 
 
 def _intro(title: str, subtitle: str) -> str:

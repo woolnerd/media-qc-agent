@@ -172,11 +172,8 @@ def worker_forms(data: ReviewSnapshot) -> str:
     if info.stopped:
         status += '<p class="notice error">Automatic recovery stopped. The original outcome needs reconciliation; capacity remains reserved.</p>'
     return panel(
-        "Recovery controls",
-        '<p class="hint">Synthetic fault harness. For a controlled interruption, pause the separate worker and use these steps.</p><div class="actions">'
-        + controls
-        + "</div>"
-        + status,
+        "Worker controls",
+        '<div class="actions">' + controls + "</div>" + status,
     )
 
 
