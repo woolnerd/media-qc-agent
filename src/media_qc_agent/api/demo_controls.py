@@ -203,6 +203,11 @@ class DemoControls:
             )
         except SimulatedProcessCrash:
             return "Interrupted after synthetic provider acceptance. Wait for lease expiry, then recover."
+        if result.outcome == "idle":
+            with self.database.repository() as repository:
+                current = repository.get(run.id).plan_version_id
+            if current != command.expected_plan_version_id:
+                raise ValueError(STALE_PLAN)
         return {
             "submitted": "Worker recorded the accepted job. Complete it to create the replacement.",
             "idle": "No claim made. Check lease, backoff, approval, and shared capacity; then refresh.",

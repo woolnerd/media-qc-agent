@@ -10,7 +10,7 @@ STATE_HELP = {
     "needs_input": "Choose whether to revise the script or change the avatar.",
     "needs_repair_input": "Bind the exact replacement input before approval.",
     "awaiting_approval": "Review this plan and its inputs, then approve its exact version.",
-    "ready": "Approved inputs are ready for execution.",
+    "ready": "Approved. Run the worker step below, or start the separate worker.",
     "submitting": "Submission is reserved. Inputs remain locked while acceptance is resolved.",
     "submitted": "The provider job is recorded. Completion will create its replacement version.",
     "succeeded": "Review the accepted replacement and its exact lineage.",
@@ -63,14 +63,17 @@ def review_page(data: ReviewSnapshot, message: str = "", error: bool = False) ->
     body += f'<a class="refresh" href="{text(run_url(run.id))}">Refresh state</a>'
     body += notice(message, error)
     body += f'<div class="grid"><div>{_finding(data)}</div><div>{decision_forms(data)}</div></div>'
-    if run.status in _EXECUTION:
+    if run.status in _EXECUTION or data.jobs:
         body += _section(
             "Execution & recovery",
-            "A synthetic fault harness for the approved plan. Stop the separate "
-            "worker before using these controls.",
+            "A synthetic fault harness. Stop the separate worker before using "
+            "these controls. Recorded jobs stay completable after a retry.",
         )
-        body += _proof(data)
-        body += f'<div class="grid"><div>{worker_forms(data)}</div><div>{callback_forms(data)}</div></div>'
+        if run.status in _EXECUTION:
+            body += _proof(data)
+            body += f'<div class="grid"><div>{worker_forms(data)}</div><div>{callback_forms(data)}</div></div>'
+        else:
+            body += callback_forms(data)
     body += _section(
         "Audit trail", "Exact versions, every plan revision, and each callback."
     )
@@ -96,11 +99,12 @@ def _proof(data: ReviewSnapshot) -> str:
             "Accepted video preserved",
             f'<p>Caption-only repair creates no video job. Review the active caption and video lineage below.</p><p class="hint">Caption: <code>{text(data.run.active_caption_version_id or "not yet repaired")}</code></p>',
             style="proof-panel",
+            level=3,
         )
     detail = f'<p class="hint">Accepted job: <code>{text(data.accepted_job or "not yet accepted")}</code></p>'
     counters = f'<div class="proof"><div><strong>{accepted}</strong><span>accepted job for the current key</span></div><div><strong data-testid="replacement-count">{count}</strong><span>replacement video for this plan</span></div></div>'
     title = "Single replacement confirmed" if count == 1 else "Recovery evidence"
-    return panel(title, counters + detail, style="proof-panel")
+    return panel(title, counters + detail, style="proof-panel", level=3)
 
 
 def _finding(data: ReviewSnapshot) -> str:
@@ -130,6 +134,7 @@ def _artifacts(data: ReviewSnapshot) -> str:
     return panel(
         "Artifact versions & lineage",
         table(("Kind", "Version", "Content / declaration", "Derived from"), rows),
+        level=3,
     )
 
 
@@ -167,6 +172,7 @@ def _history(data: ReviewSnapshot) -> str:
         current
         + table(("Revision", "Plan version", "Action", "Rationale", "Approval"), rows)
         + details,
+        level=3,
     )
 
 
@@ -185,4 +191,5 @@ def _events(data: ReviewSnapshot) -> str:
         table(("Event", "Provider job", "Disposition", "Reason"), rows)
         if data.events
         else '<p class="hint">No completion events yet.</p>',
+        level=3,
     )

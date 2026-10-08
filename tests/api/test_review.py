@@ -130,6 +130,38 @@ class ReviewTests(unittest.TestCase):
         )
         self.assertLess(page.index("Worker controls"), page.index("Audit trail"))
 
+    def test_superseded_job_can_still_be_completed_after_a_retry(self) -> None:
+        self.create()
+        self.command("approve")
+        self.command("submit")
+        job = self.run_state()["external_job_id"]
+        self.command("retry")
+        self.assertEqual(self.run_state()["status"], "awaiting_approval")
+        page = self.client.get("/review/review-1").text
+        self.assertIn("Complete synthetic job", page)
+        self.assertIn(job, page)
+        self.assertNotIn("Worker controls", page)
+        completed = self.command("complete", job)
+        self.assertNotIn('class="notice error"', completed.text)
+        with Database(self.path).repository() as repository:
+            events = repository.list_provider_events("review-1")
+        self.assertEqual([event.disposition for event in events], ["stale"])
+
+    def test_stale_worker_step_reports_the_changed_plan(self) -> None:
+        self.create()
+        self.command("approve")
+        response = self.command("submit", version="plan-review-1-0")
+        self.assertIn("no longer current", response.text)
+        self.assertEqual(self.run_state()["status"], "ready")
+
+    def test_ready_page_points_to_execution_not_a_disabled_approval(self) -> None:
+        self.create()
+        self.command("approve")
+        page = self.client.get("/review/review-1").text
+        self.assertNotIn("Approve this exact plan", page)
+        self.assertIn("Execution &amp; recovery", page)
+        self.assertIn("<h3>Worker controls</h3>", page)
+
     def test_stale_forms_do_not_mutate_the_current_plan(self) -> None:
         self.create("weak-script")
         old = self.run_state()["plan_version"]["id"]
