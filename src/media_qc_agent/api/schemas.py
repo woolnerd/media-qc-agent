@@ -35,20 +35,29 @@ class CreateRun(RequestBody):
     run_id: RunIdentifier
 
 
-class SelectRepair(RequestBody):
+class ReviewedCommand(RequestBody):
+    """The plan version the reviewer decided against; null before any plan."""
+
+    expected_plan_version_id: Identifier | None
+
+
+class SelectRepair(ReviewedCommand):
     action: RepairAction
 
 
-class BindArtifact(RequestBody):
+class BindArtifact(ReviewedCommand):
     version_id: Identifier
+
+
+class RequestRetry(ReviewedCommand):
+    pass
 
 
 class ApprovePlan(RequestBody):
     plan_version_id: Identifier
 
 
-class RevisePlan(RequestBody):
-    expected_plan_version_id: Identifier
+class RevisePlan(ReviewedCommand):
     action: RepairAction
     invalidates: frozenset[ArtifactKind]
     requires_repair_input: StrictBool
@@ -66,7 +75,7 @@ class Cue(RequestBody):
     text: Annotated[str, StringConstraints(strict=True, min_length=1, max_length=1000)]
 
 
-class RepairCaptions(RequestBody):
+class RepairCaptions(ReviewedCommand):
     version_id: Identifier
     cues: Annotated[list[Cue], Field(min_length=1, max_length=1000)]
 

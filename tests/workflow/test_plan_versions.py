@@ -132,8 +132,16 @@ class PlanVersionTests(unittest.TestCase):
 
     def test_unknown_provider_outcome_keeps_attempt_for_restart(self) -> None:
         original = self.create_run(FailureKind.ENVIRONMENT_MISMATCH)
-        self.repository.select_repair("run-1", RepairAction.CHANGE_AVATAR)
-        bound = self.repository.bind_replacement("run-1", "avatar-2")
+        self.repository.select_repair(
+            "run-1",
+            RepairAction.CHANGE_AVATAR,
+            expected_plan_version_id=self.repository.get("run-1").plan_version_id,
+        )
+        bound = self.repository.bind_replacement(
+            "run-1",
+            "avatar-2",
+            expected_plan_version_id=self.repository.get("run-1").plan_version_id,
+        )
         self.repository.approve("run-1", plan_version_id=bound.plan_version_id)
         submit = self.provider.submit
 
@@ -154,9 +162,16 @@ class PlanVersionTests(unittest.TestCase):
         self.assertEqual(reserved.plan_version_id, bound.plan_version_id)
         self.assertEqual(reserved.idempotency_key, bound.idempotency_key)
         with self.assertRaises(ValueError):
-            restarted.bind_replacement(original.id, "avatar-3")
+            restarted.bind_replacement(
+                original.id,
+                "avatar-3",
+                expected_plan_version_id=restarted.get(original.id).plan_version_id,
+            )
         with self.assertRaises(ValueError):
-            restarted.request_retry(original.id)
+            restarted.request_retry(
+                original.id,
+                expected_plan_version_id=restarted.get(original.id).plan_version_id,
+            )
         result = WorkflowExecutor(repository=restarted, provider=self.provider).submit(
             original.id
         )
@@ -207,8 +222,16 @@ class PlanVersionTests(unittest.TestCase):
 
     def test_clarification_records_exact_replacement_and_reapproval(self) -> None:
         self.create_run(FailureKind.ENVIRONMENT_MISMATCH)
-        selected = self.repository.select_repair("run-1", RepairAction.CHANGE_AVATAR)
-        bound = self.repository.bind_replacement("run-1", "avatar-2")
+        selected = self.repository.select_repair(
+            "run-1",
+            RepairAction.CHANGE_AVATAR,
+            expected_plan_version_id=self.repository.get("run-1").plan_version_id,
+        )
+        bound = self.repository.bind_replacement(
+            "run-1",
+            "avatar-2",
+            expected_plan_version_id=self.repository.get("run-1").plan_version_id,
+        )
         assert bound.plan_version is not None
         assert bound.plan_version_id is not None
         self.assertEqual(bound.plan_version.sources.avatar_version_id, "avatar-2")
@@ -220,7 +243,11 @@ class PlanVersionTests(unittest.TestCase):
         approved = self.repository.approve(
             "run-1", plan_version_id=bound.plan_version_id
         )
-        edited = self.repository.bind_replacement("run-1", "avatar-3")
+        edited = self.repository.bind_replacement(
+            "run-1",
+            "avatar-3",
+            expected_plan_version_id=self.repository.get("run-1").plan_version_id,
+        )
         self.assertIsNone(edited.approval)
         self.assertEqual(edited.status, WorkflowStatus.AWAITING_APPROVAL)
         self.assertEqual(
@@ -237,9 +264,21 @@ class PlanVersionTests(unittest.TestCase):
     ) -> None:
         self.create_run(FailureKind.ENVIRONMENT_MISMATCH)
         runs = [
-            self.repository.select_repair("run-1", RepairAction.CHANGE_AVATAR),
-            self.repository.bind_replacement("run-1", "avatar-2"),
-            self.repository.bind_replacement("run-1", "avatar-3"),
+            self.repository.select_repair(
+                "run-1",
+                RepairAction.CHANGE_AVATAR,
+                expected_plan_version_id=self.repository.get("run-1").plan_version_id,
+            ),
+            self.repository.bind_replacement(
+                "run-1",
+                "avatar-2",
+                expected_plan_version_id=self.repository.get("run-1").plan_version_id,
+            ),
+            self.repository.bind_replacement(
+                "run-1",
+                "avatar-3",
+                expected_plan_version_id=self.repository.get("run-1").plan_version_id,
+            ),
         ]
         versions = self.repository.get_plan_versions("run-1")
         self.assertEqual(len(versions), len(runs))
@@ -257,7 +296,10 @@ class PlanVersionTests(unittest.TestCase):
         self.repository.approve("run-1", plan_version_id=original.plan_version_id)
         executor = WorkflowExecutor(repository=self.repository, provider=self.provider)
         executor.submit("run-1")
-        retried = self.repository.request_retry("run-1")
+        retried = self.repository.request_retry(
+            "run-1",
+            expected_plan_version_id=self.repository.get("run-1").plan_version_id,
+        )
         self.assertNotEqual(retried.plan_version_id, original.plan_version_id)
         self.assertIsNone(retried.approval)
         with self.assertRaisesRegex(ValueError, "version"):
@@ -381,15 +423,27 @@ class PlanVersionTests(unittest.TestCase):
             script_version_id="script-2",
             capabilities=SpokenTextCapabilities("fake", "literal", frozenset()),
         )
-        self.repository.bind_replacement("run-1", "script-2")
-        revised = self.repository.bind_tts_input("run-1", "tts-2")
+        self.repository.bind_replacement(
+            "run-1",
+            "script-2",
+            expected_plan_version_id=self.repository.get("run-1").plan_version_id,
+        )
+        revised = self.repository.bind_tts_input(
+            "run-1",
+            "tts-2",
+            expected_plan_version_id=self.repository.get("run-1").plan_version_id,
+        )
         assert revised.plan_version is not None
         self.assertEqual(
             revised.plan_version.replacement_choices,
             ((ArtifactKind.SCRIPT, "script-2"), (ArtifactKind.TTS_INPUT, "tts-2")),
         )
         self.repository.approve("run-1", plan_version_id=revised.plan_version_id)
-        rebound = self.repository.bind_tts_input("run-1", "tts-3")
+        rebound = self.repository.bind_tts_input(
+            "run-1",
+            "tts-3",
+            expected_plan_version_id=self.repository.get("run-1").plan_version_id,
+        )
         self.assertIsNone(rebound.approval)
         self.assertEqual(rebound.status, WorkflowStatus.AWAITING_APPROVAL)
         self.assertEqual(WorkflowRepository(self.connection).get("run-1"), rebound)

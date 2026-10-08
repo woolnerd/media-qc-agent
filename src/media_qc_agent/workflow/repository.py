@@ -94,6 +94,10 @@ _SOURCE_FIELD = {
     ArtifactKind.TTS_INPUT: "tts_input_version_id",
     ArtifactKind.AVATAR: "avatar_version_id",
 }
+STALE_PLAN = (
+    "The reviewed plan version is no longer current. "
+    "Refresh and review the current version."
+)
 _TOUCH = "updated_at = strftime('%Y-%m-%dT%H:%M:%fZ', 'now')"
 
 
@@ -223,12 +227,19 @@ class WorkflowRepository:
 
     # Changing the plan
 
-    def select_repair(self, run_id: str, action: RepairAction) -> WorkflowRun:
+    def select_repair(
+        self,
+        run_id: str,
+        action: RepairAction,
+        *,
+        expected_plan_version_id: str | None,
+    ) -> WorkflowRun:
         """Record a human's creative choice; the repair then awaits its input."""
 
         with self._connection:
             self._connection.execute("BEGIN IMMEDIATE")
             current = self.get(run_id)
+            _require_current_version(current, expected_plan_version_id)
             if (
                 current.status is not WorkflowStatus.NEEDS_INPUT
                 or current.clarification is None
@@ -273,14 +284,14 @@ class WorkflowRepository:
         run_id: str,
         version_id: str,
         *,
-        expected_plan_version_id: str | None = None,
+        expected_plan_version_id: str | None,
     ) -> WorkflowRun:
         """Bind the exact new input a repair requires before approval."""
 
         with self._connection:
             self._connection.execute("BEGIN IMMEDIATE")
             current = self.get(run_id)
-            _require_optional_version(current, expected_plan_version_id)
+            _require_current_version(current, expected_plan_version_id)
             if current.status not in _EDITABLE or current.plan is None:
                 raise ValueError("workflow is not awaiting repair input")
             kind = _REPLACEABLE_SOURCE.get(current.plan.action)
@@ -305,14 +316,14 @@ class WorkflowRepository:
         run_id: str,
         version_id: str,
         *,
-        expected_plan_version_id: str | None = None,
+        expected_plan_version_id: str | None,
     ) -> WorkflowRun:
         """Pair a revised script with spoken text derived from it."""
 
         with self._connection:
             self._connection.execute("BEGIN IMMEDIATE")
             current = self.get(run_id)
-            _require_optional_version(current, expected_plan_version_id)
+            _require_current_version(current, expected_plan_version_id)
             if (
                 current.status
                 not in {WorkflowStatus.AWAITING_APPROVAL, WorkflowStatus.READY}
@@ -337,14 +348,14 @@ class WorkflowRepository:
         return self.get(run_id)
 
     def request_retry(
-        self, run_id: str, *, expected_plan_version_id: str | None = None
+        self, run_id: str, *, expected_plan_version_id: str | None
     ) -> WorkflowRun:
         """Supersede the submitted job; the new attempt needs its own approval."""
 
         with self._connection:
             self._connection.execute("BEGIN IMMEDIATE")
             current = self.get(run_id)
-            _require_optional_version(current, expected_plan_version_id)
+            _require_current_version(current, expected_plan_version_id)
             if (
                 current.status
                 not in {WorkflowStatus.SUBMITTED, WorkflowStatus.SUCCEEDED}
@@ -443,8 +454,9 @@ class WorkflowRepository:
             current = self.get(run_id)
             if current.status is not WorkflowStatus.AWAITING_APPROVAL:
                 raise ValueError("workflow is not awaiting approval")
-            if plan_version_id is None or current.plan_version_id != plan_version_id:
-                raise ValueError("reviewed plan version is no longer current")
+            if plan_version_id is None:
+                raise ValueError(STALE_PLAN)
+            _require_current_version(current, plan_version_id)
             self.artifacts.validate_tts_binding(current.sources)
             self._require_environment_resolved(current)
             self._connection.execute(
@@ -659,7 +671,7 @@ class WorkflowRepository:
         run_id: str,
         version_id: str,
         cues: tuple[CaptionCue, ...],
-        expected_plan_version_id: str | None = None,
+        expected_plan_version_id: str | None,
     ) -> ArtifactVersion:
         """Promote validated captions locally; the accepted video is kept."""
 
@@ -670,7 +682,7 @@ class WorkflowRepository:
         with self._connection:
             self._connection.execute("BEGIN IMMEDIATE")
             run = self.get(run_id)
-            _require_optional_version(run, expected_plan_version_id)
+            _require_current_version(run, expected_plan_version_id)
             if (
                 run.status is not WorkflowStatus.READY
                 or run.plan is None
@@ -944,13 +956,13 @@ def _revised_status(current: WorkflowRun, plan: RepairPlan) -> WorkflowStatus:
 
 
 def _require_current_version(run: WorkflowRun, expected: str | None) -> None:
-    if expected is None or run.plan_version_id != expected:
-        raise ValueError("reviewed plan version is no longer current")
+    """Every reviewer command names the plan version it was decided against.
 
+    None means the run had no plan yet, as when a creative choice is pending.
+    """
 
-def _require_optional_version(run: WorkflowRun, expected: str | None) -> None:
-    if expected is not None:
-        _require_current_version(run, expected)
+    if run.plan_version_id != expected:
+        raise ValueError(STALE_PLAN)
 
 
 def _require_video_submission(run: WorkflowRun) -> None:

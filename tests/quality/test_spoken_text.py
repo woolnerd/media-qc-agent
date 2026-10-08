@@ -175,7 +175,11 @@ class TtsInputVersionTests(unittest.TestCase):
         with self.assertRaises(KeyError):
             self.repository.artifacts.get("tts-2")
         with self.assertRaises(KeyError):
-            self.repository.bind_replacement("run-1", "tts-2")
+            self.repository.bind_replacement(
+                "run-1",
+                "tts-2",
+                expected_plan_version_id=self.repository.get("run-1").plan_version_id,
+            )
         with self.assertRaisesRegex(ValueError, "not awaiting approval"):
             self.repository.approve(
                 "run-1", plan_version_id=self.repository.get("run-1").plan_version_id

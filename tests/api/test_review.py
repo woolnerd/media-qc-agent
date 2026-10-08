@@ -125,7 +125,7 @@ class ReviewTests(unittest.TestCase):
         ):
             with self.subTest(action=action):
                 response = self.command(action, value, version=old)
-                self.assertIn("The plan changed", response.text)
+                self.assertIn("no longer current", response.text)
                 self.assertEqual(self.run_state(), current)
 
     def test_forms_complete_all_nonvisual_scenarios(self) -> None:
@@ -234,7 +234,10 @@ class ReviewTests(unittest.TestCase):
             command: UiCommand,
         ) -> None:
             if action == "retry":
-                updated = repository.request_retry(run.id)
+                updated = repository.request_retry(
+                    run.id,
+                    expected_plan_version_id=repository.get(run.id).plan_version_id,
+                )
             else:
                 assert run.plan is not None
                 updated = repository.revise_plan(

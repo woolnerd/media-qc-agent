@@ -84,7 +84,10 @@ class ArtifactLineageTests(unittest.TestCase):
             version_id="caption-1", video_version_id=first_video
         )
 
-        self.repository.request_retry("run-1")
+        self.repository.request_retry(
+            "run-1",
+            expected_plan_version_id=self.repository.get("run-1").plan_version_id,
+        )
         second_job = self.submit("run-1")
         self.repository.record_completion(
             external_job_id=second_job, external_event_id="event-2"
@@ -134,14 +137,22 @@ class ArtifactLineageTests(unittest.TestCase):
         self,
     ) -> None:
         self.create_run("run-1", FailureKind.ENVIRONMENT_MISMATCH)
-        self.repository.select_repair("run-1", RepairAction.REVISE_SCRIPT)
+        self.repository.select_repair(
+            "run-1",
+            RepairAction.REVISE_SCRIPT,
+            expected_plan_version_id=self.repository.get("run-1").plan_version_id,
+        )
         self.repository.artifacts.create_script_version(
             version_id="script-2",
             authored_text="A revised synthetic sentence.",
             scene=ScriptScene(Environment.NEUTRAL),
         )
 
-        bound = self.repository.bind_replacement("run-1", "script-2")
+        bound = self.repository.bind_replacement(
+            "run-1",
+            "script-2",
+            expected_plan_version_id=self.repository.get("run-1").plan_version_id,
+        )
 
         self.assertEqual(bound.status, WorkflowStatus.AWAITING_APPROVAL)
         self.assertEqual(bound.sources.script_version_id, "script-2")
@@ -156,7 +167,11 @@ class ArtifactLineageTests(unittest.TestCase):
                 "synthetic-tts", "literal-v1", frozenset()
             ),
         )
-        self.repository.bind_tts_input("run-1", "tts-2")
+        self.repository.bind_tts_input(
+            "run-1",
+            "tts-2",
+            expected_plan_version_id=self.repository.get("run-1").plan_version_id,
+        )
         job_id = self.submit("run-1")
         self.repository.record_completion(
             external_job_id=job_id, external_event_id="event-1"
@@ -174,21 +189,37 @@ class ArtifactLineageTests(unittest.TestCase):
 
     def test_wrong_kind_replacement_stays_blocked(self) -> None:
         self.create_run("run-1", FailureKind.ENVIRONMENT_MISMATCH)
-        self.repository.select_repair("run-1", RepairAction.CHANGE_AVATAR)
+        self.repository.select_repair(
+            "run-1",
+            RepairAction.CHANGE_AVATAR,
+            expected_plan_version_id=self.repository.get("run-1").plan_version_id,
+        )
         with self.assertRaisesRegex(ValueError, "avatar"):
-            self.repository.bind_replacement("run-1", "script-1")
+            self.repository.bind_replacement(
+                "run-1",
+                "script-1",
+                expected_plan_version_id=self.repository.get("run-1").plan_version_id,
+            )
         self.assertEqual(
             self.repository.get("run-1").status, WorkflowStatus.NEEDS_REPAIR_INPUT
         )
 
     def test_avatar_replacement_binds_selected_version(self) -> None:
         self.create_run("run-1", FailureKind.ENVIRONMENT_MISMATCH)
-        self.repository.select_repair("run-1", RepairAction.CHANGE_AVATAR)
+        self.repository.select_repair(
+            "run-1",
+            RepairAction.CHANGE_AVATAR,
+            expected_plan_version_id=self.repository.get("run-1").plan_version_id,
+        )
         self.repository.artifacts.create_avatar_version(
             version_id="avatar-2", environment=Environment.NEUTRAL
         )
 
-        bound = self.repository.bind_replacement("run-1", "avatar-2")
+        bound = self.repository.bind_replacement(
+            "run-1",
+            "avatar-2",
+            expected_plan_version_id=self.repository.get("run-1").plan_version_id,
+        )
 
         self.assertEqual(bound.status, WorkflowStatus.AWAITING_APPROVAL)
         self.assertEqual(bound.sources.avatar_version_id, "avatar-2")
@@ -197,7 +228,10 @@ class ArtifactLineageTests(unittest.TestCase):
     def test_stale_completion_cannot_create_or_promote_video(self) -> None:
         self.create_run("run-1", FailureKind.VISUAL_QUALITY)
         old_job = self.submit("run-1")
-        self.repository.request_retry("run-1")
+        self.repository.request_retry(
+            "run-1",
+            expected_plan_version_id=self.repository.get("run-1").plan_version_id,
+        )
         current_job = self.submit("run-1")
 
         self.repository.record_completion(

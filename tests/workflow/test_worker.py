@@ -92,7 +92,13 @@ class WorkerTests(unittest.TestCase):
                 current = repository.get("run-1")
                 self.assertEqual(current.status, "submitting")
                 with self.assertRaises(ValueError):
-                    repository.bind_replacement("run-1", "avatar-api-kitchen")
+                    repository.bind_replacement(
+                        "run-1",
+                        "avatar-api-kitchen",
+                        expected_plan_version_id=repository.get(
+                            "run-1"
+                        ).plan_version_id,
+                    )
             return submit(idempotency_key=idempotency_key, action=action)
 
         with patch.object(self.provider, "submit", side_effect=check_reserved):
@@ -377,7 +383,10 @@ class WorkerTests(unittest.TestCase):
         self.create()
         self.worker().run_once()
         with self.database.repository() as repository:
-            retry = repository.request_retry("run-1")
+            retry = repository.request_retry(
+                "run-1",
+                expected_plan_version_id=repository.get("run-1").plan_version_id,
+            )
         self.assertEqual(self.worker().run_once().outcome, "idle")
         with self.database.repository() as repository:
             repository.approve("run-1", plan_version_id=retry.plan_version_id)
@@ -434,7 +443,10 @@ class WorkerTests(unittest.TestCase):
         old = worker.run_once()
         assert old.external_job_id is not None
         with self.database.repository() as repository:
-            retry = repository.request_retry("run-1")
+            retry = repository.request_retry(
+                "run-1",
+                expected_plan_version_id=repository.get("run-1").plan_version_id,
+            )
             repository.approve("run-1", plan_version_id=retry.plan_version_id)
         self.assertEqual(worker.run_once().outcome, "idle")
         with self.database.repository() as repository:

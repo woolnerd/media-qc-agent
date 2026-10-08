@@ -43,6 +43,10 @@ class ApiTests(unittest.TestCase):
         self.assertEqual(response.status_code, 200, response.text)
         return response.json()
 
+    def reviewed(self, run_id: str = "run-1") -> str | None:
+        version = self.client.get(f"/runs/{run_id}").json()["plan_version"]
+        return version["id"] if version else None
+
     def submit(self, run_id: str = "run-1") -> str:
         # Worker behavior is exercised through the existing executor, not an HTTP submit.
         with Database(self.path).repository() as repository:
@@ -169,6 +173,7 @@ class ApiTests(unittest.TestCase):
                     content=json.dumps(
                         {
                             "version_id": "caption-invalid",
+                            "expected_plan_version_id": approved["plan_version"]["id"],
                             "cues": [
                                 {"start_ms": 0, "end_ms": number, "text": "Fixed"}
                             ],
@@ -180,6 +185,40 @@ class ApiTests(unittest.TestCase):
                 self.assertEqual(response.json()["detail"][0]["type"], "int_type")
                 self.assertNotIn("Out of range", response.text)
         self.assertEqual(self.client.get("/runs/run-1").json(), approved)
+
+    def test_every_reviewer_command_requires_the_current_reviewed_version(
+        self,
+    ) -> None:
+        commands: tuple[tuple[str, str, dict[str, object]], ...] = (
+            ("environment-mismatch", "select-repair", {"action": "change_avatar"}),
+            ("tts-input", "replacement", {"version_id": "tts-api-replacement"}),
+            ("weak-script", "replacement", {"version_id": "script-api-revised"}),
+            (
+                "caption-format",
+                "captions",
+                {
+                    "version_id": "caption-x",
+                    "cues": [{"start_ms": 0, "end_ms": 900, "text": "Fixed"}],
+                },
+            ),
+            ("jerky-video", "retry", {}),
+        )
+        for scenario, endpoint, body in commands:
+            with self.subTest(endpoint=endpoint, scenario=scenario):
+                self.create(scenario, scenario)
+                before = self.client.get(f"/runs/{scenario}").json()
+                path = f"/runs/{scenario}/{endpoint}"
+                missing = self.client.post(path, json=body)
+                self.assertEqual(missing.status_code, 422, missing.text)
+                self.assertEqual(
+                    missing.json()["detail"][0]["loc"][-1], "expected_plan_version_id"
+                )
+                stale = self.client.post(
+                    path, json={**body, "expected_plan_version_id": "plan-stale-1"}
+                )
+                self.assertEqual(stale.status_code, 409, stale.text)
+                self.assertIn("no longer current", stale.text)
+                self.assertEqual(self.client.get(f"/runs/{scenario}").json(), before)
 
     def test_missing_resources_and_duplicate_ids_have_safe_errors(self) -> None:
         for endpoint in (
@@ -263,23 +302,39 @@ class ApiTests(unittest.TestCase):
         )
         self.assertEqual(
             self.client.post(
-                "/runs/run-1/select-repair", json={"action": "regenerate_video"}
+                "/runs/run-1/select-repair",
+                json={
+                    "action": "regenerate_video",
+                    "expected_plan_version_id": self.reviewed(),
+                },
             ).status_code,
             409,
         )
         selected = self.client.post(
-            "/runs/run-1/select-repair", json={"action": "change_avatar"}
+            "/runs/run-1/select-repair",
+            json={
+                "action": "change_avatar",
+                "expected_plan_version_id": self.reviewed(),
+            },
         )
         self.assertEqual(selected.status_code, 200)
         self.assertEqual(selected.json()["status"], "needs_repair_input")
         self.assertEqual(
             self.client.post(
-                "/runs/run-1/replacement", json={"version_id": "script-api-revised"}
+                "/runs/run-1/replacement",
+                json={
+                    "version_id": "script-api-revised",
+                    "expected_plan_version_id": self.reviewed(),
+                },
             ).status_code,
             409,
         )
         replaced = self.client.post(
-            "/runs/run-1/replacement", json={"version_id": "avatar-api-kitchen"}
+            "/runs/run-1/replacement",
+            json={
+                "version_id": "avatar-api-kitchen",
+                "expected_plan_version_id": self.reviewed(),
+            },
         )
         self.assertEqual(replaced.status_code, 200, replaced.text)
         self.assertEqual(self.approve()["status"], "ready")
@@ -287,7 +342,11 @@ class ApiTests(unittest.TestCase):
     def test_script_repair_requires_matching_derived_tts(self) -> None:
         self.create("weak-script")
         replaced = self.client.post(
-            "/runs/run-1/replacement", json={"version_id": "script-api-revised"}
+            "/runs/run-1/replacement",
+            json={
+                "version_id": "script-api-revised",
+                "expected_plan_version_id": self.reviewed(),
+            },
         )
         self.assertEqual(replaced.status_code, 200)
         self.assertEqual(
@@ -299,13 +358,21 @@ class ApiTests(unittest.TestCase):
         )
         self.assertEqual(
             self.client.post(
-                "/runs/run-1/tts-input", json={"version_id": "tts-api-replacement"}
+                "/runs/run-1/tts-input",
+                json={
+                    "version_id": "tts-api-replacement",
+                    "expected_plan_version_id": self.reviewed(),
+                },
             ).status_code,
             409,
         )
         self.assertEqual(
             self.client.post(
-                "/runs/run-1/tts-input", json={"version_id": "tts-api-revised"}
+                "/runs/run-1/tts-input",
+                json={
+                    "version_id": "tts-api-revised",
+                    "expected_plan_version_id": self.reviewed(),
+                },
             ).status_code,
             200,
         )
@@ -314,7 +381,11 @@ class ApiTests(unittest.TestCase):
     def test_tts_repair_binds_replacement_without_changing_script(self) -> None:
         original = self.create("tts-input")
         response = self.client.post(
-            "/runs/run-1/replacement", json={"version_id": "tts-api-replacement"}
+            "/runs/run-1/replacement",
+            json={
+                "version_id": "tts-api-replacement",
+                "expected_plan_version_id": self.reviewed(),
+            },
         )
         self.assertEqual(response.status_code, 200, response.text)
         self.assertEqual(
@@ -330,7 +401,11 @@ class ApiTests(unittest.TestCase):
             "end_ms": 1000,
             "text": "Fixed caption.",
         }
-        repair = {"version_id": "caption-repaired", "cues": [cue]}
+        repair = {
+            "version_id": "caption-repaired",
+            "cues": [cue],
+            "expected_plan_version_id": self.reviewed(),
+        }
         self.assertEqual(
             self.client.post("/runs/run-1/captions", json=repair).status_code, 409
         )
@@ -354,7 +429,12 @@ class ApiTests(unittest.TestCase):
         self.create()
         self.approve()
         old_job = self.submit()
-        self.assertEqual(self.client.post("/runs/run-1/retry").status_code, 200)
+        self.assertEqual(
+            self.client.post(
+                "/runs/run-1/retry", json={"expected_plan_version_id": self.reviewed()}
+            ).status_code,
+            200,
+        )
         self.approve()
         new_job = self.submit()
         stale = self.callback(old_job, "old-completed")

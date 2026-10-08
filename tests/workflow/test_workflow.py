@@ -154,7 +154,11 @@ class WorkflowIntegrationTests(unittest.TestCase):
         )
 
         selected = self.repository.select_repair(
-            "mismatch-script", RepairAction.REVISE_SCRIPT
+            "mismatch-script",
+            RepairAction.REVISE_SCRIPT,
+            expected_plan_version_id=self.repository.get(
+                "mismatch-script"
+            ).plan_version_id,
         )
 
         self.assertEqual(selected.status, WorkflowStatus.NEEDS_REPAIR_INPUT)
@@ -210,10 +214,18 @@ class WorkflowIntegrationTests(unittest.TestCase):
 
         with self.assertRaisesRegex(ValueError, "not offered"):
             self.repository.select_repair(
-                "mismatch-avatar", RepairAction.REGENERATE_VIDEO
+                "mismatch-avatar",
+                RepairAction.REGENERATE_VIDEO,
+                expected_plan_version_id=self.repository.get(
+                    "mismatch-avatar"
+                ).plan_version_id,
             )
         selected = self.repository.select_repair(
-            "mismatch-avatar", RepairAction.CHANGE_AVATAR
+            "mismatch-avatar",
+            RepairAction.CHANGE_AVATAR,
+            expected_plan_version_id=self.repository.get(
+                "mismatch-avatar"
+            ).plan_version_id,
         )
 
         assert selected.plan is not None
@@ -223,7 +235,13 @@ class WorkflowIntegrationTests(unittest.TestCase):
             {ArtifactKind.AVATAR, ArtifactKind.VIDEO, ArtifactKind.CAPTIONS},
         )
         with self.assertRaisesRegex(ValueError, "not awaiting clarification"):
-            self.repository.select_repair("mismatch-avatar", RepairAction.REVISE_SCRIPT)
+            self.repository.select_repair(
+                "mismatch-avatar",
+                RepairAction.REVISE_SCRIPT,
+                expected_plan_version_id=self.repository.get(
+                    "mismatch-avatar"
+                ).plan_version_id,
+            )
 
     def test_clarification_and_selected_plan_survive_repository_restart(self) -> None:
         self.repository.create(
@@ -242,7 +260,11 @@ class WorkflowIntegrationTests(unittest.TestCase):
         assert unresolved.clarification is not None
         self.assertEqual(len(unresolved.clarification.options), 2)
 
-        restarted.select_repair("mismatch-restart", RepairAction.CHANGE_AVATAR)
+        restarted.select_repair(
+            "mismatch-restart",
+            RepairAction.CHANGE_AVATAR,
+            expected_plan_version_id=restarted.get("mismatch-restart").plan_version_id,
+        )
         selected = WorkflowRepository(self.connection).get("mismatch-restart")
         self.assertIsNone(selected.clarification)
         assert selected.plan is not None

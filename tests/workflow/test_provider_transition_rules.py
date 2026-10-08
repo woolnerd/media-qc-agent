@@ -69,7 +69,10 @@ class ProviderTransitionRuleTests(unittest.TestCase):
 
     def test_new_completion_before_old_keeps_new_video_and_audits_old(self) -> None:
         old_job = self.submit()
-        self.repository.request_retry("run-1")
+        self.repository.request_retry(
+            "run-1",
+            expected_plan_version_id=self.repository.get("run-1").plan_version_id,
+        )
         new_job = self.submit()
 
         self.repository.record_completion(

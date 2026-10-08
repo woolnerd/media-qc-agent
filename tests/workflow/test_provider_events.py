@@ -186,7 +186,10 @@ class ProviderCompletionTests(unittest.TestCase):
 
     def test_old_job_completion_is_recorded_without_advancing_new_retry(self) -> None:
         old_job_id = self.submit_run("run-1")
-        awaiting_approval = self.repository.request_retry("run-1")
+        awaiting_approval = self.repository.request_retry(
+            "run-1",
+            expected_plan_version_id=self.repository.get("run-1").plan_version_id,
+        )
         self.assertEqual(awaiting_approval.status, WorkflowStatus.AWAITING_APPROVAL)
         self.repository.approve(
             "run-1", plan_version_id=self.repository.get("run-1").plan_version_id
@@ -217,7 +220,10 @@ class ProviderCompletionTests(unittest.TestCase):
 
     def test_old_completion_during_retry_approval_is_stale(self) -> None:
         old_job_id = self.submit_run("run-1")
-        self.repository.request_retry("run-1")
+        self.repository.request_retry(
+            "run-1",
+            expected_plan_version_id=self.repository.get("run-1").plan_version_id,
+        )
 
         result = self.repository.record_completion(
             external_job_id=old_job_id, external_event_id="late-during-approval"
@@ -231,7 +237,10 @@ class ProviderCompletionTests(unittest.TestCase):
 
     def test_retry_requires_fresh_approval_and_uses_unique_job_keys(self) -> None:
         first_job_id = self.submit_run("run-1")
-        self.repository.request_retry("run-1")
+        self.repository.request_retry(
+            "run-1",
+            expected_plan_version_id=self.repository.get("run-1").plan_version_id,
+        )
         with self.assertRaisesRegex(ValueError, "approved"):
             WorkflowExecutor(repository=self.repository, provider=self.provider).submit(
                 "run-1"
@@ -244,7 +253,10 @@ class ProviderCompletionTests(unittest.TestCase):
             .submit("run-1")
             .external_job_id
         )
-        self.repository.request_retry("run-1")
+        self.repository.request_retry(
+            "run-1",
+            expected_plan_version_id=self.repository.get("run-1").plan_version_id,
+        )
         self.repository.approve(
             "run-1", plan_version_id=self.repository.get("run-1").plan_version_id
         )

@@ -7,6 +7,7 @@ from media_qc_agent.api.schemas import (
     BindArtifact,
     ProviderCompletion,
     RepairCaptions,
+    RequestRetry,
     RevisePlan,
     SelectRepair,
 )
@@ -33,9 +34,11 @@ def action_routes(database: Database) -> APIRouter:
             return repository.approve(run_id, plan_version_id=body.plan_version_id)
 
     @router.post("/runs/{run_id}/retry")
-    def retry(run_id: str) -> object:
+    def retry(run_id: str, body: RequestRetry) -> object:
         with database.repository() as repository:
-            return repository.request_retry(run_id)
+            return repository.request_retry(
+                run_id, expected_plan_version_id=body.expected_plan_version_id
+            )
 
     router.include_router(completion_routes(database))
     return router
@@ -47,17 +50,29 @@ def input_routes(database: Database) -> APIRouter:
     @router.post("/runs/{run_id}/select-repair")
     def select_repair(run_id: str, body: SelectRepair) -> object:
         with database.repository() as repository:
-            return repository.select_repair(run_id, body.action)
+            return repository.select_repair(
+                run_id,
+                body.action,
+                expected_plan_version_id=body.expected_plan_version_id,
+            )
 
     @router.post("/runs/{run_id}/replacement")
     def bind_replacement(run_id: str, body: BindArtifact) -> object:
         with database.repository() as repository:
-            return repository.bind_replacement(run_id, body.version_id)
+            return repository.bind_replacement(
+                run_id,
+                body.version_id,
+                expected_plan_version_id=body.expected_plan_version_id,
+            )
 
     @router.post("/runs/{run_id}/tts-input")
     def bind_tts_input(run_id: str, body: BindArtifact) -> object:
         with database.repository() as repository:
-            return repository.bind_tts_input(run_id, body.version_id)
+            return repository.bind_tts_input(
+                run_id,
+                body.version_id,
+                expected_plan_version_id=body.expected_plan_version_id,
+            )
 
     return router
 
@@ -74,6 +89,7 @@ def completion_routes(database: Database) -> APIRouter:
                 cues=tuple(
                     CaptionCue(cue.start_ms, cue.end_ms, cue.text) for cue in body.cues
                 ),
+                expected_plan_version_id=body.expected_plan_version_id,
             )
 
     @router.post("/callbacks/provider")
