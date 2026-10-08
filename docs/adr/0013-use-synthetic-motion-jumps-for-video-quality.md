@@ -33,4 +33,4 @@ The signal is deterministic and auditable, but the threshold is illustrative,
 not calibrated to a provider or human-quality standard. It can miss unnatural
 motion without measured jumps and can flag purposeful fast movement. Human or
 later multimodal review remains necessary for those cases. See the
-[visual-quality signal guide](../quality/visual-quality-signal.md).
+[visual-quality signal guide](https://github.com/woolnerd/media-qc-agent/blob/1762b8a69dcd694d6203d7b18b107aae6568be21/docs/quality/visual-quality-signal.md).
