@@ -125,10 +125,6 @@ class WorkflowExecutorBoundaryTests(unittest.TestCase):
         self.assertEqual(self.store.recorded_submissions, 0)
 
 
-if __name__ == "__main__":
-    unittest.main()
-
-
 class SubmissionCheckTests(unittest.TestCase):
     """One check guards both the store's reservation and the executor."""
 
@@ -147,6 +143,7 @@ class SubmissionCheckTests(unittest.TestCase):
             (replace(self.approved, idempotency_key=None), "executable"),
             (replace(self.approved, plan=caption), "caption repair"),
             (replace(self.approved, approval=None), "plan-version approval"),
+            (replace(self.approved, plan=caption, approval=None), "caption repair"),
         )
         for run, reason in cases:
             with (
@@ -159,3 +156,7 @@ class SubmissionCheckTests(unittest.TestCase):
         for status in (WorkflowStatus.READY, WorkflowStatus.SUBMITTING):
             with self.subTest(status=status):
                 require_video_submission(replace(self.approved, status=status))
+
+
+if __name__ == "__main__":
+    unittest.main()
