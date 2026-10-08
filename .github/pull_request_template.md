@@ -14,6 +14,8 @@ with no architectural effect, say why a diagram and ADR are unnecessary.
 
 ## Failure scenarios and evidence
 
+What happens if execution stops halfway through this change?
+
 | Scenario / invariant | Test or reproduction | Result and limits |
 | --- | --- | --- |
 | | | |

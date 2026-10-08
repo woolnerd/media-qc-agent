@@ -42,4 +42,4 @@ fails CI until the snapshot is regenerated, which makes the change visible in
 the PR diff. Prompt changes still require a live run before they can be compared. Adding a
 policy version adds a column to the report and requires a snapshot update.
 
-See [policy comparison](https://github.com/woolnerd/media-qc-agent/blob/1762b8a/docs/agent/policy-comparison.md).
+See [policy comparison](https://github.com/woolnerd/media-qc-agent/blob/1762b8a69dcd694d6203d7b18b107aae6568be21/docs/agent/policy-comparison.md).

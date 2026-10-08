@@ -42,4 +42,4 @@ version tied to the exact script version and a synthetic provider/model
 capability profile. Ambiguous input is reported before a version can be used by
 a workflow. It does not inspect rendered audio or prove that an explicit human
 rewrite preserves the intended meaning; those remain review concerns. See the
-[spoken-text gate](https://github.com/woolnerd/media-qc-agent/blob/1762b8a/docs/quality/spoken-text-gate.md) for supported synthetic notation.
+[spoken-text gate](https://github.com/woolnerd/media-qc-agent/blob/1762b8a69dcd694d6203d7b18b107aae6568be21/docs/quality/spoken-text-gate.md) for supported synthetic notation.

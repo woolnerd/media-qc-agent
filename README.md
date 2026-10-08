@@ -30,6 +30,10 @@ application policy decides the repair scope, the repository owns every durable
 transition, and the worker owns the external call. The model has no approval or
 media-generation authority.
 
+Today the model runs only in the interpretation demo and the evaluations,
+which measure this gate-first routing. The review lab and worker start from
+seeded findings and never call a model.
+
 Scope follows the failure. Jerky video invalidates the video and its captions
 but keeps the approved script, avatar, and voice. A weak script invalidates
 everything derived from it.
@@ -95,11 +99,16 @@ PYTHONPATH=src python3 -m media_qc_agent.cli.serve
 
 Open <http://127.0.0.1:8000/> for the review lab, or `/docs` for the API. Five
 synthetic scenarios cover the failure table above, using one invented brand.
-To see crash recovery, create a **jerky-video** run and approve it. Then click
-**Interrupt after acceptance**, so the fake provider accepts a job but the
-process stops before recording it. When the 30-second lease expires, click
-**Recover interrupted submission**: the same key returns the original job. Finally, complete the job
-and replay the callback; there is still one replacement video.
+Callbacks are synthetic and unauthenticated. If startup reports
+`FixtureDrift`, the database came from an older version; delete it and its
+`.provider.sqlite3` ledger.
+
+To see crash recovery, keep the worker below stopped, then create a
+**jerky-video** run and approve it. Click **Interrupt after acceptance**, so the
+fake provider accepts a job but the process stops before recording it. When
+the 30-second lease expires, click **Recover interrupted submission**: the same
+key returns the original job. Finally, complete the job and replay the
+callback; there is still one replacement video.
 
 Approval only records `ready`. To execute approved runs automatically, start
 the worker against the same database:
@@ -108,9 +117,7 @@ the worker against the same database:
 PYTHONPATH=src python3 -m media_qc_agent.cli.worker
 ```
 
-Its fake provider keeps a ledger next to the database. If startup reports
-`FixtureDrift`, the database came from an older version; delete it and its
-`.provider.sqlite3` ledger.
+Its fake provider keeps a ledger next to the database.
 
 **Model interpretation.** Offline by default, using recorded responses. With
 `OPENROUTER_API_KEY` set in your shell, `--live` makes one paid request;
@@ -122,16 +129,17 @@ PYTHONPATH=src python3 -m media_qc_agent.cli.review [--live]
 
 ## Evaluation
 
-All of the evaluations below replay offline in CI against committed snapshots,
-so a change to cases, gates, policy, or scoring shows up as a diff.
+CI replays the interpretation cases with their fixture responses, and runs both
+comparisons offline against committed snapshots, so a change to cases, gates,
+policy, or scoring shows up as a diff.
 
 - **Interpretation cases.** [`agent-cases-v1.json`](evals/agent-cases-v1.json)
   holds 15 clear, ambiguous, and adversarial cases, three per failure class.
   `cli.evaluate` replays them; `--live` runs them against the model and
-  `--traces PATH` records each turn. Live runs passed 14/15 (Gemini 3.1 Flash
-  Lite, Jev 1.13, Luna) on 2026-09-29, and 15, 15, and 13 of 15 in three Luna
-  repeats on 2026-10-06. Gemini misdiagnosed the adversarial TTS case as a
-  caption defect.
+  `--traces PATH` records each turn. On 2026-09-29, Gemini 3.1 Flash Lite,
+  Jev 1.13, and Luna each passed 14/15. Gemini misdiagnosed the adversarial
+  TTS case as a caption defect, Jev abstained on it, and Luna omitted an
+  uncertainty citation. Three Luna repeats on 2026-10-06 passed 15, 15, and 13.
 - **Acceptance policies** ([ADR 0026](docs/adr/0026-default-to-grounded-scope-acceptance.md)).
   `cli.compare` replays 105 recorded outputs plus the fixtures under each
   policy. The default `grounded-scope-v2` blocks both of Gemini's false passes

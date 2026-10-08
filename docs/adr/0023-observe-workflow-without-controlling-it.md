@@ -31,4 +31,4 @@ correlation references, not anonymization. Synchronous sinks need bounded latenc
 The database adds optional trace context and first-claim timing fields; missing
 historical values remain unknown rather than being inferred.
 
-See [observability](https://github.com/woolnerd/media-qc-agent/blob/1762b8a/docs/architecture/observability.md) for configuration and limits.
+See [observability](https://github.com/woolnerd/media-qc-agent/blob/1762b8a69dcd694d6203d7b18b107aae6568be21/docs/architecture/observability.md) for configuration and limits.
