@@ -1,8 +1,8 @@
 # Architectural Decision Records
 
 This directory records decisions whose rationale and consequences should remain
-visible after the implementation changes. ADRs supplement the project plan;
-they do not serve as a task tracker.
+visible after the implementation changes. The README describes current
+behavior; ADRs explain how it got that way. They are not a task tracker.
 
 Each ADR should state its status, context, decision, alternatives considered,
 and consequences. Accepted records are not rewritten to hide later learning.

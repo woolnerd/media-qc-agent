@@ -33,4 +33,4 @@ The current gate checks cue timing, overlap, nonblank text, line count, and
 line length for synthetic fixtures. It does not inspect speech, determine
 transcript accuracy, or generate replacement wording. A later review surface
 can present the evidence and collect the corrected cues. See the
-[caption-quality guide](../quality/caption-quality.md).
+[caption-quality guide](https://github.com/woolnerd/media-qc-agent/blob/1762b8a/docs/quality/caption-quality.md).

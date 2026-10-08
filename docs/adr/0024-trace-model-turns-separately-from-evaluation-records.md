@@ -1,5 +1,7 @@
 # ADR 0024: Trace model turns separately from evaluation records
 
+Status: Accepted
+
 ## Context
 
 Saved evaluation results reported pass or fail without the prompt that produced
@@ -34,4 +36,4 @@ change embedded in the chat prompt. Records are suitable only for synthetic data
 Trace IDs are absent unless an SDK is injected. Comparing versions and running
 evaluations as a CI gate remain separate work.
 
-See [model traces](../agent/model-traces.md).
+See [model traces](https://github.com/woolnerd/media-qc-agent/blob/1762b8a/docs/agent/model-traces.md).

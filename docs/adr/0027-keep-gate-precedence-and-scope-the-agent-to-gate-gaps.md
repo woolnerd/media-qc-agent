@@ -57,4 +57,4 @@ Changing the cases, gates, policy, or scoring changes the CI snapshot visibly.
 Human effort remains modeled. Validating productivity needs timed, blinded
 human review of permitted workflow data.
 
-See [baseline comparison](../agent/baseline-comparison.md).
+See [baseline comparison](https://github.com/woolnerd/media-qc-agent/blob/1762b8a/docs/agent/baseline-comparison.md).

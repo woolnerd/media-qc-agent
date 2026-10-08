@@ -2,7 +2,7 @@
 
 Replays recorded model outputs offline: every arm sees the same artifacts,
 deterministic gates, repair policy, and human approval path. With `--live`,
-records one paid request per case instead. See docs/agent/baseline-comparison.md.
+records one paid request per case instead. See ADR 0027.
 """
 
 import argparse

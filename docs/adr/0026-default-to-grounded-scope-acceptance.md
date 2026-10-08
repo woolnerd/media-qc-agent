@@ -35,4 +35,4 @@ covers that yet, so the false-block cost is unmeasured. The chat prompt does not
 embed the acceptance policy, so its prompt version is unchanged. Spans and
 evaluation records report `grounded-scope-v2`.
 
-See [policy comparison](../agent/policy-comparison.md).
+See [policy comparison](https://github.com/woolnerd/media-qc-agent/blob/1762b8a/docs/agent/policy-comparison.md).

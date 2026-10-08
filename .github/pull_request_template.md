@@ -5,7 +5,7 @@ What behavior changes, and why? Link the issue or describe the acceptance criter
 ## Architecture and tradeoffs
 
 - Components that own decisions, durable state, and external side effects:
-- Affected invariant IDs from `docs/architecture/architecture-invariants.md`:
+- Affected guarantee IDs (README "Guarantees"):
 - Chosen approach, alternative considered, and reason:
 - Remaining limitations and operational cost:
 
@@ -24,7 +24,7 @@ with no architectural effect, say why a diagram and ADR are unnecessary.
 
 ## Adversarial review
 
-Follow `docs/development/quality-gates.md` and `.github/prompts/adversarial-review.md`.
+Follow "Review before merge" in `CONTRIBUTING.md` and `.github/prompts/adversarial-review.md`.
 
 - Reviewed head commit and reviewer/context:
 - Correctness, security, maintainability passes completed or skipped with reason:
