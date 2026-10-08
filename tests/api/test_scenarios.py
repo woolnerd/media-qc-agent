@@ -96,6 +96,45 @@ class ScenarioFixtureTests(unittest.TestCase):
     def test_reseeding_is_idempotent(self) -> None:
         seed_scenarios(self.repository)
 
+    def test_tts_evidence_labels_reviewer_claims_as_inference(self) -> None:
+        run_id = self.run_for("tts-input")
+        finding = self.repository.get_quality_finding(run_id)
+        evidence = self.repository.get_quality_evidence(finding.id)
+        stored = self.repository.get_tts_input_version("tts-api-oven")
+        facts = [item for item in evidence if item.role is EvidenceRole.FACT]
+        self.assertIn(stored.spoken_text, [item.observed for item in facts])
+        for item in facts:
+            with self.subTest(statement=item.statement):
+                self.assertNotIn("provider", item.statement.lower())
+                self.assertNotIn("four fifty", item.statement.lower())
+        self.assertTrue(
+            any(
+                "four fifty" in item.statement
+                for item in evidence
+                if item.role is EvidenceRole.INFERENCE
+            )
+        )
+
+    def test_jerky_video_reports_two_spikes_as_four_changes(self) -> None:
+        run_id = self.run_for("jerky-video")
+        finding = self.repository.get_quality_finding(run_id)
+        observed = [
+            item.statement
+            for item in self.repository.get_quality_evidence(finding.id)
+            if item.role is EvidenceRole.FACT
+        ]
+        self.assertEqual(
+            observed,
+            [
+                f"Motion jump from frame {start} to {start + 1}."
+                for start in (3, 4, 7, 8)
+            ],
+        )
+
+    def test_unknown_scenario_is_rejected(self) -> None:
+        with self.assertRaises(KeyError):
+            create_scenario_run(self.repository, "no-such-scenario", "run-x")
+
 
 class FixtureDriftTests(unittest.TestCase):
     def test_stale_fixture_content_fails_with_a_reset_instruction(self) -> None:
@@ -110,6 +149,68 @@ class FixtureDriftTests(unittest.TestCase):
         )
         with self.assertRaisesRegex(FixtureDrift, "script-api-original.*delete"):
             seed_scenarios(repository)
+
+    def test_each_fixture_kind_detects_stale_content(self) -> None:
+        for version_id, statement in (
+            (
+                "script-api-kitchen",
+                (
+                    "UPDATE script_versions SET environment = 'neutral', "
+                    "evidence_phrase = NULL WHERE version_id = 'script-api-kitchen'"
+                ),
+            ),
+            (
+                "avatar-api-kitchen",
+                (
+                    "UPDATE avatar_versions SET environment = 'office' "
+                    "WHERE version_id = 'avatar-api-kitchen'"
+                ),
+            ),
+            (
+                "tts-api-replacement",
+                (
+                    "UPDATE tts_input_versions SET spoken_text = 'stale' "
+                    "WHERE version_id = 'tts-api-replacement'"
+                ),
+            ),
+            (
+                "video:api-observed",
+                (
+                    "UPDATE artifact_dependencies SET source_id = 'script-api-original' "
+                    "WHERE artifact_id = 'video:api-observed' AND source_kind = 'script'"
+                ),
+            ),
+            (
+                "caption-api-observed",
+                (
+                    "UPDATE caption_contents SET cues_json = '[]' "
+                    "WHERE version_id = 'caption-api-observed'"
+                ),
+            ),
+        ):
+            with self.subTest(version_id=version_id):
+                connection = sqlite3.connect(":memory:")
+                self.addCleanup(connection.close)
+                repository = WorkflowRepository(connection)
+                repository.initialize()
+                seed_scenarios(repository)
+                with connection:
+                    connection.execute(statement)
+                with self.assertRaisesRegex(FixtureDrift, version_id):
+                    seed_scenarios(repository)
+
+    def test_drift_is_detected_before_any_fixture_is_created(self) -> None:
+        connection = sqlite3.connect(":memory:")
+        self.addCleanup(connection.close)
+        repository = WorkflowRepository(connection)
+        repository.initialize()
+        repository.create_avatar_version(
+            version_id="avatar-api-office", environment=Environment.KITCHEN
+        )
+        with self.assertRaises(FixtureDrift):
+            seed_scenarios(repository)
+        with self.assertRaises(KeyError):
+            repository.get_script_text("script-api-original")
 
 
 if __name__ == "__main__":

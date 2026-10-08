@@ -7,7 +7,6 @@ invented for this demo. "Halden Home" is a fictional appliance brand.
 from collections.abc import Callable
 from dataclasses import dataclass
 from functools import partial
-from typing import TypeVar
 
 from media_qc_agent.domain.evidence import EvidenceInput, EvidenceRole
 from media_qc_agent.domain.models import ArtifactKind, FailureKind, QualityFinding
@@ -41,7 +40,6 @@ KITCHEN_SOURCES = VideoSources(
 OVEN_SOURCES = VideoSources(
     "script-api-oven", "tts-api-oven", "avatar-api-kitchen", "voice-api-demo"
 )
-T = TypeVar("T")
 
 
 @dataclass(frozen=True)
@@ -54,8 +52,8 @@ class Scenario:
 SCENARIOS = (
     Scenario("weak-script", "Thermostat setup script gives vague steps"),
     Scenario("environment-mismatch", "Oven script assigned to an office avatar"),
-    Scenario("tts-input", "Voice reads 450°F as “four fifty F”"),
-    Scenario("jerky-video", "Presenter jumps twice in the same shot"),
+    Scenario("tts-input", "Reviewer hears 450°F as “four fifty F”"),
+    Scenario("jerky-video", "Two motion spikes within one shot"),
     Scenario("caption-format", "Caption line runs past 42 characters"),
 )
 REPLACEMENTS = (
@@ -89,88 +87,135 @@ CLAIMED_PROFILE = SpokenTextCapabilities(
     TTS_PROVIDER, TTS_MODEL, frozenset({Notation.TEMPERATURE})
 )
 LITERAL_PROFILE = SpokenTextCapabilities(TTS_PROVIDER, TTS_MODEL, frozenset())
-# A slow push-in at 2-4 px/frame with two same-shot jumps near frames 4 and 8.
+# A slow push-in at 2-4 px/frame with two same-shot spikes at frames 4 and 8;
+# each spike rises and falls, so the signal reports four abrupt changes.
 MOTION_PX = (3, 3, 4, 3, 29, 4, 3, 3, 31, 4, 3, 3)
 
 
 class FixtureDrift(RuntimeError):
     def __init__(self, version_id: str) -> None:
         super().__init__(
-            f"Demo fixture {version_id} differs from the current seed; delete the "
-            "demo database (default .local/review.sqlite3) and its provider "
-            "ledger, then restart."
+            f"Demo fixture {version_id} differs from the current seed; delete this "
+            "demo database and its .provider.sqlite3 ledger, then restart."
         )
 
 
-def _ensure(
-    version_id: str,
-    get: Callable[[], T],
-    create: Callable[[], object],
-    expected: T,
-) -> None:
-    """Create a fixture once and refuse to reuse different stored content."""
+@dataclass(frozen=True)
+class _Fixture:
+    version_id: str
+    read: Callable[[], object]
+    create: Callable[[], object]
+    expected: object
 
-    try:
-        stored = get()
-    except KeyError:
-        create()
-        return
-    if stored != expected:
-        raise FixtureDrift(version_id)
+
+SCRIPTS = (
+    ("script-api-original", THERMOSTAT_DRAFT, ScriptScene(Environment.NEUTRAL)),
+    ("script-api-revised", THERMOSTAT_REVISED, ScriptScene(Environment.NEUTRAL)),
+    ("script-api-kitchen", OVEN_PROMPT, ScriptScene(Environment.KITCHEN, "oven")),
+    ("script-api-oven", OVEN_SHORTHAND, ScriptScene(Environment.KITCHEN, "oven")),
+)
+TTS_INPUTS = (
+    ("tts-api-original", "script-api-original", LITERAL_PROFILE, None),
+    ("tts-api-revised", "script-api-revised", LITERAL_PROFILE, None),
+    ("tts-api-kitchen", "script-api-kitchen", LITERAL_PROFILE, None),
+    ("tts-api-oven", "script-api-oven", CLAIMED_PROFILE, OVEN_CANDIDATE),
+    ("tts-api-replacement", "script-api-oven", LITERAL_PROFILE, OVEN_CANDIDATE),
+)
+CAPTION_CUES = (CaptionCue(0, 4200, THERMOSTAT_STEP),)
 
 
 def seed_scenarios(repository: WorkflowRepository) -> None:
-    """Seed the dedicated demo database once; immutable fixtures survive restarts."""
-    for version_id, text, scene in (
-        ("script-api-original", THERMOSTAT_DRAFT, ScriptScene(Environment.NEUTRAL)),
-        ("script-api-revised", THERMOSTAT_REVISED, ScriptScene(Environment.NEUTRAL)),
-        ("script-api-kitchen", OVEN_PROMPT, ScriptScene(Environment.KITCHEN, "oven")),
-        ("script-api-oven", OVEN_SHORTHAND, ScriptScene(Environment.KITCHEN, "oven")),
-    ):
-        _ensure(
-            version_id,
-            partial(repository.get_script_text, version_id),
-            partial(
-                repository.create_script_version,
-                version_id=version_id,
-                authored_text=text,
-                scene=scene,
-            ),
-            text,
-        )
-    _seed_tts(repository)
-    for environment in Environment:
-        version_id = f"avatar-api-{environment.value}"
-        _ensure(
-            version_id,
-            partial(repository.get_avatar_environment, version_id),
-            partial(
-                repository.create_avatar_version,
-                version_id=version_id,
-                environment=environment,
-            ),
-            environment,
-        )
-    _ensure(
-        "voice-api-demo",
-        lambda: repository.get_artifact_version("voice-api-demo").kind,
-        lambda: repository.create_source_version(
-            version_id="voice-api-demo", kind=ArtifactKind.VOICE
+    """Seed the demo database once; refuse to mix fixtures from another seed.
+
+    Every existing fixture is compared before any missing one is created, so a
+    stale database is rejected without gaining rows from the current seed.
+    """
+
+    missing: list[_Fixture] = []
+    for fixture in _fixtures(repository):
+        try:
+            stored = fixture.read()
+        except KeyError:
+            missing.append(fixture)
+            continue
+        if stored != fixture.expected:
+            raise FixtureDrift(fixture.version_id)
+    for fixture in missing:
+        fixture.create()
+
+
+def _fixtures(repository: WorkflowRepository) -> tuple[_Fixture, ...]:
+    return (
+        *(
+            _Fixture(
+                version_id,
+                partial(_script_identity, repository, version_id),
+                partial(
+                    repository.create_script_version,
+                    version_id=version_id,
+                    authored_text=text,
+                    scene=scene,
+                ),
+                (text, scene),
+            )
+            for version_id, text, scene in SCRIPTS
         ),
-        ArtifactKind.VOICE,
+        *_tts_fixtures(repository),
+        *(
+            _Fixture(
+                f"avatar-api-{environment.value}",
+                partial(
+                    repository.get_avatar_environment, f"avatar-api-{environment.value}"
+                ),
+                partial(
+                    repository.create_avatar_version,
+                    version_id=f"avatar-api-{environment.value}",
+                    environment=environment,
+                ),
+                environment,
+            )
+            for environment in Environment
+        ),
+        _Fixture(
+            "voice-api-demo",
+            lambda: repository.get_artifact_version("voice-api-demo").kind,
+            partial(
+                repository.create_source_version,
+                version_id="voice-api-demo",
+                kind=ArtifactKind.VOICE,
+            ),
+            ArtifactKind.VOICE,
+        ),
+        _Fixture(
+            "video:api-observed",
+            lambda: dict(
+                repository.get_artifact_version("video:api-observed").source_versions
+            ),
+            partial(
+                repository.create_synthetic_video_version,
+                fixture_job_id="api-observed",
+                sources=APPROVED_SOURCES,
+            ),
+            dict(APPROVED_SOURCES.dependencies()),
+        ),
+        _Fixture(
+            "caption-api-observed",
+            partial(repository.get_caption_cues, "caption-api-observed"),
+            partial(
+                repository.record_caption_version,
+                version_id="caption-api-observed",
+                video_version_id="video:api-observed",
+                cues=CAPTION_CUES,
+            ),
+            CAPTION_CUES,
+        ),
     )
-    _seed_video_and_captions(repository)
 
 
-def _seed_tts(repository: WorkflowRepository) -> None:
-    for version_id, script_id, profile, candidate in (
-        ("tts-api-original", "script-api-original", LITERAL_PROFILE, None),
-        ("tts-api-revised", "script-api-revised", LITERAL_PROFILE, None),
-        ("tts-api-kitchen", "script-api-kitchen", LITERAL_PROFILE, None),
-        ("tts-api-oven", "script-api-oven", CLAIMED_PROFILE, OVEN_CANDIDATE),
-        ("tts-api-replacement", "script-api-oven", LITERAL_PROFILE, OVEN_CANDIDATE),
-    ):
-        _ensure(
+def _tts_fixtures(repository: WorkflowRepository) -> tuple[_Fixture, ...]:
+    texts = {version_id: text for version_id, text, _ in SCRIPTS}
+    return tuple(
+        _Fixture(
             version_id,
             partial(_tts_identity, repository, version_id),
             partial(
@@ -180,65 +225,63 @@ def _seed_tts(repository: WorkflowRepository) -> None:
                 capabilities=profile,
                 candidate_text=candidate,
             ),
-            (script_id, profile, candidate or repository.get_script_text(script_id)),
+            (
+                script_id,
+                profile,
+                prepare_spoken_text(
+                    texts[script_id], profile, candidate_text=candidate
+                ).spoken_text,
+            ),
         )
+        for version_id, script_id, profile, candidate in TTS_INPUTS
+    )
+
+
+def _script_identity(
+    repository: WorkflowRepository, version_id: str
+) -> tuple[str, ScriptScene]:
+    return (
+        repository.get_script_text(version_id),
+        repository.get_script_scene(version_id),
+    )
 
 
 def _tts_identity(
     repository: WorkflowRepository, version_id: str
 ) -> tuple[str, SpokenTextCapabilities, str]:
+    """Spoken text covers the candidate and the normalizer that produced it."""
+
     stored = repository.get_tts_input_version(version_id)
-    return stored.script_version_id, stored.capabilities, stored.candidate_text
-
-
-def _seed_video_and_captions(repository: WorkflowRepository) -> None:
-    _ensure(
-        "video:api-observed",
-        lambda: dict(
-            repository.get_artifact_version("video:api-observed").source_versions
-        ),
-        lambda: repository.create_synthetic_video_version(
-            fixture_job_id="api-observed", sources=APPROVED_SOURCES
-        ),
-        dict(APPROVED_SOURCES.dependencies()),
-    )
-    cues: tuple[CaptionCue, ...] = (CaptionCue(0, 4200, THERMOSTAT_STEP),)
-    _ensure(
-        "caption-api-observed",
-        lambda: repository.get_caption_cues("caption-api-observed"),
-        lambda: repository.record_caption_version(
-            version_id="caption-api-observed",
-            video_version_id="video:api-observed",
-            cues=cues,
-        ),
-        cues,
-    )
+    return stored.script_version_id, stored.capabilities, stored.spoken_text
 
 
 def create_scenario_run(
     repository: WorkflowRepository, scenario_id: str, run_id: str
 ) -> WorkflowRun:
-    if scenario_id == "environment-mismatch":
-        result = repository.create_environment_run(
-            run_id=run_id, sources=KITCHEN_SOURCES
-        )
-    elif scenario_id == "jerky-video":
-        result = repository.create_visual_quality_run(
+    """Raise KeyError for an unknown scenario rather than guessing one."""
+
+    builders: dict[str, Callable[[], WorkflowRun | None]] = {
+        "weak-script": partial(_create_weak_script_run, repository, run_id),
+        "environment-mismatch": partial(
+            repository.create_environment_run, run_id=run_id, sources=KITCHEN_SOURCES
+        ),
+        "tts-input": partial(_create_tts_run, repository, run_id),
+        "jerky-video": partial(
+            repository.create_visual_quality_run,
             run_id=run_id,
             video_version_id="video:api-observed",
             samples=tuple(
                 MotionSample(index, displacement)
                 for index, displacement in enumerate(MOTION_PX)
             ),
-        )
-    elif scenario_id == "caption-format":
-        result = repository.create_caption_quality_run(
-            run_id=run_id, caption_version_id="caption-api-observed"
-        )
-    elif scenario_id == "tts-input":
-        result = _create_tts_run(repository, run_id)
-    else:
-        result = _create_weak_script_run(repository, run_id)
+        ),
+        "caption-format": partial(
+            repository.create_caption_quality_run,
+            run_id=run_id,
+            caption_version_id="caption-api-observed",
+        ),
+    }
+    result = builders[scenario_id]()
     assert result is not None, "synthetic scenario must produce its expected finding"
     return result
 
@@ -249,8 +292,9 @@ def _create_weak_script_run(repository: WorkflowRepository, run_id: str) -> Work
         run_id=run_id,
         finding=QualityFinding(
             FailureKind.SCRIPT_QUALITY,
-            "Reviewer Priya Natarajan (synthetic): step two says “press the thing, "
-            "then the other thing”, so viewers cannot tell which control to use.",
+            "Synthetic reviewer (script desk): the setup step says “press the "
+            "thing, then the other thing”, so viewers cannot tell which control "
+            "to use.",
             0.9,
         ),
         sources=SOURCES,
@@ -274,16 +318,20 @@ def _create_weak_script_run(repository: WorkflowRepository, run_id: str) -> Work
 
 
 def _create_tts_run(repository: WorkflowRepository, run_id: str) -> WorkflowRun:
+    """Stored records are facts; the reported mispronunciation is not."""
+
     sources = OVEN_SOURCES
     script_id, tts_id = sources.script_version_id, sources.tts_input_version_id
-    authored = repository.get_script_text(script_id)
-    rejected = prepare_spoken_text(authored, LITERAL_PROFILE)
+    rejected = prepare_spoken_text(
+        repository.get_script_text(script_id), LITERAL_PROFILE
+    )
     observed = repository.get_tts_input_version(tts_id)
     gate_facts = tuple(
         EvidenceInput(
             EvidenceRole.FACT,
             script_id,
-            f"Spoken-text gate rejects the authored text unchanged: {issue.code}.",
+            "The authored shorthand needed a corrected candidate; the spoken-text "
+            f"gate rejects it unchanged as {issue.code}.",
             observed=issue.token,
         )
         for issue in rejected.issues
@@ -292,7 +340,7 @@ def _create_tts_run(repository: WorkflowRepository, run_id: str) -> WorkflowRun:
         run_id=run_id,
         finding=QualityFinding(
             FailureKind.TTS_INPUT_COMPATIBILITY,
-            "Reviewer Marcus Oyelaran (synthetic): at 0:03 the voice says "
+            "Synthetic reviewer (voice QA): at 0:03 the voice seems to say "
             "“preheat the oven to four fifty F”.",
             0.9,
         ),
@@ -303,15 +351,22 @@ def _create_tts_run(repository: WorkflowRepository, run_id: str) -> WorkflowRun:
             EvidenceInput(
                 EvidenceRole.FACT,
                 tts_id,
-                f"The {TTS_MODEL} profile declared temperature support, so the "
-                "corrected candidate reached the provider unnormalized.",
+                f"Prepared for {TTS_MODEL} under a profile that declares "
+                "temperature support, so the spoken text keeps the °F symbol form.",
                 observed=observed.spoken_text,
             ),
             EvidenceInput(
                 EvidenceRole.INFERENCE,
                 tts_id,
-                "The declared capability is wrong for this model; spell out the "
-                "temperature in provider-facing text and keep the authored script.",
+                "If the reported “four fifty F” is accurate, the profile overstates "
+                f"{TTS_MODEL}; spell out the temperature in provider-facing text and "
+                "keep the authored script.",
+            ),
+            EvidenceInput(
+                EvidenceRole.UNCERTAINTY,
+                tts_id,
+                "No audio exists in this demo; the reported pronunciation is a "
+                "fixture assumption, not an observed provider result.",
             ),
             EvidenceInput(EvidenceRole.UNCERTAINTY, tts_id, SPOKEN_TEXT_NOTICE),
         ),
