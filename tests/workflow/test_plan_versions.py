@@ -309,6 +309,16 @@ class PlanVersionTests(unittest.TestCase):
                 "UPDATE workflow_runs SET plan_version_id = ? WHERE id = 'run-1'",
                 (other.plan_version_id,),
             )
+        with self.assertRaisesRegex(sqlite3.IntegrityError, "new run cannot point"):
+            self.connection.execute(
+                """INSERT INTO workflow_runs (
+                       id, status, plan_version_id, observed_script_version_id,
+                       observed_tts_input_version_id, observed_avatar_version_id,
+                       observed_voice_version_id
+                   ) VALUES ('run-3', 'ready', ?, 'script-1', 'tts-1', 'avatar-1',
+                             'voice-1')""",
+                (other.plan_version_id,),
+            )
 
     def test_submission_uses_the_approved_version_not_the_run_row(self) -> None:
         original = self.create_run()

@@ -140,7 +140,7 @@ class SubmissionQueue:
             """
             SELECT r.id AS run_id, p.id AS plan_version_id, coalesce(w.attempts, 0) AS attempts
             FROM workflow_runs r
-            JOIN repair_plan_versions p ON p.id = r.plan_version_id
+            JOIN repair_plan_versions p ON p.id = r.plan_version_id AND p.run_id = r.id
             JOIN plan_approvals a ON a.plan_version_id = p.id
             LEFT JOIN worker_attempts w ON w.plan_version_id = p.id
             WHERE r.status IN ('ready', 'submitting')

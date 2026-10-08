@@ -85,6 +85,9 @@ CREATE TRIGGER plan_pointer_same_run BEFORE UPDATE OF plan_version_id ON workflo
 WHEN NEW.plan_version_id IS NOT NULL AND NEW.id IS NOT
     (SELECT run_id FROM repair_plan_versions WHERE id = NEW.plan_version_id)
 BEGIN SELECT RAISE(ABORT, 'a run can only point at its own plan versions'); END;
+CREATE TRIGGER plan_pointer_same_run_insert BEFORE INSERT ON workflow_runs
+WHEN NEW.plan_version_id IS NOT NULL
+BEGIN SELECT RAISE(ABORT, 'a new run cannot point at a plan version'); END;
 CREATE TRIGGER immutable_approval_update BEFORE UPDATE ON plan_approvals
 BEGIN SELECT RAISE(ABORT, 'approvals are immutable'); END;
 CREATE TRIGGER immutable_approval_delete BEFORE DELETE ON plan_approvals
