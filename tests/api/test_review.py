@@ -88,6 +88,20 @@ class ReviewTests(unittest.TestCase):
             self.assertEqual(len(repository.generated_videos("review-1")), 1)
             self.assertEqual(len(repository.list_provider_events("review-1")), 1)
 
+    def test_next_step_tracks_the_lease_until_recovery_is_available(self) -> None:
+        self.create()
+        self.command("approve")
+        self.command("interrupt")
+        page = self.client.get("/review/review-1").text
+        self.assertIn("Waiting 30 seconds for the worker lease to expire", page)
+        self.assertIn('http-equiv="refresh"', page)
+        self.now += 31
+        page = self.client.get("/review/review-1").text
+        self.assertIn("The lease expired. Recover the interrupted submission", page)
+
+    def test_pages_declare_an_icon_so_browsers_skip_favicon_requests(self) -> None:
+        self.assertIn('rel="icon"', self.client.get("/").text)
+
     def test_duplicate_replays_existing_api_callback(self) -> None:
         self.create()
         self.command("approve")

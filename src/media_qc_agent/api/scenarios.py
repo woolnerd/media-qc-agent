@@ -58,7 +58,7 @@ SCENARIOS = (
     Scenario("weak-script", "Thermostat setup script gives vague steps"),
     Scenario("environment-mismatch", "Oven script assigned to an office avatar"),
     Scenario("tts-input", "Reviewer hears 450°F as “four fifty F”"),
-    Scenario("jerky-video", "Two motion spikes within one shot"),
+    Scenario("jerky-video", "Four motion jumps within one shot"),
     Scenario("caption-format", "Caption line runs past 42 characters"),
 )
 REPLACEMENTS = (
