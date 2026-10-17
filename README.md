@@ -12,17 +12,11 @@ claim production readiness.
 
 ## How it works
 
-```mermaid
-flowchart TD
-    Feedback[Review feedback and gate evidence] --> Model[Model interpretation]
-    Model --> Validation[Strict output and policy validation]
-    Validation --> Plan[Immutable plan version]
-    Plan --> Human[Human clarification and approval]
-    Human --> Store[Repository: atomic reservation]
-    Store --> Worker[Worker: leased submission with a stable key]
-    Worker --> Provider[Media provider: idempotent submission]
-    Provider --> Completion[Repository: guarded completion and lineage]
-```
+**Evidence** → **model diagnoses** → **policy validates** → **human approves** →
+**worker submits** → **lineage recorded**
+
+More diagrams (classes, tables, lineage, state machine, sequence) are in
+[docs/diagrams.md](docs/diagrams.md).
 
 Deterministic quality gates run first. A model interprets review feedback only
 when no gate has a finding, and it can only classify supplied evidence. Pure
