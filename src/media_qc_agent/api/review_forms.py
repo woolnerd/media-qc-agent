@@ -132,6 +132,16 @@ def _approval_summary(run: WorkflowRun) -> str:
     return f'<p class="approved">Approved exact version <code>{text(run.approval.plan_version_id)}</code></p>'
 
 
+def can_recover(data: ReviewSnapshot) -> bool:
+    info = data.recovery
+    return (
+        data.run.status is WorkflowStatus.SUBMITTING
+        and info.lease_remaining == 0
+        and info.retry_remaining == 0
+        and not info.stopped
+    )
+
+
 def worker_forms(data: ReviewSnapshot) -> str:
     run = data.run
     if run.plan is None or run.plan.action is RepairAction.REPAIR_CAPTIONS:
@@ -141,12 +151,7 @@ def worker_forms(data: ReviewSnapshot) -> str:
         run.status is WorkflowStatus.READY
         and info.capacity_used < info.policy.max_in_flight
     )
-    recoverable = (
-        run.status is WorkflowStatus.SUBMITTING
-        and info.lease_remaining == 0
-        and info.retry_remaining == 0
-        and not info.stopped
-    )
+    recoverable = can_recover(data)
     controls = form(run, "submit", "Run worker step", disabled=not ready)
     controls += form(
         run,

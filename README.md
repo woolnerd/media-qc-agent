@@ -103,10 +103,11 @@ Callbacks are synthetic and unauthenticated. If startup reports
 `FixtureDrift`, the database came from an older version; delete it and its
 `.provider.sqlite3` ledger.
 
-To see crash recovery, keep the worker below stopped, then create a
-**jerky-video** run and approve it. Click **Interrupt after acceptance**, so the
-fake provider accepts a job but the process stops before recording it. When
-the 30-second lease expires, click **Recover interrupted submission**: the same
+To see crash recovery, keep the worker below stopped, then create a run from
+**Four motion jumps within one shot** and approve it. Click **Interrupt after
+acceptance**, so the fake provider accepts a job but the process stops before
+recording it. The page refreshes itself; when the 30-second lease expires,
+click **Recover interrupted submission**: the same
 key returns the original job. Finally, complete the job and replay the
 callback; there is still one replacement video.
 

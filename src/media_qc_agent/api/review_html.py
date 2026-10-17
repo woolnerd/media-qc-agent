@@ -2,7 +2,12 @@
 
 from media_qc_agent.api.html_parts import document, notice, panel, run_url, table, text
 from media_qc_agent.api.review_data import ReviewSnapshot
-from media_qc_agent.api.review_forms import callback_forms, decision_forms, worker_forms
+from media_qc_agent.api.review_forms import (
+    callback_forms,
+    can_recover,
+    decision_forms,
+    worker_forms,
+)
 from media_qc_agent.api.scenarios import DEMO_NOTICE, SCENARIOS
 from media_qc_agent.workflow.models import WorkflowRun, WorkflowStatus
 
@@ -58,7 +63,7 @@ def review_page(data: ReviewSnapshot, message: str = "", error: bool = False) ->
     run = data.run
     state = run.status.value
     body = f'<div class="heading"><div><p class="eyebrow">Workflow review</p><h1>{text(run.id)}</h1></div><span class="badge {text(state)}">{text(state.replace("_", " "))}</span></div>'
-    body += f'<p class="lead"><strong>Next:</strong> {text(STATE_HELP[state])}</p>'
+    body += f'<p class="lead"><strong>Next:</strong> {text(next_step(data))}</p>'
     body += f'<p class="demo-notice">{text(DEMO_NOTICE)}</p>'
     body += f'<a class="refresh" href="{text(run_url(run.id))}">Refresh state</a>'
     body += notice(message, error)
@@ -79,6 +84,21 @@ def review_page(data: ReviewSnapshot, message: str = "", error: bool = False) ->
     )
     body += _artifacts(data) + _history(data) + _events(data)
     return document(run.id, body, refresh=run.status is WorkflowStatus.SUBMITTING)
+
+
+def next_step(data: ReviewSnapshot) -> str:
+    """Name what unblocks a reserved submission, not just that it is locked."""
+
+    info = data.recovery
+    if data.run.status is not WorkflowStatus.SUBMITTING or info.stopped:
+        return STATE_HELP[data.run.status.value]
+    if can_recover(data):
+        return "The lease expired. Recover the interrupted submission below."
+    wait = max(info.lease_remaining, info.retry_remaining)
+    return (
+        f"Waiting {wait} seconds for the worker lease to expire. "
+        "This page refreshes itself."
+    )
 
 
 def _section(title: str, hint: str) -> str:

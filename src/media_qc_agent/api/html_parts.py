@@ -32,7 +32,7 @@ def document(title: str, body: str, *, refresh: bool = False) -> str:
     meta = '<meta http-equiv="refresh" content="2">' if refresh else ""
     return f"""<!doctype html><html lang="en"><head><meta charset="utf-8">
     <meta name="viewport" content="width=device-width,initial-scale=1">{meta}
-    <title>{text(title)} · Media QC</title><link rel="stylesheet" href="/assets/review.css"></head>
+    <title>{text(title)} · Media QC</title><link rel="icon" href="data:,"><link rel="stylesheet" href="/assets/review.css"></head>
     <body><header class="topbar"><a class="brand" href="/">MEDIA QC <span>review lab</span></a>
     <nav aria-label="Main"><a href="/">Scenarios &amp; runs</a><a href="/docs">API docs</a></nav></header>
     <main>{body}</main><footer>Local synthetic demo · No paid provider calls · Quality signals are illustrative</footer></body></html>"""

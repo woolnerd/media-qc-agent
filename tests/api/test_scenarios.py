@@ -1,5 +1,6 @@
 import sqlite3
 import unittest
+from pathlib import Path
 
 from media_qc_agent.api.scenarios import (
     SCENARIOS,
@@ -128,6 +129,17 @@ class ScenarioFixtureTests(unittest.TestCase):
                 for start in (3, 4, 7, 8)
             ],
         )
+
+    def test_jerky_video_title_counts_the_jumps_its_finding_reports(self) -> None:
+        title = next(item.title for item in SCENARIOS if item.id == "jerky-video")
+        finding = self.repository.get_quality_finding(self.run_for("jerky-video"))
+        self.assertIn("4 same-shot jumps", finding.explanation)
+        self.assertTrue(title.startswith("Four motion jumps"), title)
+
+    def test_readme_names_the_recovery_scenario_as_the_ui_shows_it(self) -> None:
+        readme = Path(__file__).parents[2].joinpath("README.md").read_text()
+        title = next(item.title for item in SCENARIOS if item.id == "jerky-video")
+        self.assertIn(f"**{title}**", readme)
 
     def test_unknown_scenario_is_rejected(self) -> None:
         with self.assertRaises(KeyError):
