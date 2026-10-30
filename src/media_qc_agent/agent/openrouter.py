@@ -3,6 +3,7 @@
 import json
 import math
 import os
+from collections.abc import Mapping
 from dataclasses import asdict
 from typing import Any
 from urllib.error import HTTPError, URLError
@@ -30,6 +31,23 @@ _MAX_RESPONSE_BYTES = 131_072
 
 class ModelProviderError(RuntimeError):
     """A safe transport/envelope error with no key or provider response body."""
+
+
+PAID_RUN_APPROVAL = "MEDIA_QC_ALLOW_PAID"
+
+
+class PaidRunNotApproved(RuntimeError):
+    """A live provider was requested without the owner's approval for paid calls."""
+
+
+def require_paid_run_approval(environ: Mapping[str, str]) -> None:
+    """Refuse live, billed provider calls unless the owner opted in for this run."""
+
+    if environ.get(PAID_RUN_APPROVAL) != "1":
+        raise PaidRunNotApproved(
+            f"Live provider calls are billed. Set {PAID_RUN_APPROVAL}=1 for this "
+            "command only after the owner approves the paid run."
+        )
 
 
 def classification_schema() -> dict[str, Any]:
@@ -150,6 +168,7 @@ class OpenRouterModelProvider:
 
     @classmethod
     def from_environment(cls) -> "OpenRouterModelProvider":
+        require_paid_run_approval(os.environ)
         return cls(
             api_key=os.environ.get("OPENROUTER_API_KEY", ""),
             model=os.environ.get("OPENROUTER_MODEL", DEFAULT_MODEL),

@@ -115,7 +115,8 @@ PYTHONPATH=src python3 -m media_qc_agent.cli.worker
 Its fake provider keeps a ledger next to the database.
 
 **Model interpretation.** Offline by default, using recorded responses. With
-`OPENROUTER_API_KEY` set in your shell, `--live` makes one paid request;
+`OPENROUTER_API_KEY` and `MEDIA_QC_ALLOW_PAID=1` set in your shell, `--live`
+makes one paid request;
 `OPENROUTER_MODEL` overrides the default, `openai/gpt-6-luna`.
 
 ```bash
