@@ -19,6 +19,6 @@ rule, add or update its row here in the same change.
 | Evaluation snapshots change only on purpose | `--expect` comparisons in `scripts/check.sh` |
 | Prompt, schema, or default model changes need new live runs | `test_saved_runs_use_the_current_chat_prompt` in `tests/cli/test_baseline.py` |
 | Paid live runs need the owner's approval | `require_paid_run_approval` in `agent/openrouter.py` (`MEDIA_QC_ALLOW_PAID=1`); agents never set it without the owner's approval in the current conversation |
-| Adversarial review covers the current head commit | nothing yet (owner checks) |
+| Adversarial review covers the current head commit | `review-head` workflow checks the PR names the head commit (`scripts/review_head.py`); the owner checks the review itself |
 | No credentials committed | gitleaks in `scripts/check.sh` (history, staged, and unstaged changes; `.gitleaks.toml`) |
 | No real customer data committed | `.gitignore` for `.env`; otherwise prose only |

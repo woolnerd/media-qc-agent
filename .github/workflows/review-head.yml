@@ -1,0 +1,34 @@
+name: Review head
+
+# Re-runs when the description is edited, so recording a new review clears it.
+on:
+  pull_request:
+    types: [opened, edited, synchronize, reopened]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: review-head-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  review-head:
+    name: review-head
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Check out code
+        uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - name: Set up Python
+        uses: actions/setup-python@v7
+        with:
+          python-version: '3.14'
+      # The body goes through env, never into the script text.
+      - name: Check reviewed head commit
+        env:
+          PR_BODY: ${{ github.event.pull_request.body }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: python scripts/review_head.py
