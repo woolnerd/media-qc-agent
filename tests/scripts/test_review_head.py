@@ -47,6 +47,13 @@ class ReviewHeadTests(unittest.TestCase):
             with self.subTest(text=text):
                 self.assertIsNotNone(review_head_error(text, HEAD))
 
+    def test_prose_mentioning_the_label_is_not_the_line(self) -> None:
+        text = (
+            'This fails unless the "Reviewed head commit" line names it: see below.\n'
+            + body(f"- Reviewed head commit and reviewer/context: {HEAD[:7]}")
+        )
+        self.assertIsNone(review_head_error(text, HEAD))
+
     def test_sha_must_be_a_prefix_not_a_substring(self) -> None:
         line = f"- Reviewed head commit and reviewer/context: {HEAD[1:9]}"
         self.assertIsNotNone(review_head_error(body(line), HEAD))

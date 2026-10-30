@@ -10,17 +10,16 @@ import re
 import sys
 
 LABEL = "Reviewed head commit"
+# The PR template's list item, not prose that mentions the label.
+LINE = re.compile(rf"^\s*[-*]\s*{LABEL}[^:\n]*:(.*)$", re.MULTILINE)
 SHA = re.compile(r"\b[0-9a-f]{7,40}\b", re.IGNORECASE)
 
 
 def reviewed_shas(body: str) -> list[str]:
-    """Return the commit-like tokens after the label's first colon."""
+    """Return the commit-like tokens on the first "Reviewed head commit" item."""
 
-    for line in body.splitlines():
-        label, colon, value = line.partition(":")
-        if LABEL in label and colon:
-            return [sha.lower() for sha in SHA.findall(value)]
-    return []
+    line = LINE.search(body)
+    return [sha.lower() for sha in SHA.findall(line.group(1))] if line else []
 
 
 def review_head_error(body: str, head_sha: str) -> str | None:
