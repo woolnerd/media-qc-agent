@@ -72,8 +72,10 @@ separate passes, and record any skipped pass with a reason.
 - A review covers only the commit it saw. Fixes made afterwards need review
   too.
 
-Merge when CI passes and no confirmed P0 or P1 finding is open. GitHub does not
-enforce these gates on this repository's plan; the owner checks them.
+Merge when CI passes and no confirmed P0 or P1 finding is open. A ruleset on
+`main` enforces the first gate: changes arrive through a pull request, the
+`verify` job must pass, and force-push and deletion are blocked. The owner
+checks the review gate.
 
 ## Documentation
 
