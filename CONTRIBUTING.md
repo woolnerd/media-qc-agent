@@ -23,13 +23,21 @@ The script uses `$PYTHON` if set, otherwise `.venv/bin/python` if it exists,
 otherwise `python3`. Add a new check to the script, not to the workflow, so
 local runs and CI stay identical.
 
+The script starts with a [gitleaks](https://github.com/gitleaks/gitleaks)
+secret scan of the committed history and of staged and unstaged changes, so
+install gitleaks first (`brew install gitleaks`). It skips untracked files such
+as `.env`. If it flags something that is not a secret, add the narrowest
+allowlist regex you can to `.gitleaks.toml` and explain it in the PR. If it
+flags a real secret, rotate it; removing it from a later commit leaves it in
+history.
+
 Ruff limits cyclomatic complexity to 6 per function. Split decision logic that
 exceeds it.
 
 The evaluation snapshots change only on purpose. To regenerate one, run its
 `compare` or `baseline` command from `scripts/check.sh` without `--expect`,
 redirect stdout to the snapshot, and explain the diff in the PR. Changing the chat prompt, schema, or default model makes a test
-fail until new live runs are recorded. Paid live runs need the owner's approval.
+fail until new live runs are recorded. Paid live runs need the owner's approval and refuse to start unless `MEDIA_QC_ALLOW_PAID=1` is set.
 
 ## Choosing tests
 
