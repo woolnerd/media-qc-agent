@@ -1,0 +1,8 @@
+# Secret scanning for scripts/check.sh. Extends gitleaks' default rules.
+[extend]
+useDefault = true
+
+[[allowlists]]
+description = "Synthetic artifact id in api/scenarios.py history, not a key"
+regexTarget = "match"
+regexes = ['''^voice-api-demo", kind=ArtifactKind\.VOICE$''']
