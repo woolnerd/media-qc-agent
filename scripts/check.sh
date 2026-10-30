@@ -19,10 +19,10 @@ run() {
   "$py" -m "$@"
 }
 
-run compileall -q src tests
-run ruff check src tests
-run ruff format --check src tests
-run mypy src tests
+run compileall -q src tests scripts
+run ruff check src tests scripts
+run ruff format --check src tests scripts
+run mypy src tests scripts
 run unittest discover -s tests -t .
 run media_qc_agent.cli.demo
 run media_qc_agent.cli.evaluate --mask-version-labels
