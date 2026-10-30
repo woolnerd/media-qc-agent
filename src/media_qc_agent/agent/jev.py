@@ -12,7 +12,11 @@ from media_qc_agent.agent.contracts import (
     prompt_version,
 )
 from media_qc_agent.agent.interpretation import MIN_CONFIDENCE
-from media_qc_agent.agent.openrouter import ModelProviderError, post_openrouter_json
+from media_qc_agent.agent.openrouter import (
+    ModelProviderError,
+    post_openrouter_json,
+    require_paid_run_approval,
+)
 from media_qc_agent.domain.evidence import EvidenceInput, EvidenceRole
 from media_qc_agent.domain.models import FailureKind, QualityFinding, RepairPlan
 from media_qc_agent.domain.planner import plan_repair
@@ -237,6 +241,7 @@ class JevModelProvider:
 
     @classmethod
     def from_environment(cls) -> "JevModelProvider":
+        require_paid_run_approval(os.environ)
         return cls(
             api_key=os.environ.get("OPENROUTER_API_KEY", ""),
             model=os.environ.get("OPENROUTER_JEV_MODEL", DEFAULT_JEV_MODEL),

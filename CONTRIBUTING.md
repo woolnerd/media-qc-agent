@@ -29,7 +29,7 @@ exceeds it.
 The evaluation snapshots change only on purpose. To regenerate one, run its
 `compare` or `baseline` command from `scripts/check.sh` without `--expect`,
 redirect stdout to the snapshot, and explain the diff in the PR. Changing the chat prompt, schema, or default model makes a test
-fail until new live runs are recorded. Paid live runs need the owner's approval.
+fail until new live runs are recorded. Paid live runs need the owner's approval and refuse to start unless `MEDIA_QC_ALLOW_PAID=1` is set.
 
 ## Choosing tests
 
