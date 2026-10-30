@@ -69,12 +69,12 @@ in `submitting`, which delays edits but preserves the recovery key.
 
 ## Run it
 
-Python 3.14. Install dependencies and run the tests:
+Python 3.14. Install dependencies and run the checks:
 
 ```bash
 python3 -m venv .venv && source .venv/bin/activate
 python3 -m pip install -r requirements-dev.txt
-PYTHONPATH=src python3 -m unittest discover -s tests -t .
+scripts/check.sh
 ```
 
 **Command-line demo.** Runs in memory: a retry, a stale callback from the old

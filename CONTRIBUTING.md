@@ -12,27 +12,23 @@
 
 ## Checks
 
-CI's `verify` job runs these on every pull request and on `main`. Run them
-before committing:
+CI's `verify` job runs `scripts/check.sh` on every pull request and on `main`.
+Run it before committing:
 
 ```bash
-PYTHONPATH=src python3 -m compileall -q src tests
-PYTHONPATH=src python3 -m ruff check src tests
-PYTHONPATH=src python3 -m ruff format --check src tests
-PYTHONPATH=src python3 -m mypy src tests
-PYTHONPATH=src python3 -m unittest discover -s tests -t .
-PYTHONPATH=src python3 -m media_qc_agent.cli.demo
-PYTHONPATH=src python3 -m media_qc_agent.cli.evaluate --mask-version-labels
-PYTHONPATH=src python3 -m media_qc_agent.cli.compare --expect evals/results/policy-comparison-v1.json
-PYTHONPATH=src python3 -m media_qc_agent.cli.baseline --expect evals/results/baseline-comparison-v1.json
+scripts/check.sh
 ```
+
+The script uses `$PYTHON` if set, otherwise `.venv/bin/python` if it exists,
+otherwise `python3`. Add a new check to the script, not to the workflow, so
+local runs and CI stay identical.
 
 Ruff limits cyclomatic complexity to 6 per function. Split decision logic that
 exceeds it.
 
-The evaluation snapshots change only on purpose. To regenerate one, run the
-command without `--expect`, redirect stdout to the snapshot, and explain the
-diff in the PR. Changing the chat prompt, schema, or default model makes a test
+The evaluation snapshots change only on purpose. To regenerate one, run its
+`compare` or `baseline` command from `scripts/check.sh` without `--expect`,
+redirect stdout to the snapshot, and explain the diff in the PR. Changing the chat prompt, schema, or default model makes a test
 fail until new live runs are recorded. Paid live runs need the owner's approval.
 
 ## Choosing tests
