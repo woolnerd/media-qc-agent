@@ -15,7 +15,7 @@ from media_qc_agent.agent.jev import (
     jev_interpretation,
     jev_payload,
 )
-from media_qc_agent.agent.openrouter import ModelProviderError
+from media_qc_agent.agent.openrouter import ModelProviderError, PaidRunNotApproved
 from media_qc_agent.cli.evaluate import load_cases, score_interpretation
 from media_qc_agent.domain.evidence import EvidenceInput, EvidenceRole
 from media_qc_agent.domain.models import (
@@ -219,14 +219,31 @@ class JevProviderTests(unittest.TestCase):
                 "OPENROUTER_API_KEY": "test-key",
                 "OPENROUTER_MODEL": "google/test-chat",
                 "OPENROUTER_JEV_MODEL": "typesafe/test-decision",
+                "MEDIA_QC_ALLOW_PAID": "1",
             },
             clear=True,
         ):
             self.assertEqual(
                 JevModelProvider.from_environment()._model, "typesafe/test-decision"
             )
-        with patch.dict("os.environ", {}, clear=True), self.assertRaises(ValueError):
+        with (
+            patch.dict("os.environ", {"MEDIA_QC_ALLOW_PAID": "1"}, clear=True),
+            self.assertRaises(ValueError),
+        ):
             JevModelProvider.from_environment()
+
+    def test_environment_provider_requires_paid_run_approval(self) -> None:
+        for value in (None, "", "0", "true", "yes", " 1"):
+            env = {"OPENROUTER_API_KEY": "test-key"}
+            if value is not None:
+                env["MEDIA_QC_ALLOW_PAID"] = value
+            with (
+                self.subTest(value=value),
+                patch.dict("os.environ", env, clear=True),
+                self.assertRaises(PaidRunNotApproved) as caught,
+            ):
+                JevModelProvider.from_environment()
+            self.assertIn("MEDIA_QC_ALLOW_PAID=1", str(caught.exception))
 
     def test_identity_versions_question_templates_independently_of_model(
         self,

@@ -10,7 +10,10 @@ from media_qc_agent.agent.openrouter import (
     LUNA_MODEL,
     ModelProviderError,
     OpenRouterModelProvider,
+    PaidRunNotApproved,
 )
+
+UNAPPROVED_PAID_VALUES = (None, "", "0", "true", "yes", " 1")
 
 
 class OpenRouterTests(unittest.TestCase):
@@ -135,17 +138,40 @@ class OpenRouterTests(unittest.TestCase):
     def test_configuration_is_explicit_and_overrideable(self) -> None:
         with patch.dict(
             "os.environ",
-            {"OPENROUTER_API_KEY": "test-key", "OPENROUTER_MODEL": "test/model"},
+            {
+                "OPENROUTER_API_KEY": "test-key",
+                "OPENROUTER_MODEL": "test/model",
+                "MEDIA_QC_ALLOW_PAID": "1",
+            },
             clear=True,
         ):
             self.assertEqual(
                 OpenRouterModelProvider.from_environment()._model, "test/model"
             )
-        with patch.dict("os.environ", {}, clear=True), self.assertRaises(ValueError):
+        with (
+            patch.dict("os.environ", {"MEDIA_QC_ALLOW_PAID": "1"}, clear=True),
+            self.assertRaises(ValueError),
+        ):
             OpenRouterModelProvider.from_environment()
         for timeout in (0, -1, float("nan")):
             with self.assertRaises(ValueError):
                 OpenRouterModelProvider(api_key="test", timeout=timeout)
+
+    def test_environment_provider_requires_paid_run_approval(self) -> None:
+        for value in UNAPPROVED_PAID_VALUES:
+            env = {"OPENROUTER_API_KEY": "test-key"}
+            if value is not None:
+                env["MEDIA_QC_ALLOW_PAID"] = value
+            with (
+                self.subTest(value=value),
+                patch.dict("os.environ", env, clear=True),
+                self.assertRaises(PaidRunNotApproved) as caught,
+            ):
+                OpenRouterModelProvider.from_environment()
+            self.assertIn("MEDIA_QC_ALLOW_PAID=1", str(caught.exception))
+
+    def test_paid_run_refusal_is_not_a_provider_error(self) -> None:
+        self.assertFalse(issubclass(PaidRunNotApproved, ModelProviderError))
 
     def test_identity_versions_prompt_and_schema_independently_of_model(
         self,
