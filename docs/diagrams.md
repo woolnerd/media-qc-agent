@@ -363,3 +363,32 @@ sequenceDiagram
     P-->>W2: job J (same job, deduplicated by K)
     W2->>DB: record_submission(J) · status=submitted
 ```
+
+## 8. Verification: which check covers which guarantee
+
+The hand-written tests force chosen orderings. The Hypothesis state machine
+runs the real code in random orders; the Quint model samples interleavings of
+a simplified protocol. Dashed arrows are witnesses the Quint simulator must
+break.
+
+```mermaid
+flowchart LR
+    subgraph Real code
+        H[Hypothesis state machine<br/>test_submission_properties]
+    end
+    subgraph Model
+        Q[Quint model<br/>specs/submission.qnt]
+    end
+    H --> I3[INV-03 approved version only]
+    H --> I4[INV-04 one job per key]
+    H --> I5[INV-05 only current job promoted]
+    H --> I8[INV-08 expired owners cannot commit]
+    H --> I9[INV-09 capacity stays counted]
+    Q --> I3
+    Q --> I4
+    Q --> I5
+    Q --> I8
+    Q -. must break .-> W1[provider without dedup<br/>creates a second job]
+    Q -. must break .-> W2[two workers overlap<br/>on one version]
+    Q -. must break .-> W3[a retried run succeeds]
+```

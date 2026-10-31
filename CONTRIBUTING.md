@@ -31,6 +31,10 @@ allowlist regex you can to `.gitleaks.toml` and explain it in the PR. If it
 flags a real secret, rotate it; removing it from a later commit leaves it in
 history.
 
+The script also checks the Quint model in `specs/` with the
+[Quint](https://quint-lang.org) simulator, so install Node.js 20 or newer. It
+runs a pinned Quint through `npx`; the first run downloads it.
+
 Ruff limits cyclomatic complexity to 6 per function. Split decision logic that
 exceeds it.
 
@@ -51,6 +55,13 @@ Test the boundary you changed:
   and lineage.
 - **Model output or policy:** malformed output, embedded instructions,
   unrelated evidence, abstention, creative choices, and excessive scope.
+
+A change to claims, leases, submission, completion, or retry also updates the
+Hypothesis state machine in `tests/workflow/test_submission_properties.py` and
+the Quint model in `specs/submission.qnt`. Before relying on a new invariant,
+break the code (or the model) on purpose and confirm the check fails. A
+Hypothesis failure prints the shortest step sequence that reproduces it; a
+Quint failure prints its trace and a seed.
 
 For concurrency, use controlled events or barriers with bounded waits, not
 sleeps. A SQLite lock timeout must fail the test; it is not a policy rejection.

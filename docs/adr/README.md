@@ -38,3 +38,4 @@ If a decision changes, add a new ADR that supersedes the old one.
 - [`0026-default-to-grounded-scope-acceptance.md`](0026-default-to-grounded-scope-acceptance.md)
 - [`0027-keep-gate-precedence-and-scope-the-agent-to-gate-gaps.md`](0027-keep-gate-precedence-and-scope-the-agent-to-gate-gaps.md)
 - [`0028-make-plan-versions-the-authority-for-current-plan-state.md`](0028-make-plan-versions-the-authority-for-current-plan-state.md)
+- [`0029-check-the-submission-protocol-with-quint-and-hypothesis.md`](0029-check-the-submission-protocol-with-quint-and-hypothesis.md)
