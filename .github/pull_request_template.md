@@ -8,9 +8,12 @@ What behavior changes, and why? Link the issue or describe the acceptance criter
 - Affected guarantee IDs (README "Guarantees"):
 - Chosen approach, alternative considered, and reason:
 - Remaining limitations and operational cost:
+- Diagrams unchanged because:
 
 Include a small diagram when ownership or state transitions change. For a change
-with no architectural effect, say why a diagram and ADR are unnecessary.
+with no architectural effect, say why a diagram and ADR are unnecessary. If model
+or table files change but `docs/diagrams.md` does not, the `diagrams` check fails
+until the line above gives a reason.
 
 ## Failure scenarios and evidence
 
