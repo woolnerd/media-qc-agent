@@ -37,6 +37,10 @@ module submission {
     activeVideo: int,
     promoted: Set[int],
     promotions: int,
+    // Ghost: commits made by a worker whose lease had expired or moved on.
+    // Written inline in `record`, apart from `leaseHeld`, so a weakened
+    // guard or a weakened `leaseHeld` still shows up here.
+    unleasedCommits: int,
   }
 
   val IDLE: Claim = { phase: "idle", version: 0, attempt: 0, job: 0 }
@@ -115,9 +119,19 @@ module submission {
 
   def record(s: State, w: str): State = {
     val c = s.workers.get(w)
+    val unleased = or {
+      s.leaseOwner.get(c.version) != w,
+      s.attempts.get(c.version) != c.attempt,
+      s.now >= s.leaseUntil.get(c.version),
+    }
+    val committed = { ...s,
+      status: "submitted",
+      runJob: c.job,
+      recorded: s.recorded.union(Set(c.job)),
+      unleasedCommits: s.unleasedCommits + (if (unleased) 1 else 0),
+    }
     if (not(leaseHeld(s, w)) or c.version != s.version) idle(s, w)
-    else if (s.status == "submitting")
-      idle(release({ ...s, status: "submitted", runJob: c.job, recorded: s.recorded.union(Set(c.job)) }, c.version), w)
+    else if (s.status == "submitting") idle(release(committed, c.version), w)
     else if (s.status == "submitted" and s.runJob == c.job) idle(release(s, c.version), w)
     // Another job is already recorded for this version: a non-retryable failure.
     else idle({ ...release(s, c.version), stopped: s.stopped.union(Set(c.version)) }, w)
@@ -161,6 +175,7 @@ module submission {
     activeVideo: 0,
     promoted: Set(),
     promotions: 0,
+    unleasedCommits: 0,
   }
 
   var s: State
@@ -213,11 +228,15 @@ module submission {
     s.promoted.subseteq(s.recorded),
   }
 
+  /// INV-08: a job is recorded only by the worker whose lease still holds.
+  val commitsHoldTheLease: bool = s.unleasedCommits == 0
+
   val safety: bool = and {
     providerSeesOnlyApproved,
     oneJobPerKey,
     attemptsBounded,
     onlyCurrentJobPromoted,
+    commitsHoldTheLease,
   }
 
   // Witnesses: checks expect the simulator to violate these, which shows the
@@ -225,6 +244,11 @@ module submission {
 
   /// Violated once a retried version is submitted and completes.
   val retriedRunNeverSucceeds: bool = not(s.status == "succeeded" and s.version > 1)
+
+  /// Violated once a worker holds a provider answer after its lease expired or
+  /// moved on, the state in which `record` must refuse to commit.
+  val answersKeepTheirLease: bool =
+    WORKERS.forall(w => s.workers.get(w).phase == "accepted" implies leaseHeld(s, w))
 
   /// Violated once two workers hold the same version's provider answer at once.
   val noOverlappingCalls: bool =

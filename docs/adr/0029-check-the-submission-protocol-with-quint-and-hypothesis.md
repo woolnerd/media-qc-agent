@@ -24,15 +24,21 @@ Check the protocol two ways, both in `scripts/check.sh`:
 - **Quint model** (`specs/submission.qnt`). It models one run's protocol, and
   the simulator samples interleavings with a fixed seed. The safety invariants
   must hold when the provider deduplicates keys. Witness properties must be
-  broken: a retried run succeeds, two workers hold provider answers for one
-  version at once, and a provider that ignores keys creates a second job.
+  broken: a retried run succeeds, a worker holds a provider answer after its
+  lease expired, two workers hold provider answers for one version at once,
+  and a provider that ignores keys creates a second job.
   The witnesses show that the model reaches the states the invariants
   are about and that deduplication is what keeps the overlap safe.
 
 Both checks were tested by breaking the code on purpose: applying stale
-completions, dropping submitting runs from capacity, letting expired leases
-commit, ignoring the attempt token, and ignoring the attempt budget. Each
-change made the state machine fail.
+completions, dropping submitting runs from capacity, counting only jobs a run
+still points at, letting expired leases commit, ignoring the attempt token,
+ignoring the attempt budget, and recording a video without its inputs. Each
+change made the state machine fail. The state machine counts capacity from
+repository reads rather than trusting `outstanding_capacity`, which also
+decides admission. In the model, removing the lease check from `record` or
+the expiry from `leaseHeld` breaks `commitsHoldTheLease`, a ghost count kept
+apart from both.
 
 ## Alternatives considered
 
@@ -53,4 +59,5 @@ state machine adds about ten seconds. Simulation samples interleavings rather
 than proving their absence, and the model can drift from the code: a change to
 claims, leases, submission, completion, or retry must update both checks. The
 model covers one run, so capacity (INV-09) is checked only by the state
-machine.
+machine. Neither check races an editor against a reservation; that part of
+INV-03 stays with the hand-written tests.

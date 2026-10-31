@@ -225,7 +225,7 @@ class SubmissionMachine(RuleBasedStateMachine):
 
     @invariant()
     def only_applied_completions_create_videos(self) -> None:
-        """INV-05: one video per applied completion, from the run's current job."""
+        """INV-05: one video per applied completion, from its job's exact inputs."""
 
         with self.database.repository() as repository:
             for run_id in self.runs:
@@ -237,18 +237,49 @@ class SubmissionMachine(RuleBasedStateMachine):
                     if event.disposition is ProviderEventDisposition.APPLIED
                 ]
                 assert len(videos) == len(applied) == len({v.id for v in videos})
+                for video in videos:
+                    assert video.external_job_id is not None
+                    job = repository.get_provider_job(video.external_job_id)
+                    expected = job.sources.dependencies()
+                    assert len(video.source_versions) == len(expected), video.id
+                    assert set(video.source_versions) == set(expected), video.id
                 if run.status is WorkflowStatus.SUCCEEDED:
                     assert run.external_job_id is not None
                     assert run.active_video_version_id == video_version_id(
                         run.external_job_id
                     )
 
+    def expected_capacity(self) -> int:
+        """Outstanding jobs plus uncertain reservations, counted from the runs.
+
+        Derived from repository reads rather than `outstanding_capacity`, so an
+        undercount in the helper that admits excess work cannot certify itself.
+        A job stays outstanding until the provider reports any event for it.
+        """
+
+        slots = 0
+        with self.database.repository() as repository:
+            for run_id in self.runs:
+                run = repository.get(run_id)
+                reported = {
+                    e.external_job_id for e in repository.list_provider_events(run_id)
+                }
+                jobs = repository.list_provider_jobs(run_id)
+                slots += sum(job.external_job_id not in reported for job in jobs)
+                uncertain = run.status is WorkflowStatus.SUBMITTING and not any(
+                    job.plan_version_id == run.plan_version_id for job in jobs
+                )
+                slots += uncertain
+        return slots
+
     @invariant()
     def capacity_and_attempts_stay_bounded(self) -> None:
         """INV-08 and INV-09: attempts stay in budget; slots stay counted."""
 
+        expected = self.expected_capacity()
+        assert expected <= POLICY.max_in_flight, expected
         with self.database.connection() as connection:
-            assert outstanding_capacity(connection) <= POLICY.max_in_flight
+            assert outstanding_capacity(connection) == expected
             most = connection.execute(
                 "SELECT coalesce(max(attempts), 0) FROM worker_attempts"
             ).fetchone()[0]

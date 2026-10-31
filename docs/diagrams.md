@@ -379,9 +379,9 @@ flowchart LR
     subgraph Model
         Q[Quint model<br/>specs/submission.qnt]
     end
-    H --> I3[INV-03 approved version only]
+    H --> I3[INV-03 approved version only<br/>editor races: hand-written tests]
     H --> I4[INV-04 one job per key]
-    H --> I5[INV-05 only current job promoted]
+    H --> I5[INV-05 only current job promoted<br/>with its job's exact inputs]
     H --> I8[INV-08 expired owners cannot commit]
     H --> I9[INV-09 capacity stays counted]
     Q --> I3
@@ -391,4 +391,5 @@ flowchart LR
     Q -. must break .-> W1[provider without dedup<br/>creates a second job]
     Q -. must break .-> W2[two workers overlap<br/>on one version]
     Q -. must break .-> W3[a retried run succeeds]
+    Q -. must break .-> W4[an answer outlives<br/>its lease]
 ```

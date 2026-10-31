@@ -71,6 +71,7 @@ quint typecheck "$spec"
 quint run "$spec" --main=deduplicating --invariant=safety "${simulation[@]}"
 witness deduplicating retriedRunNeverSucceeds
 witness deduplicating noOverlappingCalls
+witness deduplicating answersKeepTheirLease
 # Without provider deduplication, an overlapping recovery creates a second job.
 witness nondeduplicating oneJobPerKey
 run media_qc_agent.cli.demo
