@@ -81,9 +81,9 @@ separate passes, and record any skipped pass with a reason.
 
 Merge when CI passes and no confirmed P0 or P1 finding is open. A ruleset on
 `main` enforces the first gate: changes arrive through a pull request, the
-`verify` job must pass, and force-push and deletion are blocked. The owner
-checks the review gate; `review-head` checks only that the recorded commit is
-current.
+`verify` and `review-head` jobs must pass, and force-push and deletion are
+blocked. The owner checks the review gate; `review-head` checks only that the
+recorded commit is current.
 
 ## Documentation
 
