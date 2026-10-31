@@ -26,7 +26,7 @@ What happens if execution stops halfway through this change?
 
 ## Adversarial review
 
-Follow "Review before merge" in `CONTRIBUTING.md` and `.github/prompts/adversarial-review.md`.
+Follow "Pull requests and review" in `AGENTS.md` and `.github/prompts/adversarial-review.md`.
 
 - Reviewed head commit and reviewer/context: <!-- start with the head SHA (7+ hex chars); the review-head check fails until it matches -->
 - Correctness, security, maintainability passes completed or skipped with reason:

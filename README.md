@@ -53,14 +53,24 @@ affects one should name the test that challenges it.
 | --- | --- | --- |
 | INV-01 | A model proposal cannot broaden the repair scope or make an unresolved creative choice. | `agent/test_interpretation`, `domain/test_planner` |
 | INV-02 | Approval names one immutable plan version, with its sources, targets, and recovery key. Any edit requires new approval. | `workflow/test_plan_versions` |
-| INV-03 | Submission starts only after an atomic reservation of the approved version. Whichever of an edit and a reservation commits first blocks the other. | `workflow/test_submission_concurrency`, `workflow/test_executor` |
-| INV-04 | An uncertain provider outcome keeps the reserved version and key. Recovery never silently becomes a new attempt. | `workflow/test_plan_versions`, `workflow/test_workflow` |
-| INV-05 | Every generated artifact keeps its exact input lineage. Stale or duplicate completions cannot promote an old video or create a second one. | `workflow/test_artifact_lineage`, `workflow/test_provider_events` |
+| INV-03 | Submission starts only after an atomic reservation of the approved version. Whichever of an edit and a reservation commits first blocks the other. | `workflow/test_submission_concurrency`, `workflow/test_executor`, `workflow/test_submission_properties`, `specs/submission.qnt` |
+| INV-04 | An uncertain provider outcome keeps the reserved version and key. Recovery never silently becomes a new attempt. | `workflow/test_plan_versions`, `workflow/test_workflow`, `workflow/test_submission_properties`, `specs/submission.qnt` |
+| INV-05 | Every generated artifact keeps its exact input lineage. Stale or duplicate completions cannot promote an old video or create a second one. | `workflow/test_artifact_lineage`, `workflow/test_provider_events`, `workflow/test_submission_properties`, `specs/submission.qnt` |
 | INV-06 | Caption-only repair keeps the accepted video and creates no provider job. | `quality/test_captions` |
 | INV-07 | Citations refer to supplied evidence. Facts, inferences, and uncertainty stay distinct. | `agent/test_interpretation`, `domain/test_evidence` |
-| INV-08 | A worker claim binds the run and plan to an owner and attempt. Expired owners cannot commit. Recovery reuses the key within a bounded budget. | `workflow/test_worker` |
-| INV-09 | Worker capacity counts outstanding and uncertain jobs. Retrying or exhausting recovery does not free their slots. | `workflow/test_worker` |
+| INV-08 | A worker claim binds the run and plan to an owner and attempt. Expired owners cannot commit. Recovery reuses the key within a bounded budget. | `workflow/test_worker`, `workflow/test_submission_properties`, `specs/submission.qnt` |
+| INV-09 | Worker capacity counts outstanding and uncertain jobs. Retrying or exhausting recovery does not free their slots. | `workflow/test_worker`, `workflow/test_submission_properties` |
 | INV-10 | Observability cannot start provider calls or undo commits. Events follow successful transactions. | `workflow/test_telemetry`, `workflow/test_tracing`, `workflow/test_metrics`, `agent/test_tracing` |
+
+Two checks look for orderings no one wrote a test for.
+`workflow/test_submission_properties` is a Hypothesis state machine: it runs
+workers, timeouts, crashes, expired leases, completions, and retries against the
+real code in random orders, and shrinks any failure to its shortest sequence.
+`specs/submission.qnt` is a Quint model of the same protocol; the simulator
+samples thousands of interleavings and must find a duplicate provider job when
+the provider ignores idempotency keys. Both run in `scripts/check.sh`. The model
+can drift from the code, so a change to submission, leases, or completions
+updates both ([ADR 0029](docs/adr/0029-check-the-submission-protocol-with-quint-and-hypothesis.md)).
 
 Known limits: SQLite serializes writers, so the reservation commits before the
 network call. A slow call can outlive its lease and overlap a recovery with the
@@ -161,6 +171,7 @@ src/media_qc_agent/
   api/        Review lab, JSON API, and synthetic scenarios
   cli/        Demos and evaluation commands
 tests/        Mirrors src/
+specs/        Quint model of the submission, lease, and completion protocol
 evals/        Synthetic cases and recorded results
 docs/adr/     Decisions, alternatives, and consequences
 docs/diagrams.md  Class, table, lineage, state, and sequence diagrams
@@ -170,4 +181,4 @@ Pictures of the models, tables, and run lifecycle are in
 [docs/diagrams.md](docs/diagrams.md). Decisions and their reasoning live in
 [the ADRs](docs/adr/README.md). Active
 work lives in [GitHub issues](https://github.com/woolnerd/media-qc-agent/issues).
-To contribute, see [CONTRIBUTING.md](CONTRIBUTING.md).
+To contribute, see [AGENTS.md](AGENTS.md), the guide for agents and people; [CONTRIBUTING.md](CONTRIBUTING.md) lists the owner's decisions.
