@@ -380,10 +380,10 @@ flowchart LR
         Q[Quint model<br/>specs/submission.qnt]
     end
     H --> I3[INV-03 approved version only<br/>editor races: hand-written tests]
-    H --> I4[INV-04 one job per key]
+    H --> I4[INV-04 one job per key<br/>recovery keeps the version]
     H --> I5[INV-05 only current job promoted<br/>with its job's exact inputs]
     H --> I8[INV-08 expired owners cannot commit]
-    H --> I9[INV-09 capacity stays counted]
+    H --> I9[INV-09 capacity counted<br/>from the provider ledger]
     Q --> I3
     Q --> I4
     Q --> I5
