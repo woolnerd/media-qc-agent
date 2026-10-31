@@ -181,4 +181,4 @@ Pictures of the models, tables, and run lifecycle are in
 [docs/diagrams.md](docs/diagrams.md). Decisions and their reasoning live in
 [the ADRs](docs/adr/README.md). Active
 work lives in [GitHub issues](https://github.com/woolnerd/media-qc-agent/issues).
-To contribute, see [CONTRIBUTING.md](CONTRIBUTING.md).
+To contribute, see [AGENTS.md](AGENTS.md), the guide for agents and people; [CONTRIBUTING.md](CONTRIBUTING.md) lists the owner's decisions.
