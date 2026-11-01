@@ -6,7 +6,11 @@ behavior; ADRs explain how it got that way. They are not a task tracker.
 
 Each ADR should state its status, context, decision, alternatives considered,
 and consequences. Accepted records are not rewritten to hide later learning.
-If a decision changes, add a new ADR that supersedes the old one.
+If a decision changes, add a new ADR that supersedes the old one. If the
+decision stands but its description of how it is implemented or checked goes
+out of date, correct that description in place and add
+`Amended in #<PR>: <what changed>` to the Status; the old text stays in git
+history.
 
 ## Index
 

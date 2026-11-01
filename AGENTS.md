@@ -111,8 +111,12 @@ separate passes, and record any skipped pass with a reason.
 
 - The README describes current behavior. Keep it accurate in the same PR as
   the change.
-- ADRs in `docs/adr/` record consequential decisions. Do not rewrite an
-  accepted ADR; supersede it with a new one.
+- ADRs in `docs/adr/` record consequential decisions. When an accepted
+  decision changes, supersede its ADR with a new one; never rewrite the
+  decision. When the decision stands but the ADR's description of how it is
+  implemented or checked is out of date, amend that description in place and
+  add `Amended in #<PR>: <what changed>` to its Status, so the change stays
+  visible.
 - Keep `docs/diagrams.md` in sync when models or tables change.
 - Active work and acceptance criteria live in GitHub issues.
 - Prefer a clear name or a short docstring to a separate document.
@@ -138,3 +142,4 @@ rule, add or update its row here in the same change.
 | No credentials committed | gitleaks in `scripts/check.sh` (history, staged, and unstaged changes; `.gitleaks.toml`) |
 | No real customer data committed | `.gitignore` for `.env`; otherwise prose only |
 | PRs target `main`, not another feature branch | prose only |
+| Accepted ADR decisions are superseded, not rewritten; other amendments are noted in the Status | prose only |
