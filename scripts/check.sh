@@ -35,8 +35,9 @@ spec=specs/submission.qnt
 # unverified native binary from GitHub on first use.
 simulation=(--backend=typescript --max-samples=10000 --max-steps=30 --seed=1)
 
-# Install the Quint pinned by tools/quint/package-lock.json. `npm ci` checks
-# every package against its lockfile hash; install scripts never run.
+# Install the Quint pinned by tools/quint/package-lock.json on every run, so
+# what runs always matches the lockfile. `npm ci` checks every package against
+# its lockfile hash; install scripts never run. A warm install takes a second.
 install_quint() {
   local major
   command -v node > /dev/null && command -v npm > /dev/null || {
@@ -48,15 +49,28 @@ install_quint() {
     echo "Node.js $major found; Quint needs Node.js 20 or newer" >&2
     exit 1
   }
-  if ! cmp -s "$quint_dir/package-lock.json" "$quint_dir/node_modules/.installed-lock"; then
-    echo "==> npm ci --ignore-scripts (tools/quint)" >&2
-    npm ci --prefix "$quint_dir" --ignore-scripts --no-audit --no-fund --loglevel=error || exit 1
-    cp "$quint_dir/package-lock.json" "$quint_dir/node_modules/.installed-lock"
-  fi
+  echo "==> npm ci --ignore-scripts (tools/quint)" >&2
+  npm ci --prefix "$quint_dir" --ignore-scripts --no-audit --no-fund \
+    --no-update-notifier --loglevel=error || exit 1
 }
 
+# Only `typecheck` and TypeScript-backend `run` are allowed; anything else
+# could fall back to the Rust backend and its unverified download.
 quint() {
   echo "==> quint $*" >&2
+  case "$1" in
+    typecheck) ;;
+    run)
+      [[ " $* " == *" --backend=typescript "* ]] || {
+        echo "quint run needs --backend=typescript (see simulation in this script)" >&2
+        exit 1
+      }
+      ;;
+    *)
+      echo "quint $1 is not allowed here; it may use the Rust backend" >&2
+      exit 1
+      ;;
+  esac
   "$quint_dir/node_modules/.bin/quint" "$@"
 }
 

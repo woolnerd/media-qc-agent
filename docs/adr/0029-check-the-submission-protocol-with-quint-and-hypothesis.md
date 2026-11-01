@@ -4,7 +4,8 @@ Status: Accepted. Adds checks for the guarantees from
 [ADR 0018](0018-reserve-approved-plans-before-provider-submission.md) and
 [ADR 0021](0021-lease-durable-provider-submissions.md); changes no behavior.
 Amended in #76 after a post-merge review found three checks that passed with
-their guarantee broken; the decision is unchanged.
+their guarantee broken; the decision is unchanged. Amended in #80: Quint is
+installed from a lockfile and runs on its TypeScript backend.
 
 ## Context
 
