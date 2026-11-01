@@ -24,8 +24,8 @@ Check the protocol two ways, both in `scripts/check.sh`:
   sequences of claims, timeouts, crashes, expired leases, overlapping
   recoveries, duplicate and stale completions, retries, and approvals.
   Creating or retrying a run and approving it are separate steps, so workers
-  run while any version, first or retried, awaits approval. It checks the guarantees after every step and shrinks a failure
-  to its shortest sequence.
+  run while any version, first or retried, awaits approval. It checks the
+  guarantees after every step and shrinks a failure to its shortest sequence.
 - **Quint model** (`specs/submission.qnt`). It models one run's protocol, and
   the simulator samples interleavings with a fixed seed. The safety invariants
   must hold when the provider deduplicates keys; they include that once a
