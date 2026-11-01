@@ -4,8 +4,12 @@ Status: Accepted. Adds checks for the guarantees from
 [ADR 0018](0018-reserve-approved-plans-before-provider-submission.md) and
 [ADR 0021](0021-lease-durable-provider-submissions.md); changes no behavior.
 Amended in #76 after a post-merge review found three checks that passed with
-their guarantee broken, and in #78 after that PR's review; the decision is
-unchanged.
+their guarantee broken; the decision is unchanged.
+Amended in #79: first versions, like retried ones, are approved in a separate
+step; the model's INV-04 invariant now covers only versions a worker has
+claimed, which narrows what that check is said to cover, because the model
+leaves out edits; `oneJobPerKey` is checked only as a witness. The decision
+is unchanged.
 
 ## Context
 
