@@ -67,8 +67,14 @@ version breaks `supersededVersionsWereRecorded`.
 
 ## Consequences
 
-`scripts/check.sh` needs Node.js and downloads a pinned Quint on first run. The
-state machine adds about ten seconds. Simulation samples interleavings rather
+`scripts/check.sh` needs Node.js 20 or newer. It installs Quint and its
+dependencies from `tools/quint/package-lock.json` with `npm ci
+--ignore-scripts`, so every package is checked against its lockfile hash, and
+it runs the simulator on Quint's TypeScript backend. The default Rust backend
+would download an unchecked native binary from GitHub on first use, and that
+download failed CI once on GitHub's API rate limit (#77). The TypeScript
+backend makes the safety run take about 12 seconds instead of 2. The state
+machine adds about ten seconds. Simulation samples interleavings rather
 than proving their absence, and the model can drift from the code: a change to
 claims, leases, submission, completion, or retry must update both checks. The
 model covers one run, so capacity (INV-09) is checked only by the state

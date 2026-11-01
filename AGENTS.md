@@ -44,7 +44,13 @@ Setup the script needs:
   `.gitleaks.toml` and explain it in the PR. If it flags a real secret, tell
   the owner to rotate it; removing it in a later commit leaves it in history.
 - Node.js 20 or newer, for the [Quint](https://quint-lang.org) simulator. The
-  script runs a pinned Quint through `npx`; the first run downloads it.
+  script installs the Quint locked in `tools/quint/package-lock.json` with
+  `npm ci --ignore-scripts`, which checks every package against its lockfile
+  hash, and reinstalls only when the lockfile changes. It runs Quint's
+  TypeScript backend, so no native binary is downloaded. To upgrade Quint,
+  change `tools/quint/package.json`, run
+  `npm install --prefix tools/quint --package-lock-only --ignore-scripts`, and
+  review the lockfile diff in the PR.
 
 Evaluation snapshots change only on purpose. To regenerate one, run its
 `compare` or `baseline` command from `scripts/check.sh` without `--expect`,
@@ -135,6 +141,7 @@ rule, add or update its row here in the same change.
 | Worker and completion guarantees hold beyond hand-written orderings | Hypothesis state machine `tests/workflow/test_submission_properties.py` and Quint model `specs/submission.qnt`, both in `scripts/check.sh` |
 | Paid live runs need the owner's approval | `require_paid_run_approval` in `agent/openrouter.py` (`MEDIA_QC_ALLOW_PAID=1`); agents never set it without the owner's approval in the current conversation |
 | Adversarial review covers the current head commit | `review-head` workflow, a required check on `main`, fails until the PR names its head commit (`scripts/review_head.py`); the owner checks the review itself |
+| Check tools come from pinned, hash-checked sources | SHA-256 check for gitleaks in `.github/workflows/ci.yml`; `npm ci --ignore-scripts` against `tools/quint/package-lock.json` in `scripts/check.sh` |
 | No credentials committed | gitleaks in `scripts/check.sh` (history, staged, and unstaged changes; `.gitleaks.toml`) |
 | No real customer data committed | `.gitignore` for `.env`; otherwise prose only |
 | PRs target `main`, not another feature branch | prose only |
