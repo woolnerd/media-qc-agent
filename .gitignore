@@ -5,6 +5,7 @@ __pycache__/
 .mypy_cache/
 .hypothesis/
 .venv/
+node_modules/
 .env
 *.sqlite
 *.sqlite3

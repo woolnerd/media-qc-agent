@@ -173,6 +173,7 @@ src/media_qc_agent/
   cli/        Demos and evaluation commands
 tests/        Mirrors src/
 specs/        Quint model of the submission, lease, and completion protocol
+tools/quint/  Pinned Quint and its lockfile, installed by scripts/check.sh
 evals/        Synthetic cases and recorded results
 docs/adr/     Decisions, alternatives, and consequences
 docs/diagrams.md  Class, table, lineage, state, and sequence diagrams

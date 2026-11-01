@@ -1,0 +1,8 @@
+{
+  "name": "media-qc-agent-quint",
+  "private": true,
+  "description": "Pinned Quint for scripts/check.sh; install with npm ci --ignore-scripts.",
+  "dependencies": {
+    "@informalsystems/quint": "0.33.1"
+  }
+}
