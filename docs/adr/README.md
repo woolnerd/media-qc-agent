@@ -6,7 +6,16 @@ behavior; ADRs explain how it got that way. They are not a task tracker.
 
 Each ADR should state its status, context, decision, alternatives considered,
 and consequences. Accepted records are not rewritten to hide later learning.
-If a decision changes, add a new ADR that supersedes the old one.
+A decision is the choice an ADR makes, the alternatives it rejects, and the
+system guarantees it commits to, such as the README's INV-xx. To change,
+narrow, or drop any of those, add a new ADR that supersedes the old one. If
+the decision stands but the ADR's description of how it is implemented or
+checked goes out of date, correct that description in place and add a note to
+the Status, such as
+`Amended in #<PR>: <what changed>. The decision is unchanged.`
+Say so if the correction narrows what a check is said to cover. The amending
+PR's adversarial review confirms the decision is unchanged, and the old text
+stays in git history. Notes written before this rule stay as they are.
 
 ## Index
 
