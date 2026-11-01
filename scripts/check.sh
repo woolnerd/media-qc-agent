@@ -54,24 +54,63 @@ install_quint() {
     --no-update-notifier --loglevel=error || exit 1
 }
 
+quint_bin=$quint_dir/node_modules/.bin/quint
+
+# `quint run` must pass `--backend=typescript` as its own option, before any
+# `--`, and no other `--backend`; otherwise Quint falls back to Rust.
+require_typescript_backend() {
+  local arg found=0
+  for arg in "$@"; do
+    case "$arg" in
+      --) break ;;
+      --backend=typescript) found=1 ;;
+      --backend*) found=0 && break ;;
+    esac
+  done
+  ((found)) || {
+    echo "quint run needs --backend=typescript as its only backend option" >&2
+    exit 1
+  }
+}
+
 # Only `typecheck` and TypeScript-backend `run` are allowed; anything else
 # could fall back to the Rust backend and its unverified download.
 quint() {
   echo "==> quint $*" >&2
   case "$1" in
     typecheck) ;;
-    run)
-      [[ " $* " == *" --backend=typescript "* ]] || {
-        echo "quint run needs --backend=typescript (see simulation in this script)" >&2
-        exit 1
-      }
-      ;;
+    run) require_typescript_backend "${@:2}" ;;
     *)
       echo "quint $1 is not allowed here; it may use the Rust backend" >&2
       exit 1
       ;;
   esac
-  "$quint_dir/node_modules/.bin/quint" "$@"
+  "$quint_bin" "$@"
+}
+
+# The guard must reject every call that would reach the Rust backend. A stub
+# stands in for Quint, so a guard that lets a call through runs nothing.
+check_quint_guard() {
+  local bypass
+  (quint_bin=true quint run "$spec" --backend=typescript) 2> /dev/null || {
+    echo "quint guard rejected a TypeScript-backend run" >&2
+    exit 1
+  }
+  for bypass in \
+    "run|$spec" \
+    "run|$spec|--|--backend=typescript" \
+    "run|$spec|--invariant=safety or \" --backend=typescript \" == \"\"" \
+    "run|$spec|--backend|typescript" \
+    "run|$spec|--backend=typescript|--backend=rust" \
+    "run|$spec|--backend=rust|--backend=typescript" \
+    "test|$spec|--backend=typescript" \
+    "verify|$spec"; do
+    IFS='|' read -r -a args <<< "$bypass"
+    if (quint_bin=true quint "${args[@]}") 2> /dev/null; then
+      echo "quint guard let through: quint ${args[*]}" >&2
+      exit 1
+    fi
+  done
 }
 
 # A witness is a property the simulator must break. If it holds, the model
@@ -100,6 +139,7 @@ run ruff format --check src tests scripts
 run mypy src tests scripts
 run unittest discover -s tests -t .
 install_quint
+check_quint_guard
 quint typecheck "$spec"
 quint run "$spec" --main=deduplicating --invariant=safety "${simulation[@]}"
 witness deduplicating retriedRunNeverSucceeds

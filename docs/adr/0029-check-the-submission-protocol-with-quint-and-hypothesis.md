@@ -73,7 +73,7 @@ dependencies from `tools/quint/package-lock.json` with `npm ci
 --ignore-scripts`, so every package is checked against its lockfile hash, and
 it runs the simulator on Quint's TypeScript backend. The default Rust backend
 would download an unchecked native binary from GitHub on first use, and that
-download failed CI once on GitHub's API rate limit (#77). The TypeScript
+download failed CI once on GitHub's API rate limit (on #76; tracked in #77). The TypeScript
 backend makes the safety run take about 12 seconds instead of 2. The state
 machine adds about ten seconds. Simulation samples interleavings rather
 than proving their absence, and the model can drift from the code: a change to
