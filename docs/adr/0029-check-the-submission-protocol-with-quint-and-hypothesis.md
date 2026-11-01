@@ -3,6 +3,8 @@
 Status: Accepted. Adds checks for the guarantees from
 [ADR 0018](0018-reserve-approved-plans-before-provider-submission.md) and
 [ADR 0021](0021-lease-durable-provider-submissions.md); changes no behavior.
+Amended in #76 after a post-merge review found three checks that passed with
+their guarantee broken; the decision is unchanged.
 
 ## Context
 
@@ -19,11 +21,17 @@ Check the protocol two ways, both in `scripts/check.sh`:
 - **Hypothesis state machine** (`tests/workflow/test_submission_properties.py`).
   It drives the real worker, repository, and durable fake provider with random
   sequences of claims, timeouts, crashes, expired leases, overlapping
-  recoveries, duplicate and stale completions, and retries. It checks the
-  guarantees after every step and shrinks a failure to its shortest sequence.
+  recoveries, duplicate and stale completions, retries, and approvals. Retry
+  and approval are separate steps, so workers run while a version awaits
+  approval. It checks the guarantees after every step and shrinks a failure
+  to its shortest sequence.
 - **Quint model** (`specs/submission.qnt`). It models one run's protocol, and
   the simulator samples interleavings with a fixed seed. The safety invariants
-  must hold when the provider deduplicates keys. Witness properties must be
+  must hold when the provider deduplicates keys; they include that a version
+  is superseded only by an explicit retry of its recorded job, never by
+  recovery from an uncertain outcome. A deduplicating provider makes
+  `oneJobPerKey` hold by itself, so it is checked only as a witness against
+  a provider that ignores keys. Witness properties must be
   broken: a retried run succeeds, a worker holds a provider answer after its
   lease expired, two workers hold provider answers for one version at once,
   and a provider that ignores keys creates a second job.
@@ -33,12 +41,17 @@ Check the protocol two ways, both in `scripts/check.sh`:
 Both checks were tested by breaking the code on purpose: applying stale
 completions, dropping submitting runs from capacity, counting only jobs a run
 still points at, letting expired leases commit, ignoring the attempt token,
-ignoring the attempt budget, and recording a video without its inputs. Each
+ignoring the attempt budget, recording a video without its inputs, dropping
+the reservation after a timeout, and claiming runs that await approval. Each
 change made the state machine fail. The state machine counts capacity from
-repository reads rather than trusting `outstanding_capacity`, which also
-decides admission. In the model, removing the lease check from `record` or
-the expiry from `leaseHeld` breaks `commitsHoldTheLease`, a ghost count kept
-apart from both.
+the provider's ledger: jobs the provider holds with no event, plus reserved
+runs whose key it does not hold yet. It requires `outstanding_capacity`,
+which also decides admission, to equal that count. A count taken from local
+job rows and run status would lose track of an accepted job exactly when the
+code does, and certify the undercount. In the model, removing the lease check
+from `record` or the expiry from `leaseHeld` breaks `commitsHoldTheLease`, a
+ghost count kept apart from both, and turning recovery into a silent new
+version breaks `supersededVersionsWereRecorded`.
 
 ## Alternatives considered
 

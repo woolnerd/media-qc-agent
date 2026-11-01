@@ -140,10 +140,15 @@ class SubmissionMachine(RuleBasedStateMachine):
             ).fetchall()
         return [row[0] for row in rows]
 
-    def retryable_runs(self) -> list[str]:
-        retryable = {WorkflowStatus.SUBMITTED, WorkflowStatus.SUCCEEDED}
+    def runs_in(self, *statuses: WorkflowStatus) -> list[str]:
         with self.database.repository() as repository:
-            return [r for r in self.runs if repository.get(r).status in retryable]
+            return [r for r in self.runs if repository.get(r).status in statuses]
+
+    def retryable_runs(self) -> list[str]:
+        return self.runs_in(WorkflowStatus.SUBMITTED, WorkflowStatus.SUCCEEDED)
+
+    def pending_runs(self) -> list[str]:
+        return self.runs_in(WorkflowStatus.AWAITING_APPROVAL)
 
     # Steps
 
@@ -180,14 +185,23 @@ class SubmissionMachine(RuleBasedStateMachine):
 
     @precondition(lambda self: bool(self.retryable_runs()))
     @rule(data=st.data())
-    def retry_and_approve(self, data: st.DataObject) -> None:
+    def retry(self, data: st.DataObject) -> None:
+        """Workers may run while the new version waits for approval."""
+
         run_id = data.draw(st.sampled_from(self.retryable_runs()))
         with self.database.repository() as repository:
             current = repository.get(run_id)
-            retried = repository.request_retry(
+            repository.request_retry(
                 run_id, expected_plan_version_id=current.plan_version_id
             )
-            repository.approve(run_id, plan_version_id=retried.plan_version_id)
+
+    @precondition(lambda self: bool(self.pending_runs()))
+    @rule(data=st.data())
+    def approve(self, data: st.DataObject) -> None:
+        run_id = data.draw(st.sampled_from(self.pending_runs()))
+        with self.database.repository() as repository:
+            current = repository.get(run_id)
+            repository.approve(run_id, plan_version_id=current.plan_version_id)
 
     # Guarantees
 
@@ -250,27 +264,33 @@ class SubmissionMachine(RuleBasedStateMachine):
                     )
 
     def expected_capacity(self) -> int:
-        """Outstanding jobs plus uncertain reservations, counted from the runs.
+        """Jobs the provider holds without an event, plus calls not yet answered.
 
-        Derived from repository reads rather than `outstanding_capacity`, so an
-        undercount in the helper that admits excess work cannot certify itself.
-        A job stays outstanding until the provider reports any event for it.
+        Counted from the provider's ledger, not from local job rows or run
+        status, so code that loses track of an accepted job undercounts here
+        too and cannot certify itself. A reservation counts until the provider
+        holds its key, whether or not the job was recorded locally.
         """
 
-        slots = 0
+        with closing(sqlite3.connect(self.ledger.path)) as ledger:
+            held = dict(
+                ledger.execute(
+                    "SELECT idempotency_key, external_job_id FROM fake_provider_jobs"
+                ).fetchall()
+            )
         with self.database.repository() as repository:
-            for run_id in self.runs:
-                run = repository.get(run_id)
-                reported = {
-                    e.external_job_id for e in repository.list_provider_events(run_id)
-                }
-                jobs = repository.list_provider_jobs(run_id)
-                slots += sum(job.external_job_id not in reported for job in jobs)
-                uncertain = run.status is WorkflowStatus.SUBMITTING and not any(
-                    job.plan_version_id == run.plan_version_id for job in jobs
-                )
-                slots += uncertain
-        return slots
+            reported = {
+                event.external_job_id
+                for run_id in self.runs
+                for event in repository.list_provider_events(run_id)
+            }
+            unanswered = [
+                run
+                for run in map(repository.get, self.runs)
+                if run.status is WorkflowStatus.SUBMITTING
+                and run.idempotency_key not in held
+            ]
+        return sum(job not in reported for job in held.values()) + len(unanswered)
 
     @invariant()
     def capacity_and_attempts_stay_bounded(self) -> None:

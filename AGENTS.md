@@ -99,10 +99,13 @@ separate passes, and record any skipped pass with a reason.
   and a reason to defer.
 - A review covers only the commit it saw. Fixes made afterwards need review
   too.
-- After every push, update the PR description's "Reviewed head commit" line to
-  the new head commit (short or full SHA). The required `review-head` check
-  fails until it matches. Editing the description re-runs the check. It runs
-  only on pull requests, so it is not in `scripts/check.sh`.
+- The PR description's "Reviewed head commit" line names the commit a review
+  covered (short or full SHA). Update it only after a review of the new head
+  commit; never set it to a commit no review has seen. The required
+  `review-head` check fails until the line matches the head, so a push without
+  a new review leaves the check failing, as intended. Editing the description
+  re-runs the check. It runs only on pull requests, so it is not in
+  `scripts/check.sh`.
 
 ## Documentation
 
