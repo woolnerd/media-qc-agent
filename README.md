@@ -64,8 +64,9 @@ affects one should name the test that challenges it.
 
 Two checks look for orderings no one wrote a test for.
 `workflow/test_submission_properties` is a Hypothesis state machine: it runs
-workers, timeouts, crashes, expired leases, completions, and retries against the
-real code in random orders, and shrinks any failure to its shortest sequence.
+workers, timeouts, crashes, expired leases, completions, retries, and approvals
+against the real code in random orders, and shrinks any failure to its shortest
+sequence.
 `specs/submission.qnt` is a Quint model of the same protocol; the simulator
 samples thousands of interleavings and must find a duplicate provider job when
 the provider ignores idempotency keys. Both run in `scripts/check.sh`. The model

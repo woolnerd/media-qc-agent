@@ -154,11 +154,12 @@ class SubmissionMachine(RuleBasedStateMachine):
 
     @precondition(lambda self: len(self.runs) < MAX_RUNS)
     @rule()
-    def create_approved_run(self) -> None:
+    def create_run(self) -> None:
+        """The first version waits for the `approve` step, like a retried one."""
+
         run_id = f"run-{len(self.runs) + 1}"
         with self.database.repository() as repository:
-            run = create_scenario_run(repository, "jerky-video", run_id)
-            repository.approve(run_id, plan_version_id=run.plan_version_id)
+            create_scenario_run(repository, "jerky-video", run_id)
         self.runs.append(run_id)
 
     @rule(owner=st.sampled_from(OWNERS), fault=st.sampled_from(FAULTS))

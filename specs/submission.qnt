@@ -215,14 +215,17 @@ module submission {
     VERSIONS.forall(v => s.jobsCreated.get(v) > 0 implies s.approved.contains(v))
 
   /// INV-04 and INV-08: recovery reuses the key, so a version creates one provider job.
-  /// A deduplicating provider makes this hold by itself; it is checked as a
-  /// witness against `nondeduplicating`, where an overlap must break it.
+  /// Not part of `safety`: a deduplicating provider makes this hold by itself.
+  /// It is checked as a witness against `nondeduplicating`, where an overlap
+  /// must break it.
   val oneJobPerKey: bool = VERSIONS.forall(v => s.jobsCreated.get(v) <= 1)
 
-  /// INV-04: a version is superseded only by an explicit retry of its recorded
-  /// job, never by recovery from an uncertain outcome.
-  val supersededVersionsWereRecorded: bool =
-    VERSIONS.forall(v => v < s.version implies s.recorded.exists(j => versionOf(j) == v))
+  /// INV-04: once a worker has claimed a version, only an explicit retry of its
+  /// recorded job supersedes it, never recovery from an uncertain outcome.
+  /// Edits before any claim also make new versions; the model leaves them out.
+  val recoveryKeepsItsVersion: bool =
+    VERSIONS.forall(v => (v < s.version and s.attempts.get(v) > 0)
+      implies s.recorded.exists(j => versionOf(j) == v))
 
   /// INV-08: claims are bounded by the attempt budget.
   val attemptsBounded: bool = VERSIONS.forall(v => s.attempts.get(v) <= MAX_ATTEMPTS)
@@ -240,8 +243,7 @@ module submission {
 
   val safety: bool = and {
     providerSeesOnlyApproved,
-    oneJobPerKey,
-    supersededVersionsWereRecorded,
+    recoveryKeepsItsVersion,
     attemptsBounded,
     onlyCurrentJobPromoted,
     commitsHoldTheLease,
