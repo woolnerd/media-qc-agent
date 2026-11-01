@@ -7,7 +7,7 @@ behavior; ADRs explain how it got that way. They are not a task tracker.
 Each ADR should state its status, context, decision, alternatives considered,
 and consequences. Accepted records are not rewritten to hide later learning.
 A decision is the choice an ADR makes, the alternatives it rejects, and the
-guarantees it commits to. To change, narrow, or drop any of those, add a new
+system guarantees it commits to, such as the README's INV-xx. To change, narrow, or drop any of those, add a new
 ADR that supersedes the old one. If the decision stands but the ADR's
 description of how it is implemented or checked goes out of date, correct
 that description in place and add a note to the Status, such as

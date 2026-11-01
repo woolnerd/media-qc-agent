@@ -112,14 +112,15 @@ separate passes, and record any skipped pass with a reason.
 - The README describes current behavior. Keep it accurate in the same PR as
   the change.
 - ADRs in `docs/adr/` record consequential decisions. An ADR's decision is
-  the choice it makes, the alternatives it rejects, and the guarantees it
-  commits to. To change, narrow, or drop any of those, supersede the ADR with
+  the choice it makes, the alternatives it rejects, and the system guarantees
+  it commits to, such as the README's INV-xx. To change, narrow, or drop any of those, supersede the ADR with
   a new one; never rewrite them in place. When the decision stands but the
   ADR's description of how it is implemented or checked is out of date,
   correct that description in place and add a note to its Status, such as
   `Amended in #<PR>: <what changed>. The decision is unchanged.` If the
   correction narrows what a check is said to cover, the note says so. The
-  PR's adversarial review confirms the decision is unchanged. Notes written
+  PR's adversarial review confirms the decision is unchanged; the review
+  prompt asks for this. Notes written
   before this rule stay as they are.
 - Keep `docs/diagrams.md` in sync when models or tables change.
 - Active work and acceptance criteria live in GitHub issues.
@@ -146,4 +147,4 @@ rule, add or update its row here in the same change.
 | No credentials committed | gitleaks in `scripts/check.sh` (history, staged, and unstaged changes; `.gitleaks.toml`) |
 | No real customer data committed | `.gitignore` for `.env`; otherwise prose only |
 | PRs target `main`, not another feature branch | prose only |
-| An accepted ADR's choice, rejected alternatives, and guarantees are superseded, not rewritten; outdated descriptions of how it is implemented or checked may be corrected in place with an `Amended in #<PR>` note in its Status | adversarial review of the amending PR; otherwise prose only |
+| An accepted ADR's choice, rejected alternatives, and guarantees are superseded, not rewritten; outdated descriptions of how it is implemented or checked may be corrected in place with an `Amended in #<PR>` note in its Status | adversarial review of the amending PR, asked for in `.github/prompts/adversarial-review.md`; otherwise prose only |

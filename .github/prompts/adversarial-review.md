@@ -22,6 +22,11 @@ Use these lenses when relevant:
   authorization, and external side effects.
 - Maintainability: ownership, coupling, side effects inside policy, excessive
   branching, and APIs whose callers can bypass guarantees.
+- Decision records: if the change edits an accepted ADR in place, confirm its
+  choice, rejected alternatives, and the system guarantees it commits to are
+  unchanged, and that its Status note says what changed and whether a check's
+  stated coverage narrowed (see "Documentation" in `AGENTS.md`). Otherwise it
+  needs a superseding ADR.
 
 Try to construct a failing test or minimal executable reproduction. State what
 the test proves and what it does not cover. Do not invent defects, demand a
