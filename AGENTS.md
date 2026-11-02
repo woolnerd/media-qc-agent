@@ -103,17 +103,19 @@ separate passes, and record any skipped pass with a reason.
 - Separate confirmed findings from hypotheses. A confirmed finding records its
   severity, the triggering sequence, the location, and a regression test where
   practical.
-- Rate each confirmed finding by its impact and how likely its trigger is:
-  - **P0:** serious harm in normal use, such as lost data, exposed credentials,
-    or an unapproved external side effect.
-  - **P1:** breaks a guarantee or core behavior in normal use, including a
-    required check that gives the wrong answer on ordinary input.
-  - **P2:** a real defect with limited impact or that needs specific
-    conditions, including a required check that gives the wrong answer on
-    unusual input.
+- Rate each confirmed finding by its impact:
+  - **P0:** lost or corrupted data, exposed credentials, or an unapproved
+    external side effect.
+  - **P1:** a broken guarantee or core behavior, or a protection such as a
+    required check, ruleset, or review gate that is weakened or gives the wrong
+    answer.
+  - **P2:** a defect with contained impact, or documentation wrong enough that
+    a reader would act on it incorrectly.
   - **P3:** minor, such as a small test gap, unclear wording, or a rough edge.
-- Don't dismiss a defect you can reproduce as unlikely. Rate it, and if its
-  likelihood lowered the rating, say why.
+- An unlikely trigger can lower a rating by one level if you say why, but a
+  reproducible break of a [guarantee](README.md#guarantees) stays at P1 or
+  above. Crashes, races, and duplicate events count as reproducible triggers,
+  not as reasons to lower a rating. Don't dismiss a defect you can reproduce.
 - Fix P0 and P1 findings before merging. A P2 needs a fix, or a linked issue
   and a reason to defer. A P3 needs a fix, or a note in the PR saying why it
   stays.
