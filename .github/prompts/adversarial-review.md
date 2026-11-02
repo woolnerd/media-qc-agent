@@ -35,9 +35,10 @@ finding quota, or turn style preferences into correctness blockers.
 ## Required report
 
 - Reviewed base and head commit IDs; scope and skipped passes.
-- For each confirmed finding: P0–P3 severity, triggering sequence, practical
-  impact, code path and line, reproduction, and the violated invariant or
-  requirement. P0/P1 means a merge blocker.
+- For each confirmed finding: P0–P3 severity, as defined in "Pull requests and
+  review" in `AGENTS.md`, triggering sequence, practical impact, code path and
+  line, reproduction, and the violated invariant or requirement. P0/P1 means a
+  merge blocker.
 - Unverified hypotheses and missing evidence, separated from confirmed bugs.
 - Remaining limitations and a concise verdict. If no blockers were found, say
   "No confirmed blockers found" rather than claiming the code is safe.

@@ -48,4 +48,4 @@ Follow "Pull requests and review" in `AGENTS.md` and `.github/prompts/adversaria
 - [ ] Affected invariants and failure scenarios have relevant evidence.
 - [ ] Required architecture/documentation updates are present.
 - [ ] Adversarial review covers the current implementation; no unresolved P0/P1 findings.
-- [ ] Remaining confirmed findings are fixed or have a linked issue and deferral rationale.
+- [ ] Remaining P2 findings are fixed or have a linked issue and a reason to defer; P3 findings are fixed or noted with a reason.

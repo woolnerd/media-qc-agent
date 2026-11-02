@@ -103,8 +103,20 @@ separate passes, and record any skipped pass with a reason.
 - Separate confirmed findings from hypotheses. A confirmed finding records its
   severity, the triggering sequence, the location, and a regression test where
   practical.
+- Rate each confirmed finding by its impact and how likely its trigger is:
+  - **P0:** serious harm in normal use, such as lost data, exposed credentials,
+    or an unapproved external side effect.
+  - **P1:** breaks a guarantee or core behavior in normal use, including a
+    required check that gives the wrong answer on ordinary input.
+  - **P2:** a real defect with limited impact or that needs specific
+    conditions, including a required check that gives the wrong answer on
+    unusual input.
+  - **P3:** minor, such as a small test gap, unclear wording, or a rough edge.
+- Don't dismiss a defect you can reproduce as unlikely. Rate it, and if its
+  likelihood lowered the rating, say why.
 - Fix P0 and P1 findings before merging. A P2 needs a fix, or a linked issue
-  and a reason to defer.
+  and a reason to defer. A P3 needs a fix, or a note in the PR saying why it
+  stays.
 - A review covers only the commit it saw. Fixes made afterwards need review
   too.
 - The PR description's "Reviewed head commit" line names the commit a review
