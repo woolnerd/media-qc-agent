@@ -140,6 +140,11 @@ When a rule has no enforcer, prefer adding one (architecture, type, lint, test,
 or CI check) over adding more prose. When an agent is corrected for breaking a
 rule, add or update its row here in the same change.
 
+If a missing enforcer would have caught a real or repeated mistake, don't stop
+to build it. Add it under "Suggested enforcers" in the PR as soon as you find
+it, and the owner decides which to pursue. On long-running work, open a draft
+PR early so suggestions survive lost context.
+
 | Rule | Enforced by |
 | --- | --- |
 | Changes reach `main` only through a pull request | GitHub ruleset on `main` |

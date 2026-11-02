@@ -24,6 +24,14 @@ What happens if execution stops halfway through this change?
 - Relevant documentation / ADR updates:
 - Model changes: offline evaluation result and live comparison, or reason omitted:
 
+## Suggested enforcers
+
+Rules still carried by prose that a type, lint rule, schema, test, or CI check
+could enforce, where that check would have caught a real or repeated mistake.
+Name the mistake. Add to this as you work. Write "none" if there are none.
+
+-
+
 ## Adversarial review
 
 Follow "Pull requests and review" in `AGENTS.md` and `.github/prompts/adversarial-review.md`.
