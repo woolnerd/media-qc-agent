@@ -136,9 +136,18 @@ separate passes, and record any skipped pass with a reason.
 
 ## Rules and what enforces them
 
-When a rule has no enforcer, prefer adding one (architecture, type, lint, test,
-or CI check) over adding more prose. When an agent is corrected for breaking a
+When your change adds a rule, prefer an enforcer (architecture, type, lint,
+test, or CI check) over more prose. When an agent is corrected for breaking a
 rule, add or update its row here in the same change.
+
+If you notice that some other rule lacks an enforcer that would have caught a
+real or repeated mistake, don't ask about it, and don't build it unless the
+owner has told you to build it; keep working on your task. Add it under
+"Suggested enforcers" in the PR as soon as you find it, and keep that section
+when you edit the description. With no PR, put it in your final message. The
+owner decides which to pursue. On long-running work, open a draft PR early so
+suggestions survive lost context. Its `review-head` check fails until the
+review, as expected.
 
 | Rule | Enforced by |
 | --- | --- |
