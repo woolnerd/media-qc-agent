@@ -9,22 +9,29 @@ import os
 import re
 import sys
 
-LABEL = "Reviewed head commit"
-# The PR template's list item, not prose that mentions the label.
-LINE = re.compile(rf"^\s*[-*]\s*{LABEL}[^:\n]*:(.*)$", re.MULTILINE)
+LABEL = "Reviewed head commit and reviewer/context"
+# The PR template's list item, not prose or other bullets that mention the label.
+LINE = re.compile(rf"^[ \t]*[-*][ \t]*{re.escape(LABEL)}:(.*)$", re.MULTILINE)
+# The template's own hint is a comment, and an unclosed one hides the rest.
+COMMENT = re.compile(r"<!--.*?(?:-->|\Z)", re.DOTALL)
 SHA = re.compile(r"\b[0-9a-f]{7,40}\b", re.IGNORECASE)
 
 
-def reviewed_shas(body: str) -> list[str]:
-    """Return the commit-like tokens on the first "Reviewed head commit" item."""
+def review_items(body: str) -> list[str]:
+    """Return the text of each "Reviewed head commit" item, ignoring comments."""
 
-    line = LINE.search(body)
-    return [sha.lower() for sha in SHA.findall(line.group(1))] if line else []
+    return LINE.findall(COMMENT.sub("", body))
 
 
 def review_head_error(body: str, head_sha: str) -> str | None:
+    items = review_items(body)
+    if len(items) > 1:
+        return (
+            f'"{LABEL}" appears {len(items)} times. '
+            "Keep only the one from the PR template."
+        )
     head = head_sha.lower()
-    shas = reviewed_shas(body)
+    shas = [sha.lower() for sha in SHA.findall(items[0])] if items else []
     if any(head.startswith(sha) for sha in shas):
         return None
     named = ", ".join(shas) or "no commit"
