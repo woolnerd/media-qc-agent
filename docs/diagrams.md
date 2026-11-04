@@ -170,7 +170,9 @@ erDiagram
 
 ## 3. Packages: who imports whom
 
-Arrows point at the dependency. Lower layers never import upper ones.
+Arrows point at direct imports. Lower layers never import upper ones directly,
+but `media_qc_agent/__init__.py` re-exports from `workflow`, so importing any
+subpackage also loads it at runtime.
 
 ```mermaid
 flowchart BT
@@ -460,13 +462,14 @@ flowchart LR
     BL --> BR[("results/baseline-runs-v1.json<br/>run appended")]
 ```
 
-None of these commands imports `workflow`: evaluations measure routing and
-validation, not the worker or the database.
+None of these commands opens the workflow database or runs a worker: evaluations
+measure routing and validation.
 
 ## 10. Observability: events flow out, never back
 
-Workflow events are emitted after their transaction commits. A failing sink
-cannot retry provider work or undo a commit (INV-10).
+Repository events are emitted after their transaction commits. Worker and
+executor events report steps outside those transactions, such as the provider
+call. A failing sink cannot retry provider work or undo a commit (INV-10).
 
 ```mermaid
 flowchart LR
