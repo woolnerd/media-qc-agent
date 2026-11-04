@@ -59,8 +59,13 @@ class ArtifactStore:
             self._connection.execute(
                 """INSERT INTO script_versions
                    (version_id, authored_text, environment, evidence_phrase)
-                   VALUES (?, ?, ?, ?)""",
-                (version_id, authored_text, scene.environment, scene.evidence_phrase),
+                   VALUES (:version_id, :authored_text, :environment, :evidence_phrase)""",
+                {
+                    "version_id": version_id,
+                    "authored_text": authored_text,
+                    "environment": scene.environment,
+                    "evidence_phrase": scene.evidence_phrase,
+                },
             )
         return self.get(version_id)
 
@@ -109,17 +114,20 @@ class ArtifactStore:
                 """INSERT INTO tts_input_versions (
                        version_id, script_version_id, authored_text, candidate_text,
                        spoken_text, provider, model, supported_notation
-                   ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)""",
-                (
-                    version_id,
-                    script_version_id,
-                    result.authored_text,
-                    result.candidate_text,
-                    result.spoken_text,
-                    capabilities.provider,
-                    capabilities.model,
-                    json.dumps(notation),
-                ),
+                   ) VALUES (
+                       :version_id, :script_version_id, :authored_text, :candidate_text,
+                       :spoken_text, :provider, :model, :supported_notation
+                   )""",
+                {
+                    "version_id": version_id,
+                    "script_version_id": script_version_id,
+                    "authored_text": result.authored_text,
+                    "candidate_text": result.candidate_text,
+                    "spoken_text": result.spoken_text,
+                    "provider": capabilities.provider,
+                    "model": capabilities.model,
+                    "supported_notation": json.dumps(notation),
+                },
             )
         return self.tts_input(version_id)
 
@@ -188,9 +196,13 @@ class ArtifactStore:
         )
         self._connection.executemany(
             """INSERT INTO artifact_dependencies (artifact_id, source_kind, source_id)
-               VALUES (?, ?, ?)""",
+               VALUES (:artifact_id, :source_kind, :source_id)""",
             (
-                (version_id, source_kind, source_id)
+                {
+                    "artifact_id": version_id,
+                    "source_kind": source_kind,
+                    "source_id": source_id,
+                }
                 for source_kind, source_id in sources
             ),
         )
@@ -199,8 +211,8 @@ class ArtifactStore:
         row = self._row("SELECT * FROM artifact_versions WHERE id = ?", version_id)
         dependencies = self._connection.execute(
             """SELECT source_kind, source_id FROM artifact_dependencies
-               WHERE artifact_id = ?""",
-            (version_id,),
+               WHERE artifact_id = :artifact_id""",
+            {"artifact_id": version_id},
         ).fetchall()
         sources = sorted(
             (
