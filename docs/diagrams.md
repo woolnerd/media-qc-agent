@@ -1,7 +1,6 @@
 # Diagrams
 
-Visual maps of the system, drawn from the code as of the #56 cleanup. Mermaid
-renders on GitHub.
+Visual maps of the system. Mermaid renders on GitHub.
 
 ## 1. UML class diagram: core models
 
@@ -146,6 +145,7 @@ erDiagram
         text external_job_id PK
         text idempotency_key UK
         text plan_version_id FK
+        text traceparent
     }
     provider_events {
         text external_event_id PK
@@ -156,6 +156,8 @@ erDiagram
         int attempts
         text lease_owner
         real lease_until
+        real next_attempt_at
+        int stopped
     }
     artifact_versions {
         text id PK
@@ -177,7 +179,7 @@ flowchart BT
     agent["agent<br/>interpretation, openrouter, jev<br/><i>model proposes, policy validates</i>"]
     workflow["workflow<br/>repository, artifacts, schema,<br/>executor, worker, queue, provider<br/><i>durable state + side effects</i>"]
     api["api<br/>FastAPI JSON + review HTML"]
-    cli["cli<br/>serve, worker, demo, evaluate, compare, baseline"]
+    cli["cli<br/>serve, worker, review, demo,<br/>evaluate, compare, baseline"]
 
     quality --> domain
     agent --> domain
@@ -303,11 +305,12 @@ stateDiagram-v2
     awaiting_approval --> ready: approve(plan_version_id)
 
     ready --> awaiting_approval: revise_plan / bind_tts_input<br/>(new version, approval no longer current)
-    ready --> submitting: reserve_submission<br/>(worker, atomic)
+    ready --> submitting: queue.claim (worker, atomic)<br/>or reserve_submission (no worker)
     ready --> succeeded: record_caption_repair<br/>(local, no provider)
 
     submitting --> submitted: record_submission
     submitting --> submitting: crash → lease expires →<br/>recover with the same key
+    submitting --> submitting: timeout → lease released, backoff →<br/>recover with the same key
 
     submitted --> succeeded: record_completion<br/>(callback applied)
     submitted --> awaiting_approval: request_retry<br/>(new version, new key)
@@ -319,6 +322,11 @@ Every arrow except the worker's appends or checks a plan version, and every
 reviewer command must name the version it was decided against
 (`expected_plan_version_id`), so a stale page gets a 409 instead of acting on a
 plan the reviewer never saw.
+
+A run that runs out of recovery attempts, or hits a non-retryable provider error,
+stays in `submitting` with its capacity slot held, because the provider may have
+accepted the job. Nothing in the code resolves it yet (#87). A worker that lost
+its lease changes nothing and returns `lease_lost`.
 
 ## 7. Sequence: approval to replacement video
 
@@ -334,9 +342,9 @@ sequenceDiagram
 
     R->>A: approve(plan_version_id)
     A->>DB: BEGIN IMMEDIATE · check version · insert approval · status=ready
-    W->>DB: claim lease (owner, attempt, expires_at)
-    W->>DB: reserve_submission · status=submitting
+    W->>DB: claim lease (owner, attempt, expires_at) · status=submitting
     Note over DB: from here, edits are blocked<br/>and the key is fixed
+    W->>DB: reserve_submission · recheck lease and version
     W->>P: submit(key = workflow-run:{run}:plan:{version})
     P-->>W: external_job_id
     W->>DB: record_submission · status=submitted
@@ -353,7 +361,7 @@ sequenceDiagram
     participant P as Provider
     participant W2 as Worker (recovery)
 
-    W1->>DB: reserve · status=submitting
+    W1->>DB: claim lease · status=submitting
     W1->>P: submit(key K)
     P-->>W1: job J
     Note over W1: process dies before recording J
@@ -394,3 +402,99 @@ flowchart LR
     Q -. must break .-> W3[a retried run succeeds]
     Q -. must break .-> W4[an answer outlives<br/>its lease]
 ```
+
+## 9. Evaluation: what runs offline and what gets recorded
+
+Each command replays committed inputs, so CI needs no model and no API key.
+`scripts/check.sh` runs all three.
+
+```mermaid
+flowchart LR
+    subgraph inputs["Committed inputs"]
+        AC["agent-cases-v1.json<br/>15 cases with fixture responses"]
+        RO["recorded-outputs-v1.json<br/>105 recorded model outputs"]
+        BC["baseline-cases-v1.json<br/>19 held-out cases"]
+        BR["results/baseline-runs-v1.json<br/>3 recorded Luna runs"]
+    end
+    subgraph commands["Offline commands"]
+        E["cli.evaluate<br/>score each case"]
+        C["cli.compare<br/>score under each acceptance policy"]
+        B["cli.baseline<br/>score each routing arm"]
+    end
+    subgraph checks["What fails the build"]
+        EP["any case fails"]
+        PC["any difference from<br/>results/policy-comparison-v1.json"]
+        BP["any difference from<br/>results/baseline-comparison-v1.json"]
+    end
+
+    AC --> E --> EP
+    AC --> C
+    RO --> C --> PC
+    BC --> B
+    BR --> B --> BP
+```
+
+`cli.compare` also fails if the fixtures don't pass under every policy, with or
+without a snapshot.
+
+The baseline compares three routing arms. Every arm sees the same evidence.
+
+| Arm | Gate has a finding | Gate is silent |
+| --- | --- | --- |
+| `rules_only` | Gate decides | Human diagnoses |
+| `single_shot` | Model decides, with the gate's evidence as input | Model decides |
+| `layered` | Gate decides | Model decides |
+
+If the model abstains or its output is rejected, the case goes to a human.
+
+Recording new outputs is separate, billed, and refuses to start unless
+`MEDIA_QC_ALLOW_PAID=1` is set.
+
+```mermaid
+flowchart LR
+    Gate{{"MEDIA_QC_ALLOW_PAID=1"}} --> EL["cli.evaluate --live<br/>--traces PATH"]
+    Gate --> BL["cli.baseline --live RUN_ID"]
+    EL --> M(("Model API"))
+    BL --> M
+    EL --> T[("JSONL trace records<br/>one per case")]
+    BL --> BR[("results/baseline-runs-v1.json<br/>run appended")]
+```
+
+None of these commands imports `workflow`: evaluations measure routing and
+validation, not the worker or the database.
+
+## 10. Observability: events flow out, never back
+
+Workflow events are emitted after their transaction commits. A failing sink
+cannot retry provider work or undo a commit (INV-10).
+
+```mermaid
+flowchart LR
+    W["DurableWorker<br/>claimed, finished"] --> O["ExecutionObserver.emit"]
+    X["WorkflowExecutor<br/>provider started, response, error,<br/>submission recorded"] --> O
+    R["WorkflowRepository<br/>approved, reserved, attempt requested,<br/>completion recorded, artifact created"] --> O
+
+    O --> Counts["In-process counts<br/>not durable"]
+    O --> Sink["sink<br/>cli.worker --events prints JSON to stderr"]
+    O --> Metrics["metric_sink (optional)<br/>ExecutionMetrics: bounded labels"]
+```
+
+Traces connect a submission to its later callback through the database, because
+the two happen far apart in time.
+
+```mermaid
+sequenceDiagram
+    participant X as WorkflowExecutor
+    participant DB as provider_jobs
+    participant R as record_completion
+
+    X->>X: provider_span around provider.submit
+    X->>DB: save traceparent with the job
+    R->>DB: read traceparent for the job
+    R->>R: completion_span linked to the saved context
+```
+
+Model turns are traced separately (`agent/tracing.py`). Spans hold only
+allowlisted, hashed attributes. Full synthetic inputs and outputs go only in the
+evaluator's JSONL records, joined to spans by trace ID (ADR 0024). Spans go
+nowhere unless an OpenTelemetry SDK is configured at the assembly edge.
