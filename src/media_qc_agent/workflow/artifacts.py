@@ -78,8 +78,9 @@ class ArtifactStore:
         with self._connection:
             self._insert(version_id, ArtifactKind.AVATAR, ())
             self._connection.execute(
-                "INSERT INTO avatar_versions (version_id, environment) VALUES (?, ?)",
-                (version_id, environment),
+                """INSERT INTO avatar_versions (version_id, environment)
+                   VALUES (:version_id, :environment)""",
+                {"version_id": version_id, "environment": environment},
             )
         return self.get(version_id)
 
@@ -178,8 +179,12 @@ class ArtifactStore:
         )
         if cues is not None:
             self._connection.execute(
-                "INSERT INTO caption_contents (version_id, cues_json) VALUES (?, ?)",
-                (version_id, json.dumps([asdict(cue) for cue in cues])),
+                """INSERT INTO caption_contents (version_id, cues_json)
+                   VALUES (:version_id, :cues_json)""",
+                {
+                    "version_id": version_id,
+                    "cues_json": json.dumps([asdict(cue) for cue in cues]),
+                },
             )
 
     def _insert(
@@ -191,8 +196,9 @@ class ArtifactStore:
         external_job_id: str | None = None,
     ) -> None:
         self._connection.execute(
-            "INSERT INTO artifact_versions (id, kind, external_job_id) VALUES (?, ?, ?)",
-            (version_id, kind, external_job_id),
+            """INSERT INTO artifact_versions (id, kind, external_job_id)
+               VALUES (:id, :kind, :external_job_id)""",
+            {"id": version_id, "kind": kind, "external_job_id": external_job_id},
         )
         self._connection.executemany(
             """INSERT INTO artifact_dependencies (artifact_id, source_kind, source_id)
@@ -208,7 +214,9 @@ class ArtifactStore:
         )
 
     def get(self, version_id: str) -> ArtifactVersion:
-        row = self._row("SELECT * FROM artifact_versions WHERE id = ?", version_id)
+        row = self._row(
+            "SELECT * FROM artifact_versions WHERE id = :version_id", version_id
+        )
         dependencies = self._connection.execute(
             """SELECT source_kind, source_id FROM artifact_dependencies
                WHERE artifact_id = :artifact_id""",
@@ -231,26 +239,29 @@ class ArtifactStore:
 
     def script_text(self, version_id: str) -> str:
         row = self._row(
-            "SELECT authored_text FROM script_versions WHERE version_id = ?", version_id
+            "SELECT authored_text FROM script_versions WHERE version_id = :version_id",
+            version_id,
         )
         return str(row["authored_text"])
 
     def script_scene(self, version_id: str) -> ScriptScene:
         row = self._row(
-            "SELECT environment, evidence_phrase FROM script_versions WHERE version_id = ?",
+            "SELECT environment, evidence_phrase FROM script_versions WHERE version_id = :version_id",
             version_id,
         )
         return ScriptScene(Environment(row["environment"]), row["evidence_phrase"])
 
     def avatar_environment(self, version_id: str) -> Environment:
         row = self._row(
-            "SELECT environment FROM avatar_versions WHERE version_id = ?", version_id
+            "SELECT environment FROM avatar_versions WHERE version_id = :version_id",
+            version_id,
         )
         return Environment(row["environment"])
 
     def tts_input(self, version_id: str) -> TtsInputVersion:
         row = self._row(
-            "SELECT * FROM tts_input_versions WHERE version_id = ?", version_id
+            "SELECT * FROM tts_input_versions WHERE version_id = :version_id",
+            version_id,
         )
         return TtsInputVersion(
             id=row["version_id"],
@@ -269,7 +280,8 @@ class ArtifactStore:
 
     def caption_cues(self, version_id: str) -> tuple[CaptionCue, ...]:
         row = self._row(
-            "SELECT cues_json FROM caption_contents WHERE version_id = ?", version_id
+            "SELECT cues_json FROM caption_contents WHERE version_id = :version_id",
+            version_id,
         )
         return tuple(CaptionCue(**item) for item in json.loads(row["cues_json"]))
 
@@ -299,7 +311,7 @@ class ArtifactStore:
             raise ValueError("TTS input must derive from the selected script version")
 
     def _row(self, query: str, version_id: str) -> sqlite3.Row:
-        row = self._connection.execute(query, (version_id,)).fetchone()
+        row = self._connection.execute(query, {"version_id": version_id}).fetchone()
         if row is None:
             raise KeyError(version_id)
         return row

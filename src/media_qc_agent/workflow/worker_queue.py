@@ -3,7 +3,7 @@
 import sqlite3
 import time
 from collections.abc import Callable
-from dataclasses import astuple
+from dataclasses import asdict, astuple
 from typing import TYPE_CHECKING
 
 from media_qc_agent.domain.ids import validate_run_id
@@ -97,8 +97,11 @@ class SubmissionQueue:
         with self.connection:
             self.connection.execute("BEGIN IMMEDIATE")
             self.connection.execute(
-                "INSERT OR IGNORE INTO worker_policy VALUES (1, ?, ?, ?, ?, ?)",
-                astuple(self.policy),
+                """INSERT OR IGNORE INTO worker_policy VALUES (
+                     1, :max_in_flight, :max_attempts, :lease_seconds,
+                     :backoff_seconds, :max_backoff_seconds
+                   )""",
+                asdict(self.policy),
             )
             row = self.connection.execute(
                 "SELECT * FROM worker_policy WHERE id = 1"
@@ -195,8 +198,9 @@ class SubmissionQueue:
             self.connection.execute("BEGIN IMMEDIATE")
             require_lease(self.connection, lease, self.clock())
             self.connection.execute(
-                "UPDATE worker_attempts SET lease_owner = NULL, lease_until = NULL WHERE plan_version_id = ?",
-                (lease.plan_version_id,),
+                """UPDATE worker_attempts SET lease_owner = NULL, lease_until = NULL
+                   WHERE plan_version_id = :plan_version_id""",
+                {"plan_version_id": lease.plan_version_id},
             )
 
     def fail(self, lease: SubmissionLease, error: Exception, *, retryable: bool) -> str:

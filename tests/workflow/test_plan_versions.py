@@ -330,8 +330,8 @@ class PlanVersionTests(unittest.TestCase):
     def test_ready_status_alone_cannot_authorize_side_effect(self) -> None:
         original = self.create_run()
         self.connection.execute(
-            "UPDATE workflow_runs SET status = ? WHERE id = ?",
-            (WorkflowStatus.READY, "run-1"),
+            "UPDATE workflow_runs SET status = :status WHERE id = :run_id",
+            {"status": WorkflowStatus.READY, "run_id": "run-1"},
         )
         self.connection.commit()
         with self.assertRaisesRegex(ValueError, "approval"):
@@ -348,8 +348,8 @@ class PlanVersionTests(unittest.TestCase):
         self.create_run()
         with self.assertRaisesRegex(sqlite3.IntegrityError, "its own plan versions"):
             self.connection.execute(
-                "UPDATE workflow_runs SET plan_version_id = ? WHERE id = 'run-1'",
-                (other.plan_version_id,),
+                "UPDATE workflow_runs SET plan_version_id = :plan_version_id WHERE id = 'run-1'",
+                {"plan_version_id": other.plan_version_id},
             )
         with self.assertRaisesRegex(sqlite3.IntegrityError, "new run cannot point"):
             self.connection.execute(
@@ -366,8 +366,8 @@ class PlanVersionTests(unittest.TestCase):
         original = self.create_run()
         self.repository.approve("run-1", plan_version_id=original.plan_version_id)
         self.connection.execute(
-            "UPDATE workflow_runs SET observed_avatar_version_id = ? WHERE id = ?",
-            ("avatar-2", "run-1"),
+            "UPDATE workflow_runs SET observed_avatar_version_id = :avatar WHERE id = :run_id",
+            {"avatar": "avatar-2", "run_id": "run-1"},
         )
         self.connection.commit()
         submitted = WorkflowExecutor(

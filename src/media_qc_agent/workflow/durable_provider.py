@@ -31,12 +31,18 @@ class DurableFakeVideoProvider:
             with connection:
                 connection.execute("BEGIN IMMEDIATE")
                 connection.execute(
-                    "INSERT OR IGNORE INTO fake_provider_jobs VALUES (?, ?, ?)",
-                    (idempotency_key, action, external_job_id),
+                    """INSERT OR IGNORE INTO fake_provider_jobs
+                       VALUES (:idempotency_key, :action, :external_job_id)""",
+                    {
+                        "idempotency_key": idempotency_key,
+                        "action": action,
+                        "external_job_id": external_job_id,
+                    },
                 )
                 row = connection.execute(
-                    "SELECT action, external_job_id FROM fake_provider_jobs WHERE idempotency_key = ?",
-                    (idempotency_key,),
+                    """SELECT action, external_job_id FROM fake_provider_jobs
+                       WHERE idempotency_key = :idempotency_key""",
+                    {"idempotency_key": idempotency_key},
                 ).fetchone()
                 if row[0] != action:
                     raise ValueError(
@@ -61,7 +67,8 @@ class DurableFakeVideoProvider:
     def job_for_key(self, key: str) -> str | None:
         with closing(sqlite3.connect(self.path)) as connection:
             row = connection.execute(
-                "SELECT external_job_id FROM fake_provider_jobs WHERE idempotency_key = ?",
-                (key,),
+                """SELECT external_job_id FROM fake_provider_jobs
+                   WHERE idempotency_key = :idempotency_key""",
+                {"idempotency_key": key},
             ).fetchone()
         return str(row[0]) if row else None

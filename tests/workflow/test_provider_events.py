@@ -276,8 +276,8 @@ class ProviderCompletionTests(unittest.TestCase):
     def test_impossible_active_job_transition_is_quarantined_with_reason(self) -> None:
         job_id = self.submit_run("run-1")
         self.connection.execute(
-            "UPDATE workflow_runs SET status = ? WHERE id = ?",
-            (WorkflowStatus.READY, "run-1"),
+            "UPDATE workflow_runs SET status = :status WHERE id = :run_id",
+            {"status": WorkflowStatus.READY, "run_id": "run-1"},
         )
         self.connection.commit()
 

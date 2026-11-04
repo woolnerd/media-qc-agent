@@ -62,8 +62,8 @@ def recovery_info(
 ) -> RecoveryInfo:
     policy = load_worker_policy(connection)
     row = connection.execute(
-        "SELECT * FROM worker_attempts WHERE plan_version_id = ?",
-        (run.plan_version_id,),
+        "SELECT * FROM worker_attempts WHERE plan_version_id = :plan_version_id",
+        {"plan_version_id": run.plan_version_id},
     ).fetchone()
     if row is None:
         return RecoveryInfo(0, 0, 0, False, outstanding_capacity(connection), policy)

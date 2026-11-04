@@ -375,8 +375,8 @@ class WorkflowRepository:
             ):
                 raise ValueError("workflow has no submitted job to retry")
             self._connection.execute(
-                "UPDATE workflow_runs SET external_job_id = NULL WHERE id = ?",
-                (run_id,),
+                "UPDATE workflow_runs SET external_job_id = NULL WHERE id = :run_id",
+                {"run_id": run_id},
             )
             self._change_plan(
                 run_id,
@@ -482,8 +482,8 @@ class WorkflowRepository:
             self.artifacts.validate_tts_binding(current.sources)
             self._require_environment_resolved(current)
             self._connection.execute(
-                "INSERT INTO plan_approvals (plan_version_id) VALUES (?)",
-                (plan_version_id,),
+                "INSERT INTO plan_approvals (plan_version_id) VALUES (:plan_version_id)",
+                {"plan_version_id": plan_version_id},
             )
             self._set_status(run_id, WorkflowStatus.READY)
             approved = self.get(run_id)
@@ -602,8 +602,8 @@ class WorkflowRepository:
 
         started = self._observer.clock()
         row = self._connection.execute(
-            "SELECT traceparent FROM provider_jobs WHERE external_job_id = ?",
-            (external_job_id,),
+            "SELECT traceparent FROM provider_jobs WHERE external_job_id = :external_job_id",
+            {"external_job_id": external_job_id},
         ).fetchone()
         with completion_span(
             self._observer.tracer,
@@ -756,15 +756,15 @@ class WorkflowRepository:
 
     def _set_status(self, run_id: str, status: WorkflowStatus) -> None:
         self._connection.execute(
-            f"UPDATE workflow_runs SET status = ?, {_TOUCH} WHERE id = ?",
-            (status, run_id),
+            f"UPDATE workflow_runs SET status = :status, {_TOUCH} WHERE id = :run_id",
+            {"status": status, "run_id": run_id},
         )
 
     # Reads
 
     def get(self, run_id: str) -> WorkflowRun:
         row = self._connection.execute(
-            "SELECT * FROM workflow_runs WHERE id = ?", (run_id,)
+            "SELECT * FROM workflow_runs WHERE id = :run_id", {"run_id": run_id}
         ).fetchone()
         if row is None:
             raise KeyError(run_id)
@@ -813,8 +813,8 @@ class WorkflowRepository:
 
     def get_plan_version(self, version_id: str) -> RepairPlanVersion:
         row = self._connection.execute(
-            "SELECT snapshot, created_at FROM repair_plan_versions WHERE id = ?",
-            (version_id,),
+            "SELECT snapshot, created_at FROM repair_plan_versions WHERE id = :version_id",
+            {"version_id": version_id},
         ).fetchone()
         if row is None:
             raise KeyError(version_id)
@@ -822,14 +822,14 @@ class WorkflowRepository:
 
     def get_plan_approval(self, plan_version_id: str) -> PlanApproval | None:
         row = self._connection.execute(
-            "SELECT * FROM plan_approvals WHERE plan_version_id = ?",
-            (plan_version_id,),
+            "SELECT * FROM plan_approvals WHERE plan_version_id = :plan_version_id",
+            {"plan_version_id": plan_version_id},
         ).fetchone()
         return PlanApproval(row["plan_version_id"], row["created_at"]) if row else None
 
     def get_quality_finding(self, run_id: str) -> QualityFindingRecord:
         row = self._connection.execute(
-            "SELECT * FROM quality_findings WHERE run_id = ?", (run_id,)
+            "SELECT * FROM quality_findings WHERE run_id = :run_id", {"run_id": run_id}
         ).fetchone()
         if row is None:
             raise KeyError(run_id)
@@ -845,8 +845,8 @@ class WorkflowRepository:
 
     def get_quality_evidence(self, finding_id: str) -> tuple[EvidenceRecord, ...]:
         rows = self._connection.execute(
-            "SELECT * FROM quality_evidence WHERE finding_id = ? ORDER BY ordinal",
-            (finding_id,),
+            "SELECT * FROM quality_evidence WHERE finding_id = :finding_id ORDER BY ordinal",
+            {"finding_id": finding_id},
         ).fetchall()
         return tuple(
             EvidenceRecord(
@@ -866,8 +866,8 @@ class WorkflowRepository:
         """A job's sources and action are those of the plan version it ran."""
 
         row = self._connection.execute(
-            "SELECT * FROM provider_jobs WHERE external_job_id = ?",
-            (external_job_id,),
+            "SELECT * FROM provider_jobs WHERE external_job_id = :external_job_id",
+            {"external_job_id": external_job_id},
         ).fetchone()
         if row is None:
             raise KeyError(external_job_id)
@@ -892,8 +892,8 @@ class WorkflowRepository:
 
     def get_provider_event(self, external_event_id: str) -> ProviderEvent:
         row = self._connection.execute(
-            "SELECT * FROM provider_events WHERE external_event_id = ?",
-            (external_event_id,),
+            "SELECT * FROM provider_events WHERE external_event_id = :external_event_id",
+            {"external_event_id": external_event_id},
         ).fetchone()
         if row is None:
             raise KeyError(external_event_id)
@@ -957,12 +957,12 @@ class WorkflowRepository:
         job = self.get_provider_job(external_job_id)
         approval = self.get_plan_approval(job.plan_version_id)
         completed = self._connection.execute(
-            "SELECT MIN(created_at) FROM provider_events WHERE external_job_id = ?",
-            (external_job_id,),
+            "SELECT MIN(created_at) FROM provider_events WHERE external_job_id = :external_job_id",
+            {"external_job_id": external_job_id},
         ).fetchone()
         claim = self._connection.execute(
-            "SELECT first_claimed_at FROM worker_attempts WHERE plan_version_id = ?",
-            (job.plan_version_id,),
+            "SELECT first_claimed_at FROM worker_attempts WHERE plan_version_id = :plan_version_id",
+            {"plan_version_id": job.plan_version_id},
         ).fetchone()
         return job_timing(
             approval.created_at if approval else None,

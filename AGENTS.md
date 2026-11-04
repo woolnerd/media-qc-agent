@@ -25,6 +25,7 @@ directly. `CONTRIBUTING.md` lists only the decisions reserved for the owner.
   the edges. Keep provider-specific behavior behind interfaces.
 - Ruff limits cyclomatic complexity to 6 per function. Split decision logic
   that exceeds it.
+- Use named SQL parameters (`:run_id`), not positional `?`, in every query.
 - Never commit real customer data, private media, client artifacts, or
   credentials. All people, scripts, media, and provider behavior are synthetic.
 
@@ -176,6 +177,7 @@ review, as expected.
 | Paid live runs need the owner's approval | `require_paid_run_approval` in `agent/openrouter.py` (`MEDIA_QC_ALLOW_PAID=1`); agents never set it without the owner's approval in the current conversation |
 | Adversarial review covers the current head commit | `review-head` workflow, a required check on `main`, fails until the PR names its head commit (`scripts/review_head.py`); the owner checks the review itself |
 | gitleaks in CI and Quint come from pinned, hash-checked sources (Python check tools are pinned without hashes) | SHA-256 check for gitleaks in `.github/workflows/ci.yml`; `npm ci --ignore-scripts` against `tools/quint/package-lock.json` and the backend guard in `scripts/check.sh` |
+| SQL uses named parameters, not positional `?` | `scripts/check_sql_params.py` in `scripts/check.sh` |
 | No credentials committed | gitleaks in `scripts/check.sh` (history, staged, and unstaged changes; `.gitleaks.toml`) |
 | No real customer data committed | `.gitignore` for `.env`; otherwise prose only |
 | PRs target `main`, not another feature branch | prose only |
