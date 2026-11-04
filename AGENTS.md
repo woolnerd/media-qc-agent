@@ -95,12 +95,18 @@ Fill in the PR template. It asks which [guarantees](README.md#guarantees) the
 change affects, which tests challenge them, and what happens if execution stops
 halfway.
 
-Every PR gets an adversarial review of its current head commit, in a fresh
-context, using [the review prompt](.github/prompts/adversarial-review.md).
-Give the reviewer the issue, the diff, the base and head commits, and the
-guarantees, but not the author's claim that the change is correct. For
-consequential changes, review correctness, security, and maintainability as
-separate passes, and record any skipped pass with a reason.
+Every PR gets an adversarial review in a fresh context, using
+[the review prompt](.github/prompts/adversarial-review.md). Give the reviewer
+the issue, the diff, the base and head commits, and the guarantees, but not the
+author's claim that the change is correct. How much review depends on the files:
+
+- **Exempt files:** `README.md`, `AGENTS.md`, `CONTRIBUTING.md`, and `docs/`
+  except `docs/adr/`. A PR that changes only these gets one combined pass. Fixes
+  for its P3 findings don't need another review.
+- **Everything else,** including ADRs, `.github/`, scripts, tests, specs, and
+  source: review correctness, security, and maintainability as separate passes
+  for consequential changes, and record any skipped pass with a reason. Every
+  fix needs review, as described below.
 
 - Separate confirmed findings from hypotheses. A confirmed finding records its
   severity, the triggering sequence, the location, and a regression test where
@@ -122,14 +128,18 @@ separate passes, and record any skipped pass with a reason.
   and a reason to defer. A P3 needs a fix, or a note in the PR saying why it
   stays.
 - A review covers only the commit it saw. Fixes made afterwards need review
-  too.
+  too, unless they are P3 fixes to exempt files. A fix for a P0, P1, or P2
+  finding always gets a new review, whatever the file.
 - The PR description's "Reviewed head commit" line names the commit a review
-  covered (short or full SHA). Update it only after a review of the new head
-  commit; never set it to a commit no review has seen. The required
-  `review-head` check fails until the line matches the head, so a push without
-  a new review leaves the check failing, as intended. Editing the description
-  re-runs the check. It runs only on pull requests, so it is not in
-  `scripts/check.sh`.
+  covered (short or full SHA), with that SHA first on the line. Update it only
+  after a review of that commit; never set it to a commit no review has seen.
+  The required `review-head` check fails unless the line names the head, or
+  names a commit this PR added with only exempt files changed since. The check
+  can't tell a P3 fix from a larger edit, so list any such commit under
+  "Confirmed findings" in the PR, and the owner reads its diff before merging.
+  Merging `main` into the branch after a review needs a new review if `main`
+  brought in other files. Editing the description re-runs the check. It runs
+  only on pull requests, so it is not in `scripts/check.sh`.
 
 ## Documentation
 
@@ -176,7 +186,7 @@ review, as expected.
 | Prompt, schema, or default model changes need new live runs | `test_saved_runs_use_the_current_chat_prompt` in `tests/cli/test_baseline.py` |
 | Worker and completion guarantees hold beyond hand-written orderings | Hypothesis state machine `tests/workflow/test_submission_properties.py` and Quint model `specs/submission.qnt`, both in `scripts/check.sh` |
 | Paid live runs need the owner's approval | `require_paid_run_approval` in `agent/openrouter.py` (`MEDIA_QC_ALLOW_PAID=1`); agents never set it without the owner's approval in the current conversation |
-| Adversarial review covers the current head commit | `review-head` workflow, a required check on `main`, fails until the PR names its head commit (`scripts/review_head.py`); the owner checks the review itself |
+| Adversarial review covers the current head commit, apart from P3 fixes to exempt files | `review-head` workflow, a required check on `main`, fails unless the PR names its head commit or a commit it added with only exempt files changed since (`scripts/review_head.py`); the owner checks the review itself and that a follow-up fix was only P3 |
 | gitleaks in CI and Quint come from pinned, hash-checked sources (Python check tools are pinned without hashes) | SHA-256 check for gitleaks in `.github/workflows/ci.yml`; `npm ci --ignore-scripts` against `tools/quint/package-lock.json` and the backend guard in `scripts/check.sh` |
 | SQL uses named parameters, not positional `?` | `scripts/check_sql_params.py` in `scripts/check.sh`, for the SQL it recognises; otherwise prose only |
 | No credentials committed | gitleaks in `scripts/check.sh` (history, staged, and unstaged changes; `.gitleaks.toml`) |

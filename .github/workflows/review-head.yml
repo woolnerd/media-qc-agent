@@ -21,6 +21,8 @@ jobs:
       - name: Check out code
         uses: actions/checkout@v7
         with:
+          # The check compares the reviewed commit with the head.
+          fetch-depth: 0
           persist-credentials: false
       - name: Set up Python
         uses: actions/setup-python@v7
@@ -31,4 +33,5 @@ jobs:
         env:
           PR_BODY: ${{ github.event.pull_request.body }}
           HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
         run: python scripts/review_head.py

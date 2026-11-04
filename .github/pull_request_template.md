@@ -36,7 +36,7 @@ Name the mistake. Add to this as you work. Write "none" if there are none.
 
 Follow "Pull requests and review" in `AGENTS.md` and `.github/prompts/adversarial-review.md`.
 
-- Reviewed head commit and reviewer/context: <!-- start with the head SHA (7+ hex chars); the review-head check fails until it matches -->
+- Reviewed head commit and reviewer/context: <!-- start with the reviewed SHA (7+ hex chars); the review-head check fails unless it is the head, or only exempt files changed since (see AGENTS.md) -->
 - Correctness, security, maintainability passes completed or skipped with reason:
 - Confirmed findings, fixes, and regression evidence:
 - Unverified concerns / remaining risks and dispositions:
