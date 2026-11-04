@@ -15,7 +15,8 @@ claim production readiness.
 **Evidence** → **model diagnoses** → **policy validates** → **human approves** →
 **worker submits** → **lineage recorded**
 
-More diagrams (classes, tables, lineage, state machine, sequence) are in
+More diagrams (classes, tables, lineage, state machine, sequence, evaluation,
+observability) are in
 [docs/diagrams.md](docs/diagrams.md).
 
 Deterministic quality gates run first. A model interprets review feedback only
@@ -176,7 +177,7 @@ specs/        Quint model of the submission, lease, and completion protocol
 tools/quint/  Pinned Quint and its lockfile, installed by scripts/check.sh
 evals/        Synthetic cases and recorded results
 docs/adr/     Decisions, alternatives, and consequences
-docs/diagrams.md  Class, table, lineage, state, and sequence diagrams
+docs/diagrams.md  Class, table, lineage, state, sequence, eval, and telemetry diagrams
 ```
 
 Pictures of the models, tables, and run lifecycle are in
