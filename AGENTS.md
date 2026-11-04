@@ -156,12 +156,13 @@ When your change adds a rule, prefer an enforcer (architecture, type, lint,
 test, or CI check) over more prose. When an agent is corrected for breaking a
 rule, add or update its row here in the same change.
 
-A rule that would help other projects also belongs in `~/dotfiles`:
-`claude/CLAUDE.md` for how agents work everywhere, and `templates/guardrails/`
-for what new projects start with. When you add or change such a rule, update
-dotfiles in the same task, through a PR from a separate worktree, because
-`~/dotfiles` stays on `main`. If you can't tell whether it applies elsewhere,
-ask the owner.
+If `~/dotfiles` exists, a rule that would help other projects also belongs
+there: `claude/CLAUDE.md` for how agents work everywhere, and
+`templates/guardrails/` for what new projects start with. When you add or change
+such a rule, update dotfiles in the same task, through a PR from a separate
+worktree. `~/dotfiles` stays on `main`, and `~/.claude/CLAUDE.md` is a symlink
+into it, so never edit either directly. If you can't tell whether a rule applies
+elsewhere, ask the owner. Without `~/dotfiles`, skip this.
 
 If you notice that some other rule lacks an enforcer that would have caught a
 real or repeated mistake, don't ask about it, and don't build it unless the
