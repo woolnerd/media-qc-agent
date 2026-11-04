@@ -156,6 +156,13 @@ When your change adds a rule, prefer an enforcer (architecture, type, lint,
 test, or CI check) over more prose. When an agent is corrected for breaking a
 rule, add or update its row here in the same change.
 
+A rule that would help other projects also belongs in `~/dotfiles`:
+`claude/CLAUDE.md` for how agents work everywhere, and `templates/guardrails/`
+for what new projects start with. When you add or change such a rule, update
+dotfiles in the same task, through a PR from a separate worktree, because
+`~/dotfiles` stays on `main`. If you can't tell whether it applies elsewhere,
+ask the owner.
+
 If you notice that some other rule lacks an enforcer that would have caught a
 real or repeated mistake, don't ask about it, and don't build it unless the
 owner has told you to build it; keep working on your task. Add it under
@@ -180,6 +187,7 @@ review, as expected.
 | gitleaks in CI and Quint come from pinned, hash-checked sources (Python check tools are pinned without hashes) | SHA-256 check for gitleaks in `.github/workflows/ci.yml`; `npm ci --ignore-scripts` against `tools/quint/package-lock.json` and the backend guard in `scripts/check.sh` |
 | SQL uses named parameters, not positional `?` | `scripts/check_sql_params.py` in `scripts/check.sh`, for the SQL it recognises; otherwise prose only |
 | No credentials committed | gitleaks in `scripts/check.sh` (history, staged, and unstaged changes; `.gitleaks.toml`) |
+| Rules that would help other projects are copied to `~/dotfiles` | prose only |
 | No real customer data committed | `.gitignore` for `.env`; otherwise prose only |
 | PRs target `main`, not another feature branch | prose only |
 | An accepted ADR's choice, rejected alternatives, and system guarantees are superseded, not rewritten; outdated descriptions of how it is implemented or checked may be corrected in place with an `Amended in #<PR>` note in its Status | adversarial review of the amending PR, asked for in `.github/prompts/adversarial-review.md`; otherwise prose only |
