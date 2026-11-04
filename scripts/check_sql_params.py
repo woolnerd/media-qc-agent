@@ -1,8 +1,12 @@
 """Fail on SQL that uses positional `?` parameters instead of named ones.
 
-Recognises strings passed to `execute` or `executemany`, and any string that
-starts with an uppercase SQL keyword. SQL built up or held in another form,
-such as lowercase text in a variable, is not recognised.
+Recognises strings passed to `execute` or `executemany`, including ones joined
+with `+`, and any string that starts with SELECT, INSERT, UPDATE, DELETE,
+REPLACE, or WITH in uppercase.
+
+Limits: it misses SQL it can't recognise this way, such as lowercase text held
+in a variable, `%` formatting, and bytes. A `?` in a SQL comment or a
+double-quoted identifier is reported even though it isn't a parameter.
 """
 
 import ast
@@ -24,6 +28,9 @@ def _text(node: ast.AST) -> str | None:
         return node.value
     if isinstance(node, ast.JoinedStr):
         parts = (_text(value) for value in node.values)
+        return "".join(part for part in parts if part is not None)
+    if isinstance(node, ast.BinOp) and isinstance(node.op, ast.Add):
+        parts = (_text(side) for side in (node.left, node.right))
         return "".join(part for part in parts if part is not None)
     return None
 

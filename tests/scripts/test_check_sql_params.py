@@ -14,6 +14,7 @@ class PositionalQueryTests(unittest.TestCase):
             "lowercase": 'db.execute("select * from t where id = ?", (1,))',
             "held in a variable": 'query = "SELECT * FROM t WHERE id = ?"',
             "passed to a helper": 'self._row("SELECT * FROM t WHERE id = ?", 1)',
+            "joined with +": 'db.execute("SELECT * FROM t " + "WHERE id = ?", (1,))',
         }
         for name, source in sources.items():
             with self.subTest(name):
