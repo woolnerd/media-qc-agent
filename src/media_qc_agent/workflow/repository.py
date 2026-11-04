@@ -164,16 +164,23 @@ class WorkflowRepository:
                        id, status, clarification, observed_script_version_id,
                        observed_tts_input_version_id, observed_avatar_version_id,
                        observed_voice_version_id, active_video_version_id
-                   ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)""",
-                (
-                    run_id,
-                    WorkflowStatus.NEEDS_INPUT,
-                    _encode_clarification(decision)
+                   ) VALUES (
+                       :id, :status, :clarification, :script_version_id,
+                       :tts_input_version_id, :avatar_version_id,
+                       :voice_version_id, :video_version_id
+                   )""",
+                {
+                    "id": run_id,
+                    "status": WorkflowStatus.NEEDS_INPUT,
+                    "clarification": _encode_clarification(decision)
                     if isinstance(decision, ClarificationRequest)
                     else None,
-                    *(version for _, version in sources.dependencies()),
-                    video_version_id,
-                ),
+                    "script_version_id": sources.script_version_id,
+                    "tts_input_version_id": sources.tts_input_version_id,
+                    "avatar_version_id": sources.avatar_version_id,
+                    "voice_version_id": sources.voice_version_id,
+                    "video_version_id": video_version_id,
+                },
             )
             self._insert_finding(run_id, observed_id, finding, evidence)
             if isinstance(decision, RepairPlan):
@@ -197,32 +204,34 @@ class WorkflowRepository:
         self._connection.execute(
             """INSERT INTO quality_findings
                    (id, run_id, artifact_version_id, kind, explanation, confidence)
-               VALUES (?, ?, ?, ?, ?, ?)""",
-            (
-                finding_id,
-                run_id,
-                observed_id,
-                finding.kind,
-                finding.explanation,
-                finding.confidence,
-            ),
+               VALUES (:id, :run_id, :artifact_version_id, :kind, :explanation,
+                       :confidence)""",
+            {
+                "id": finding_id,
+                "run_id": run_id,
+                "artifact_version_id": observed_id,
+                "kind": finding.kind,
+                "explanation": finding.explanation,
+                "confidence": finding.confidence,
+            },
         )
         self._connection.executemany(
             """INSERT INTO quality_evidence
                    (id, finding_id, ordinal, role, artifact_version_id,
                     statement, observed, limit_value)
-               VALUES (?, ?, ?, ?, ?, ?, ?, ?)""",
+               VALUES (:id, :finding_id, :ordinal, :role, :artifact_version_id,
+                       :statement, :observed, :limit_value)""",
             (
-                (
-                    f"evidence-{run_id}-{index}",
-                    finding_id,
-                    index,
-                    item.role,
-                    item.artifact_version_id,
-                    item.statement,
-                    item.observed,
-                    item.limit,
-                )
+                {
+                    "id": f"evidence-{run_id}-{index}",
+                    "finding_id": finding_id,
+                    "ordinal": index,
+                    "role": item.role,
+                    "artifact_version_id": item.artifact_version_id,
+                    "statement": item.statement,
+                    "observed": item.observed,
+                    "limit_value": item.limit,
+                }
                 for index, item in enumerate(evidence, start=1)
             ),
         )
@@ -366,8 +375,8 @@ class WorkflowRepository:
             ):
                 raise ValueError("workflow has no submitted job to retry")
             self._connection.execute(
-                "UPDATE workflow_runs SET external_job_id = NULL WHERE id = ?",
-                (run_id,),
+                "UPDATE workflow_runs SET external_job_id = NULL WHERE id = :run_id",
+                {"run_id": run_id},
             )
             self._change_plan(
                 run_id,
@@ -434,14 +443,25 @@ class WorkflowRepository:
         )
         self._connection.execute(
             """INSERT INTO repair_plan_versions (id, run_id, revision, snapshot)
-               VALUES (?, ?, ?, ?)""",
-            (version_id, run_id, revision, encode_plan_version(version)),
+               VALUES (:id, :run_id, :revision, :snapshot)""",
+            {
+                "id": version_id,
+                "run_id": run_id,
+                "revision": revision,
+                "snapshot": encode_plan_version(version),
+            },
         )
         updated = self._connection.execute(
             f"""UPDATE workflow_runs
-                SET plan_version_id = ?, status = ?, clarification = NULL, {_TOUCH}
-                WHERE id = ? AND status = ?""",
-            (version_id, status, run_id, expected_status),
+                SET plan_version_id = :plan_version_id, status = :status,
+                    clarification = NULL, {_TOUCH}
+                WHERE id = :run_id AND status = :expected_status""",
+            {
+                "plan_version_id": version_id,
+                "status": status,
+                "run_id": run_id,
+                "expected_status": expected_status,
+            },
         )
         if updated.rowcount != 1:
             raise RuntimeError("workflow state changed during plan change")
@@ -462,8 +482,8 @@ class WorkflowRepository:
             self.artifacts.validate_tts_binding(current.sources)
             self._require_environment_resolved(current)
             self._connection.execute(
-                "INSERT INTO plan_approvals (plan_version_id) VALUES (?)",
-                (plan_version_id,),
+                "INSERT INTO plan_approvals (plan_version_id) VALUES (:plan_version_id)",
+                {"plan_version_id": plan_version_id},
             )
             self._set_status(run_id, WorkflowStatus.READY)
             approved = self.get(run_id)
@@ -548,24 +568,28 @@ class WorkflowRepository:
                 """INSERT INTO provider_jobs (
                        external_job_id, run_id, plan_version_id, idempotency_key,
                        traceparent
-                   ) VALUES (?, ?, ?, ?, ?)""",
-                (
-                    external_job_id,
-                    run_id,
-                    current.plan_version_id,
-                    current.idempotency_key,
-                    traceparent,
-                ),
+                   ) VALUES (
+                       :external_job_id, :run_id, :plan_version_id, :idempotency_key,
+                       :traceparent
+                   )""",
+                {
+                    "external_job_id": external_job_id,
+                    "run_id": run_id,
+                    "plan_version_id": current.plan_version_id,
+                    "idempotency_key": current.idempotency_key,
+                    "traceparent": traceparent,
+                },
             )
             updated = self._connection.execute(
-                f"""UPDATE workflow_runs SET status = ?, external_job_id = ?, {_TOUCH}
-                    WHERE id = ? AND status = ?""",
-                (
-                    WorkflowStatus.SUBMITTED,
-                    external_job_id,
-                    run_id,
-                    WorkflowStatus.SUBMITTING,
-                ),
+                f"""UPDATE workflow_runs
+                    SET status = :status, external_job_id = :external_job_id, {_TOUCH}
+                    WHERE id = :run_id AND status = :expected_status""",
+                {
+                    "status": WorkflowStatus.SUBMITTED,
+                    "external_job_id": external_job_id,
+                    "run_id": run_id,
+                    "expected_status": WorkflowStatus.SUBMITTING,
+                },
             )
             if updated.rowcount != 1:
                 raise RuntimeError("workflow state changed during provider submission")
@@ -578,8 +602,8 @@ class WorkflowRepository:
 
         started = self._observer.clock()
         row = self._connection.execute(
-            "SELECT traceparent FROM provider_jobs WHERE external_job_id = ?",
-            (external_job_id,),
+            "SELECT traceparent FROM provider_jobs WHERE external_job_id = :external_job_id",
+            {"external_job_id": external_job_id},
         ).fetchone()
         with completion_span(
             self._observer.tracer,
@@ -629,14 +653,17 @@ class WorkflowRepository:
                 """INSERT OR IGNORE INTO provider_events (
                        external_event_id, external_job_id, event_type, result_status,
                        disposition, reason
-                   ) VALUES (?, ?, 'completed', ?, ?, ?)""",
-                (
-                    external_event_id,
-                    external_job_id,
-                    WorkflowStatus.SUCCEEDED,
-                    disposition,
-                    reason,
-                ),
+                   ) VALUES (
+                       :external_event_id, :external_job_id, 'completed', :result_status,
+                       :disposition, :reason
+                   )""",
+                {
+                    "external_event_id": external_event_id,
+                    "external_job_id": external_job_id,
+                    "result_status": WorkflowStatus.SUCCEEDED,
+                    "disposition": disposition,
+                    "reason": reason,
+                },
             )
             if inserted.rowcount == 0:
                 if self.get_provider_event(external_event_id).external_job_id != (
@@ -652,15 +679,17 @@ class WorkflowRepository:
         generated_id = video_version_id(job.external_job_id)
         self.artifacts.insert_video(generated_id, job.sources, job.external_job_id)
         updated = self._connection.execute(
-            f"""UPDATE workflow_runs SET status = ?, active_video_version_id = ?, {_TOUCH}
-                WHERE id = ? AND status = ? AND external_job_id = ?""",
-            (
-                WorkflowStatus.SUCCEEDED,
-                generated_id,
-                job.run_id,
-                WorkflowStatus.SUBMITTED,
-                job.external_job_id,
-            ),
+            f"""UPDATE workflow_runs
+                SET status = :status, active_video_version_id = :video_version_id, {_TOUCH}
+                WHERE id = :run_id AND status = :expected_status
+                AND external_job_id = :external_job_id""",
+            {
+                "status": WorkflowStatus.SUCCEEDED,
+                "video_version_id": generated_id,
+                "run_id": job.run_id,
+                "expected_status": WorkflowStatus.SUBMITTED,
+                "external_job_id": job.external_job_id,
+            },
         )
         if updated.rowcount != 1:
             raise RuntimeError("workflow state changed during provider completion")
@@ -697,15 +726,17 @@ class WorkflowRepository:
             )
             updated = self._connection.execute(
                 f"""UPDATE workflow_runs
-                    SET status = ?, active_caption_version_id = ?, {_TOUCH}
-                    WHERE id = ? AND status = ? AND active_video_version_id = ?""",
-                (
-                    WorkflowStatus.SUCCEEDED,
-                    version_id,
-                    run_id,
-                    WorkflowStatus.READY,
-                    run.active_video_version_id,
-                ),
+                    SET status = :status, active_caption_version_id = :caption_version_id,
+                        {_TOUCH}
+                    WHERE id = :run_id AND status = :expected_status
+                    AND active_video_version_id = :video_version_id""",
+                {
+                    "status": WorkflowStatus.SUCCEEDED,
+                    "caption_version_id": version_id,
+                    "run_id": run_id,
+                    "expected_status": WorkflowStatus.READY,
+                    "video_version_id": run.active_video_version_id,
+                },
             )
             if updated.rowcount != 1:
                 raise RuntimeError("workflow state changed during caption repair")
@@ -725,15 +756,15 @@ class WorkflowRepository:
 
     def _set_status(self, run_id: str, status: WorkflowStatus) -> None:
         self._connection.execute(
-            f"UPDATE workflow_runs SET status = ?, {_TOUCH} WHERE id = ?",
-            (status, run_id),
+            f"UPDATE workflow_runs SET status = :status, {_TOUCH} WHERE id = :run_id",
+            {"status": status, "run_id": run_id},
         )
 
     # Reads
 
     def get(self, run_id: str) -> WorkflowRun:
         row = self._connection.execute(
-            "SELECT * FROM workflow_runs WHERE id = ?", (run_id,)
+            "SELECT * FROM workflow_runs WHERE id = :run_id", {"run_id": run_id}
         ).fetchone()
         if row is None:
             raise KeyError(run_id)
@@ -773,8 +804,8 @@ class WorkflowRepository:
     def get_plan_versions(self, run_id: str) -> tuple[RepairPlanVersion, ...]:
         rows = self._connection.execute(
             """SELECT snapshot, created_at FROM repair_plan_versions
-               WHERE run_id = ? ORDER BY revision""",
-            (run_id,),
+               WHERE run_id = :run_id ORDER BY revision""",
+            {"run_id": run_id},
         ).fetchall()
         return tuple(
             decode_plan_version(row["snapshot"], row["created_at"]) for row in rows
@@ -782,8 +813,8 @@ class WorkflowRepository:
 
     def get_plan_version(self, version_id: str) -> RepairPlanVersion:
         row = self._connection.execute(
-            "SELECT snapshot, created_at FROM repair_plan_versions WHERE id = ?",
-            (version_id,),
+            "SELECT snapshot, created_at FROM repair_plan_versions WHERE id = :version_id",
+            {"version_id": version_id},
         ).fetchone()
         if row is None:
             raise KeyError(version_id)
@@ -791,14 +822,14 @@ class WorkflowRepository:
 
     def get_plan_approval(self, plan_version_id: str) -> PlanApproval | None:
         row = self._connection.execute(
-            "SELECT * FROM plan_approvals WHERE plan_version_id = ?",
-            (plan_version_id,),
+            "SELECT * FROM plan_approvals WHERE plan_version_id = :plan_version_id",
+            {"plan_version_id": plan_version_id},
         ).fetchone()
         return PlanApproval(row["plan_version_id"], row["created_at"]) if row else None
 
     def get_quality_finding(self, run_id: str) -> QualityFindingRecord:
         row = self._connection.execute(
-            "SELECT * FROM quality_findings WHERE run_id = ?", (run_id,)
+            "SELECT * FROM quality_findings WHERE run_id = :run_id", {"run_id": run_id}
         ).fetchone()
         if row is None:
             raise KeyError(run_id)
@@ -814,8 +845,8 @@ class WorkflowRepository:
 
     def get_quality_evidence(self, finding_id: str) -> tuple[EvidenceRecord, ...]:
         rows = self._connection.execute(
-            "SELECT * FROM quality_evidence WHERE finding_id = ? ORDER BY ordinal",
-            (finding_id,),
+            "SELECT * FROM quality_evidence WHERE finding_id = :finding_id ORDER BY ordinal",
+            {"finding_id": finding_id},
         ).fetchall()
         return tuple(
             EvidenceRecord(
@@ -835,8 +866,8 @@ class WorkflowRepository:
         """A job's sources and action are those of the plan version it ran."""
 
         row = self._connection.execute(
-            "SELECT * FROM provider_jobs WHERE external_job_id = ?",
-            (external_job_id,),
+            "SELECT * FROM provider_jobs WHERE external_job_id = :external_job_id",
+            {"external_job_id": external_job_id},
         ).fetchone()
         if row is None:
             raise KeyError(external_job_id)
@@ -853,16 +884,16 @@ class WorkflowRepository:
 
     def list_provider_jobs(self, run_id: str) -> tuple[ProviderJob, ...]:
         rows = self._connection.execute(
-            """SELECT external_job_id FROM provider_jobs WHERE run_id = ?
+            """SELECT external_job_id FROM provider_jobs WHERE run_id = :run_id
                ORDER BY created_at, external_job_id""",
-            (run_id,),
+            {"run_id": run_id},
         ).fetchall()
         return tuple(self.get_provider_job(row[0]) for row in rows)
 
     def get_provider_event(self, external_event_id: str) -> ProviderEvent:
         row = self._connection.execute(
-            "SELECT * FROM provider_events WHERE external_event_id = ?",
-            (external_event_id,),
+            "SELECT * FROM provider_events WHERE external_event_id = :external_event_id",
+            {"external_event_id": external_event_id},
         ).fetchone()
         if row is None:
             raise KeyError(external_event_id)
@@ -880,8 +911,8 @@ class WorkflowRepository:
         rows = self._connection.execute(
             """SELECT e.external_event_id FROM provider_events e
                JOIN provider_jobs j ON j.external_job_id = e.external_job_id
-               WHERE j.run_id = ? ORDER BY e.created_at, e.external_event_id""",
-            (run_id,),
+               WHERE j.run_id = :run_id ORDER BY e.created_at, e.external_event_id""",
+            {"run_id": run_id},
         ).fetchall()
         return tuple(self.get_provider_event(row[0]) for row in rows)
 
@@ -889,8 +920,9 @@ class WorkflowRepository:
         rows = self._connection.execute(
             """SELECT v.id FROM artifact_versions v
                JOIN provider_jobs j ON j.external_job_id = v.external_job_id
-               WHERE j.run_id = ? AND v.kind = 'video' ORDER BY v.created_at, v.id""",
-            (run_id,),
+               WHERE j.run_id = :run_id AND v.kind = 'video'
+               ORDER BY v.created_at, v.id""",
+            {"run_id": run_id},
         ).fetchall()
         return tuple(self.artifacts.get(row[0]) for row in rows)
 
@@ -900,16 +932,17 @@ class WorkflowRepository:
         self.get(run_id)
         row = self._connection.execute(
             """SELECT
-                (SELECT COUNT(*) FROM provider_jobs WHERE run_id = ?) AS jobs,
+                (SELECT COUNT(*) FROM provider_jobs WHERE run_id = :run_id) AS jobs,
                 (SELECT COUNT(DISTINCT e.external_job_id) FROM provider_events e
                     JOIN provider_jobs j ON j.external_job_id = e.external_job_id
-                    WHERE j.run_id = ?) AS completed_jobs,
+                    WHERE j.run_id = :run_id) AS completed_jobs,
                 (SELECT COUNT(*) FROM provider_events e JOIN provider_jobs j
-                    ON j.external_job_id = e.external_job_id WHERE j.run_id = ?) AS events,
+                    ON j.external_job_id = e.external_job_id
+                    WHERE j.run_id = :run_id) AS events,
                 (SELECT COUNT(*) FROM artifact_versions v JOIN provider_jobs j
-                    ON j.external_job_id = v.external_job_id WHERE j.run_id = ?
+                    ON j.external_job_id = v.external_job_id WHERE j.run_id = :run_id
                     AND v.kind = 'video') AS replacements""",
-            (run_id, run_id, run_id, run_id),
+            {"run_id": run_id},
         ).fetchone()
         return {
             "recorded_provider_jobs": row["jobs"],
@@ -924,12 +957,12 @@ class WorkflowRepository:
         job = self.get_provider_job(external_job_id)
         approval = self.get_plan_approval(job.plan_version_id)
         completed = self._connection.execute(
-            "SELECT MIN(created_at) FROM provider_events WHERE external_job_id = ?",
-            (external_job_id,),
+            "SELECT MIN(created_at) FROM provider_events WHERE external_job_id = :external_job_id",
+            {"external_job_id": external_job_id},
         ).fetchone()
         claim = self._connection.execute(
-            "SELECT first_claimed_at FROM worker_attempts WHERE plan_version_id = ?",
-            (job.plan_version_id,),
+            "SELECT first_claimed_at FROM worker_attempts WHERE plan_version_id = :plan_version_id",
+            {"plan_version_id": job.plan_version_id},
         ).fetchone()
         return job_timing(
             approval.created_at if approval else None,

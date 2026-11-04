@@ -137,6 +137,7 @@ run compileall -q src tests scripts
 run ruff check src tests scripts
 run ruff format --check src tests scripts
 run mypy src tests scripts
+run scripts.check_sql_params
 run unittest discover -s tests -t .
 install_quint
 check_quint_guard

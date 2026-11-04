@@ -3,7 +3,7 @@
 import sqlite3
 import time
 from collections.abc import Callable
-from dataclasses import astuple
+from dataclasses import asdict, astuple
 from typing import TYPE_CHECKING
 
 from media_qc_agent.domain.ids import validate_run_id
@@ -24,9 +24,16 @@ def require_lease(
     if lease is None:
         return
     row = connection.execute(
-        """SELECT 1 FROM worker_attempts WHERE plan_version_id = ? AND run_id = ?
-           AND lease_owner = ? AND attempts = ? AND lease_until > ?""",
-        (lease.plan_version_id, lease.run_id, lease.owner, lease.attempt, now),
+        """SELECT 1 FROM worker_attempts
+           WHERE plan_version_id = :plan_version_id AND run_id = :run_id
+           AND lease_owner = :owner AND attempts = :attempt AND lease_until > :now""",
+        {
+            "plan_version_id": lease.plan_version_id,
+            "run_id": lease.run_id,
+            "owner": lease.owner,
+            "attempt": lease.attempt,
+            "now": now,
+        },
     ).fetchone()
     if row is None:
         raise LeaseLost("submission lease expired or belongs to another attempt")
@@ -90,8 +97,11 @@ class SubmissionQueue:
         with self.connection:
             self.connection.execute("BEGIN IMMEDIATE")
             self.connection.execute(
-                "INSERT OR IGNORE INTO worker_policy VALUES (1, ?, ?, ?, ?, ?)",
-                astuple(self.policy),
+                """INSERT OR IGNORE INTO worker_policy VALUES (
+                     1, :max_in_flight, :max_attempts, :lease_seconds,
+                     :backoff_seconds, :max_backoff_seconds
+                   )""",
+                asdict(self.policy),
             )
             row = self.connection.execute(
                 "SELECT * FROM worker_policy WHERE id = 1"
@@ -128,8 +138,8 @@ class SubmissionQueue:
             self._record_claim(lease)
             self.connection.execute(
                 """UPDATE workflow_runs SET status = 'submitting',
-                   updated_at = strftime('%Y-%m-%dT%H:%M:%fZ', 'now') WHERE id = ?""",
-                (current.id,),
+                   updated_at = strftime('%Y-%m-%dT%H:%M:%fZ', 'now') WHERE id = :run_id""",
+                {"run_id": current.id},
             )
             return lease
 
@@ -145,42 +155,42 @@ class SubmissionQueue:
             LEFT JOIN worker_attempts w ON w.plan_version_id = p.id
             WHERE r.status IN ('ready', 'submitting')
               AND json_extract(p.snapshot, '$.plan.action') <> 'repair_captions'
-              AND (? IS NULL OR r.id = ?) AND (? IS NULL OR p.id = ?)
-              AND coalesce(w.stopped, 0) = 0 AND coalesce(w.attempts, 0) < ?
-              AND coalesce(w.next_attempt_at, 0) <= ?
-              AND (w.lease_until IS NULL OR w.lease_until <= ?)
-              AND (r.status = 'submitting' OR ? < ?)
+              AND (:run_id IS NULL OR r.id = :run_id)
+              AND (:plan_version_id IS NULL OR p.id = :plan_version_id)
+              AND coalesce(w.stopped, 0) = 0
+              AND coalesce(w.attempts, 0) < :max_attempts
+              AND coalesce(w.next_attempt_at, 0) <= :now
+              AND (w.lease_until IS NULL OR w.lease_until <= :now)
+              AND (r.status = 'submitting' OR :outstanding < :max_in_flight)
             ORDER BY CASE r.status WHEN 'submitting' THEN 0 ELSE 1 END, r.created_at, r.id
             LIMIT 1
             """,
-            (
-                run_id,
-                run_id,
-                expected_plan_version_id,
-                expected_plan_version_id,
-                self.policy.max_attempts,
-                now,
-                now,
-                outstanding_capacity(self.connection),
-                self.policy.max_in_flight,
-            ),
+            {
+                "run_id": run_id,
+                "plan_version_id": expected_plan_version_id,
+                "max_attempts": self.policy.max_attempts,
+                "now": now,
+                "outstanding": outstanding_capacity(self.connection),
+                "max_in_flight": self.policy.max_in_flight,
+            },
         ).fetchone()
 
     def _record_claim(self, lease: SubmissionLease) -> None:
         self.connection.execute(
             """INSERT INTO worker_attempts
                  (plan_version_id, run_id, attempts, lease_owner, lease_until, first_claimed_at)
-               VALUES (?, ?, ?, ?, ?, strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))
+               VALUES (:plan_version_id, :run_id, :attempt, :owner, :expires_at,
+                       strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))
                ON CONFLICT(plan_version_id) DO UPDATE SET
                  attempts = excluded.attempts, lease_owner = excluded.lease_owner,
                  lease_until = excluded.lease_until, error_type = NULL""",
-            (
-                lease.plan_version_id,
-                lease.run_id,
-                lease.attempt,
-                lease.owner,
-                lease.expires_at,
-            ),
+            {
+                "plan_version_id": lease.plan_version_id,
+                "run_id": lease.run_id,
+                "attempt": lease.attempt,
+                "owner": lease.owner,
+                "expires_at": lease.expires_at,
+            },
         )
 
     def finish(self, lease: SubmissionLease) -> None:
@@ -188,8 +198,9 @@ class SubmissionQueue:
             self.connection.execute("BEGIN IMMEDIATE")
             require_lease(self.connection, lease, self.clock())
             self.connection.execute(
-                "UPDATE worker_attempts SET lease_owner = NULL, lease_until = NULL WHERE plan_version_id = ?",
-                (lease.plan_version_id,),
+                """UPDATE worker_attempts SET lease_owner = NULL, lease_until = NULL
+                   WHERE plan_version_id = :plan_version_id""",
+                {"plan_version_id": lease.plan_version_id},
             )
 
     def fail(self, lease: SubmissionLease, error: Exception, *, retryable: bool) -> str:
@@ -200,12 +211,13 @@ class SubmissionQueue:
             require_lease(self.connection, lease, now)
             self.connection.execute(
                 """UPDATE worker_attempts SET lease_owner = NULL, lease_until = NULL,
-                   next_attempt_at = ?, stopped = ?, error_type = ? WHERE plan_version_id = ?""",
-                (
-                    now + self.policy.retry_delay(lease.attempt),
-                    stopped,
-                    type(error).__name__,
-                    lease.plan_version_id,
-                ),
+                   next_attempt_at = :next_attempt_at, stopped = :stopped,
+                   error_type = :error_type WHERE plan_version_id = :plan_version_id""",
+                {
+                    "next_attempt_at": now + self.policy.retry_delay(lease.attempt),
+                    "stopped": stopped,
+                    "error_type": type(error).__name__,
+                    "plan_version_id": lease.plan_version_id,
+                },
             )
         return "stopped" if stopped else "retry_wait"

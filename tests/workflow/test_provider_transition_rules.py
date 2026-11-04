@@ -108,8 +108,8 @@ class ProviderTransitionRuleTests(unittest.TestCase):
         self.assertEqual(self.connection.total_changes, changes_after_first)
         self.assertEqual(
             self.connection.execute(
-                "SELECT COUNT(*) FROM artifact_versions WHERE kind = ? AND external_job_id IS NOT NULL",
-                (ArtifactKind.VIDEO,),
+                "SELECT COUNT(*) FROM artifact_versions WHERE kind = :kind AND external_job_id IS NOT NULL",
+                {"kind": ArtifactKind.VIDEO},
             ).fetchone()[0],
             1,
         )
@@ -117,8 +117,8 @@ class ProviderTransitionRuleTests(unittest.TestCase):
     def test_impossible_transition_records_reason_without_video(self) -> None:
         job_id = self.submit()
         self.connection.execute(
-            "UPDATE workflow_runs SET status = ? WHERE id = ?",
-            (WorkflowStatus.READY, "run-1"),
+            "UPDATE workflow_runs SET status = :status WHERE id = :run_id",
+            {"status": WorkflowStatus.READY, "run_id": "run-1"},
         )
         self.connection.commit()
 
