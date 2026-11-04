@@ -18,9 +18,13 @@ LINE = re.compile(rf"^[ \t]*[-*][ \t]*{re.escape(LABEL)}:(.*)$", re.MULTILINE)
 # The template's own hint is a comment, and an unclosed one hides the rest.
 COMMENT = re.compile(r"<!--.*?(?:-->|\Z)", re.DOTALL)
 SHA = re.compile(r"\b[0-9a-f]{7,40}\b", re.IGNORECASE)
-# Prose that can take a minor fix after its review. ADRs and everything under
-# .github/ stay out: a late edit could change a decision or the reviewer's brief.
+# Prose that can take a minor fix after its review; AGENTS.md states the same
+# list. ADRs and everything under .github/ stay out: a late edit could change a
+# decision or the reviewer's brief.
 EXEMPT_FILES = frozenset({"AGENTS.md", "CONTRIBUTING.md", "README.md"})
+# Regular files only: "000000" is the side where a file doesn't exist. A link or
+# executable at an exempt path isn't prose.
+REGULAR_MODES = frozenset({"000000", "100644"})
 
 
 def review_items(body: str) -> list[str]:
@@ -50,7 +54,7 @@ def review_head_error(body: str, head_sha: str) -> str | None:
 def is_exempt(path: str) -> bool:
     if path in EXEMPT_FILES:
         return True
-    return path.startswith("docs/") and not path.startswith("docs/adr/")
+    return path.startswith("docs/") and not path.lower().startswith("docs/adr/")
 
 
 def reviewed_commit(body: str) -> str | None:
@@ -61,17 +65,27 @@ def reviewed_commit(body: str) -> str | None:
     return shas[0].lower() if shas else None
 
 
-def follow_up_problem(added_by_pr: bool, paths: list[str]) -> str | None:
-    if not added_by_pr:
-        return "That commit is not one this PR added."
-    blocked = [path for path in paths if not is_exempt(path)]
-    if blocked:
-        return f"Files changed since then need a new review: {', '.join(blocked)}."
-    return None
+def parse_raw_diff(raw: str) -> list[tuple[str, str]]:
+    """Pair each "git diff --raw -z" status with its path."""
+
+    fields = raw.split("\0")
+    return list(zip(fields[0::2], fields[1::2], strict=False))
+
+
+def needs_review(status: str, path: str) -> bool:
+    modes = status.removeprefix(":").split()[:2]
+    return not is_exempt(path) or not REGULAR_MODES.issuperset(modes)
 
 
 def git(*args: str) -> subprocess.CompletedProcess[str]:
     return subprocess.run(["git", *args], capture_output=True, text=True, check=False)
+
+
+def resolve_commit(sha: str) -> str | None:
+    """Return the one object a SHA abbreviates, never a ref with the same name."""
+
+    objects = git("rev-parse", f"--disambiguate={sha}").stdout.split()
+    return objects[0] if len(objects) == 1 else None
 
 
 def is_added_by_pr(commit: str, head: str, base: str) -> bool:
@@ -81,13 +95,37 @@ def is_added_by_pr(commit: str, head: str, base: str) -> bool:
     return in_head and git("merge-base", "--is-ancestor", commit, base).returncode == 1
 
 
-def changed_paths(commit: str, head: str) -> list[str]:
+def changed_files(commit: str, head: str) -> list[tuple[str, str]]:
     """List both sides of a rename, so moving code into docs/ still counts."""
 
-    diff = git("diff", "--name-only", "--no-renames", "-z", commit, head, "--")
+    diff = git(
+        "diff",
+        "--raw",
+        "--no-renames",
+        "--no-abbrev",
+        "--ignore-submodules=none",
+        "-z",
+        commit,
+        head,
+        "--",
+    )
     if diff.returncode != 0:
         raise RuntimeError(diff.stderr)
-    return [path for path in diff.stdout.split("\0") if path]
+    return parse_raw_diff(diff.stdout)
+
+
+def follow_up_problem(sha: str, head: str, base: str) -> str | None:
+    commit = resolve_commit(sha)
+    if commit is None:
+        return f"{sha} doesn't identify exactly one object."
+    if not is_added_by_pr(commit, head, base):
+        return f"{sha} isn't a commit this PR added, or git couldn't compare it."
+    changes = changed_files(commit, head)
+    blocked = [path for status, path in changes if needs_review(status, path)]
+    if blocked:
+        return f"Files changed since {sha} need a new review: {', '.join(blocked)}."
+    print(f"Unreviewed exempt files: {[path for _, path in changes]}")
+    return None
 
 
 def main() -> int:
@@ -97,13 +135,11 @@ def main() -> int:
     if error is None:
         print(f"Review covers head commit {head[:7]}.")
         return 0
-    commit = reviewed_commit(body)
-    if commit:
-        added = is_added_by_pr(commit, head, os.environ.get("BASE_SHA", ""))
-        paths = changed_paths(commit, head) if added else []
-        problem = follow_up_problem(added, paths)
+    sha = reviewed_commit(body)
+    if sha:
+        problem = follow_up_problem(sha, head, os.environ.get("BASE_SHA", ""))
         if problem is None:
-            print(f"Review of {commit[:7]} covers {head[:7]}; unreviewed: {paths}")
+            print(f"Review of {sha[:7]} covers {head[:7]}.")
             return 0
         error = f"{error} {problem}"
     print(error, file=sys.stderr)

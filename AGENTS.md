@@ -101,12 +101,13 @@ the issue, the diff, the base and head commits, and the guarantees, but not the
 author's claim that the change is correct. How much review depends on the files:
 
 - **Exempt files:** `README.md`, `AGENTS.md`, `CONTRIBUTING.md`, and `docs/`
-  except `docs/adr/`. A PR that changes only these gets one combined pass. Fixes
-  for its P3 findings don't need another review.
+  except `docs/adr/`, as regular files (`is_exempt` in `scripts/review_head.py`
+  holds the same list). A PR that changes only these gets one combined pass. In
+  any PR, P3 fixes to these files don't need another review.
 - **Everything else,** including ADRs, `.github/`, scripts, tests, specs, and
   source: review correctness, security, and maintainability as separate passes
   for consequential changes, and record any skipped pass with a reason. Every
-  fix needs review, as described below.
+  fix to these files needs review.
 
 - Separate confirmed findings from hypotheses. A confirmed finding records its
   severity, the triggering sequence, the location, and a regression test where

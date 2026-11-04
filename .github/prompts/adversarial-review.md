@@ -43,6 +43,8 @@ finding quota, or turn style preferences into correctness blockers.
 - Remaining limitations and a concise verdict. If no blockers were found, say
   "No confirmed blockers found" rather than claiming the code is safe.
 
-After an author fixes a finding, inspect the changed implementation and the
-regression test. Report whether the original reproduction is resolved at the
+A PR that changes only exempt files gets one combined pass, and P3 fixes to
+exempt files aren't re-reviewed (see "Pull requests and review" in `AGENTS.md`).
+Otherwise, after an author fixes a finding, inspect the changed implementation
+and the regression test. Report whether the original reproduction is resolved at the
 new head commit. Never approve commits you have not considered.

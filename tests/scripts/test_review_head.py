@@ -4,8 +4,9 @@ import sys
 import tempfile
 import unittest
 from pathlib import Path
+from unittest import mock
 
-from scripts.review_head import is_exempt, review_head_error
+from scripts.review_head import is_exempt, resolve_commit, review_head_error
 
 GATE = Path(__file__).resolve().parents[2] / "scripts" / "review_head.py"
 
@@ -136,9 +137,18 @@ class ExemptPathTests(unittest.TestCase):
             "tests/README.md",
             "src/README.md",
             "docs.md",
+            "docs/ADR/0029-check.md",
         ):
             with self.subTest(path=path):
                 self.assertFalse(is_exempt(path))
+
+
+class ResolveCommitTests(unittest.TestCase):
+    def test_a_sha_abbreviating_two_objects_resolves_to_nothing(self) -> None:
+        # A real 7-character collision is too slow to create in a test.
+        listing = subprocess.CompletedProcess([], 0, stdout="abc\ndef\n", stderr="")
+        with mock.patch("scripts.review_head.git", return_value=listing):
+            self.assertIsNone(resolve_commit("abcdef0"))
 
 
 class FollowUpCommitTests(unittest.TestCase):
@@ -258,6 +268,51 @@ class FollowUpCommitTests(unittest.TestCase):
         head = self.commit("README.md")
         named = f"{self.reviewed}, first review; later note on {docs}"
         self.assertEqual(self.gate(named, head), 1)
+
+    def test_a_ref_named_like_the_reviewed_sha_cannot_replace_it(self) -> None:
+        self.commit("src/app.py")
+        head = self.commit("README.md")
+        short = self.reviewed[:7]
+        for kind in ("heads", "tags"):
+            with self.subTest(kind=kind):
+                self.git("update-ref", f"refs/{kind}/{short}", head)
+                self.assertEqual(self.gate(short, head), 1)
+                self.git("update-ref", "-d", f"refs/{kind}/{short}")
+
+    def test_a_submodule_bump_fails_even_when_gitmodules_ignores_it(self) -> None:
+        (self.repo / ".gitmodules").write_text(
+            '[submodule "vendor"]\n\tpath = vendor\n\turl = ./x\n\tignore = all\n'
+        )
+        self.git("add", ".gitmodules")
+        self.git("update-index", "--add", "--cacheinfo", f"160000,{self.base},vendor")
+        self.git("commit", "-q", "-m", "add submodule")
+        reviewed = self.git("rev-parse", "HEAD")
+        self.git("update-index", "--cacheinfo", f"160000,{reviewed},vendor")
+        self.git("commit", "-q", "-m", "bump submodule")
+        self.assertEqual(self.gate(reviewed, self.git("rev-parse", "HEAD")), 1)
+
+    def test_a_link_or_executable_at_an_exempt_path_fails(self) -> None:
+        for mode, path in (
+            ("120000", "AGENTS.md"),
+            ("160000", "docs/sub"),
+            ("100755", "docs/run.md"),
+        ):
+            with self.subTest(path=path):
+                self.git("reset", "-q", "--hard", self.reviewed)
+                self.git(
+                    "update-index", "--add", "--cacheinfo", f"{mode},{self.base},{path}"
+                )
+                self.git("commit", "-q", "-m", "special file")
+                self.assertEqual(
+                    self.gate(self.reviewed, self.git("rev-parse", "HEAD")), 1
+                )
+
+    def test_merging_main_that_changed_only_exempt_files_passes(self) -> None:
+        self.git("checkout", "-q", "main")
+        self.base = self.commit("AGENTS.md")
+        self.git("checkout", "-q", "feature")
+        self.git("merge", "-q", "--no-edit", "main")
+        self.assertEqual(self.gate(self.reviewed, self.git("rev-parse", "HEAD")), 0)
 
     def test_merging_main_after_the_review_needs_a_new_review(self) -> None:
         self.git("checkout", "-q", "main")
